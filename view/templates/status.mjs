@@ -1,6 +1,11 @@
 export const renderStatus = ({ turn, status, mustMovePiece, cfg, pieceCounts, isAIThinking }) => {
+  const WINNER_TEXT = {
+    white_wins: '🎉 ฝ่ายขาวชนะ! 🎉',
+    black_wins: '🎉 ฝ่ายดำชนะ! 🎉',
+    draw: 'เสมอ!',
+  };
   const over = status !== 'playing';
-  const winner = status === 'white_wins' ? '🎉 ฝ่ายขาวชนะ! 🎉' : status === 'black_wins' ? '🎉 ฝ่ายดำชนะ! 🎉' : 'เสมอ!';
+  const winner = WINNER_TEXT[status] ?? WINNER_TEXT.draw;
 
   return `
     <div class="flex items-center justify-between mb-4">

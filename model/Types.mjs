@@ -3,21 +3,21 @@
 // ============================================
 
 /** Initial board setup */
-export const INITIAL_BOARD = [
-  [0, -1, 0, -1, 0, -1, 0, -1],
-  [-1, 0, -1, 0, -1, 0, -1, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 0, 1, 0, 1, 0, 1],
-  [1, 0, 1, 0, 1, 0, 1, 0]
-];
+export const INITIAL_BOARD = Object.freeze([
+  Object.freeze([0, -1, 0, -1, 0, -1, 0, -1]),
+  Object.freeze([-1, 0, -1, 0, -1, 0, -1, 0]),
+  Object.freeze([0, 0, 0, 0, 0, 0, 0, 0]),
+  Object.freeze([0, 0, 0, 0, 0, 0, 0, 0]),
+  Object.freeze([0, 0, 0, 0, 0, 0, 0, 0]),
+  Object.freeze([0, 0, 0, 0, 0, 0, 0, 0]),
+  Object.freeze([0, 1, 0, 1, 0, 1, 0, 1]),
+  Object.freeze([1, 0, 1, 0, 1, 0, 1, 0])
+]);
 
 /** Default game config */
-export const DEFAULT_CONFIG = {
+export const DEFAULT_CONFIG = Object.freeze({
   whiteIsAI: false,
   blackIsAI: false,
   aiDifficulty: 'medium',
   animationSpeed: 300
-};
+});

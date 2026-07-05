@@ -92,28 +92,21 @@ export class MoveEngine {
    * Respects must-move-piece constraint (for multi-capture chains).
    */
   static getAllValidMoves(board, player, mustMovePiece = null) {
-    const allMoves = [];
-    let hasCapture = false;
-
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        if (Math.sign(board[r][c]) !== player) continue;
-        if (mustMovePiece && (r !== mustMovePiece.r || c !== mustMovePiece.c)) continue;
-
+    const allMoves = board
+      .flatMap((row, r) => row.map((piece, c) => ({ r, c, piece })))
+      .filter(({ r, c, piece }) =>
+        Math.sign(piece) === player &&
+        (!mustMovePiece || (r === mustMovePiece.r && c === mustMovePiece.c))
+      )
+      .flatMap(({ r, c }) => {
         const { walks, captures } = this.getMovesForPiece(board, r, c);
+        return [...walks, ...captures];
+      });
 
-        if (captures.length > 0) {
-          hasCapture = true;
-          allMoves.push(...captures);
-        } else if (!hasCapture) {
-          allMoves.push(...walks);
-        }
-      }
-    }
+    const { true: captures = [], false: walks = [] } = Object.groupBy(allMoves, m => m.isCapture);
 
     // Forced capture rule
-    if (hasCapture) return allMoves.filter(m => m.isCapture);
-    return allMoves;
+    return captures.length > 0 ? captures : walks;
   }
 
   /**
@@ -160,16 +153,9 @@ export class MoveEngine {
 
   /** Count pieces for a player */
   static countPieces(board, player) {
-    let pawns = 0, dames = 0;
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        if (Math.sign(board[r][c]) === player) {
-          if (Math.abs(board[r][c]) === 2) dames++;
-          else pawns++;
-        }
-      }
-    }
-    return { pawns, dames, total: pawns + dames };
+    const pieces = board.flat().filter(p => Math.sign(p) === player);
+    const { true: dames = [], false: pawns = [] } = Object.groupBy(pieces, p => Math.abs(p) === 2);
+    return { pawns: pawns.length, dames: dames.length, total: pieces.length };
   }
 
   static #inBounds(r, c) {

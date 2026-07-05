@@ -37,8 +37,10 @@ export class GameController {
 
   off(event, listener) {
     const list = this.#listeners.get(event);
-    if (list) {
-      this.#listeners.set(event, list.filter(l => l !== listener));
+    if (!list) return;
+    const idx = list.indexOf(listener);
+    if (idx !== -1) {
+      this.#listeners.set(event, list.toSpliced(idx, 1));
     }
   }
 
@@ -60,7 +62,7 @@ export class GameController {
   }
 
   get availableAIs() {
-    return Array.from(this.#aiInstances.keys());
+    return [...this.#aiInstances.keys()];
   }
 
   /** Get AI instance by name */

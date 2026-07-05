@@ -26,7 +26,8 @@ export class GameState {
 
   /** Get valid moves for a specific piece */
   getMovesForPiece(pos) {
-    return this.validMoves.filter(m => m.fromR === pos.r && m.fromC === pos.c);
+    const groups = Object.groupBy(this.validMoves, m => `${m.fromR},${m.fromC}`);
+    return groups[`${pos.r},${pos.c}`] ?? [];
   }
 
   /** Check if a piece can be selected by current player */

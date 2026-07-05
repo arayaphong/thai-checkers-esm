@@ -10,4 +10,4 @@ const controller = new GameController({ whiteIsAI: false, blackIsAI: false });
 const view = new DOMView(controller, 'root');
 
 // Expose for debugging
-window.game = { controller, view };
+globalThis.game = { controller, view };

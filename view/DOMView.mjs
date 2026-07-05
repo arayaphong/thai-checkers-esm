@@ -231,16 +231,19 @@ export class DOMView {
   #syncBoard() {
     const s = this.#ctrl.state;
     const { board, mustMovePiece } = s;
-    const selMoves = this.#view.sel
-      ? s.validMoves.filter(m => m.fromR === this.#view.sel.r && m.fromC === this.#view.sel.c)
-      : [];
+    const dotMap = this.#view.sel
+      ? Object.groupBy(
+          s.validMoves.filter(m => m.fromR === this.#view.sel.r && m.fromC === this.#view.sel.c),
+          m => `${m.toR},${m.toC}`
+        )
+      : null;
 
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
         const sq = this.#squares[r][c];
         const piece = board[r][c];
         const isSel = this.#view.sel?.r === r && this.#view.sel?.c === c;
-        const dotMove = selMoves.find(m => m.toR === r && m.toC === c);
+        const dotMove = dotMap?.[`${r},${c}`]?.[0];
         const isMust = mustMovePiece?.r === r && mustMovePiece?.c === c;
         const hasMove = s.validMoves.some(m => m.fromR === r && m.fromC === c);
 

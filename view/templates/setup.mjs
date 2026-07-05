@@ -11,10 +11,16 @@ const DIFFICULTIES = Object.freeze([
   { k: 'hard',   l: 'Minimax', d: 'Alpha-Beta' },
 ]);
 
+const DIFFICULTY_LABEL = {
+  easy: 'สุ่ม',
+  medium: 'ฉลาด',
+  hard: 'Minimax',
+};
+
 export const renderSetupCollapsed = (cfg) => {
   const anyAI = cfg.whiteIsAI || cfg.blackIsAI;
   const aiInfo = anyAI
-    ? ` <span class="text-gray-500">|</span> <span class="text-amber-400 text-xs">${cfg.aiDifficulty === 'easy' ? 'สุ่ม' : cfg.aiDifficulty === 'medium' ? 'ฉลาด' : 'Minimax'}</span>`
+    ? ` <span class="text-gray-500">|</span> <span class="text-amber-400 text-xs">${DIFFICULTY_LABEL[cfg.aiDifficulty] ?? cfg.aiDifficulty}</span>`
     : '';
   return `<button class="w-full flex items-center justify-between text-sm text-gray-400 hover:text-gray-200 transition-colors"><div class="flex items-center gap-3"><span class="font-medium">ตั้งค่าผู้เล่น:</span><span class="text-emerald-400">${cfg.whiteIsAI ? '🤖 AI' : '👤 คน'} vs ${cfg.blackIsAI ? '🤖 AI' : '👤 คน'}</span>${aiInfo}</div><span class="text-xs underline">แก้ไข</span></button>`;
 };
