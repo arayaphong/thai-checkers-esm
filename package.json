@@ -1,0 +1,9 @@
+{
+  "name": "thai-checkers-mvc",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "echo 'No tests configured. Open index.html in a browser to play.'"
+  },
+  "devDependencies": {}
+}
