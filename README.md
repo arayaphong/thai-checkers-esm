@@ -59,14 +59,24 @@ ai/
   MinimaxAI.mjs            Alpha-beta minimax, depth 4
 
 view/
-  DOMView.mjs              DOM view — minimal diff/patch rendering
-  game.css                 Animations and utility classes
-  icons/                   SVG source files (crown, bot, user, restart, info)
-  templates/
-    shell.mjs              Main layout HTML template
-    status.mjs             Status bar HTML template
-    setup.mjs              Setup panel HTML template + MODES constant
-    board.mjs              Board partials (coordLabel, moveDot, rippleInner)
+  GameView.mjs             Semantic facade for the whole visible game UI
+  GameViewBinder.mjs       Subscribes to controller events and refreshes GameView
+  GameViewStateFactory.mjs Translates controller/model state into display state
+  css/                     Stylesheets and Tailwind build input/output
+    game.css               Animations and small project utility classes
+    tailwind-input.css     Tailwind CLI input
+    tailwind.css           Generated Tailwind stylesheet
+  icons/                   SVG source files (crown, bot, restart, info)
+  components/              Semantic board/status/control-panel views
+  intent/                  Actor/action/intent flow for user interaction
+  html/                    DOM surfaces, templates, element registry, CSS maps
+    templates/             Main layout and board HTML fragments
+    surfaces/              HTML implementations behind semantic view methods
+    styles/                Real CSS class mappings owned by the HTML layer
+tests/
+  check-view-boundaries.test.mjs  Jest test for semantic view boundaries
+  smoke-game-flow.test.mjs        Jest tests for game-flow smoke coverage
+jest.config.mjs                   Jest config for ESM .mjs tests
 ```
 
 ---
@@ -74,30 +84,55 @@ view/
 ## Architecture
 
 ```
-┌─────────────┐    events     ┌─────────────┐
-│  DOMView    │◄──────────────│GameController│
-│  (view)     │               │ (controller) │
-└─────────────┘               └──────┬───────┘
-                                     │
-                              ┌──────▼───────┐
-                              │  GameState   │
-                              │  MoveEngine  │
-                              │   (model)    │
-                              └──────────────┘
+┌────────────────────┐   events   ┌────────────────┐
+│   GameViewBinder   │◄───────────│ GameController │
+└─────────┬──────────┘            └───────┬────────┘
+          │                                │
+          ▼                                ▼
+┌────────────────────┐            ┌────────────────┐
+│      GameView      │            │   GameState    │
+│ semantic facade    │            │   MoveEngine   │
+└─────────┬──────────┘            │     model      │
+          │                       └────────────────┘
+          ▼
+┌────────────────────┐
+│  view/html/**      │
+│ DOM/CSS adapters   │
+└────────────────────┘
 ```
 
 - **Model** — pure functions, immutable state, no DOM dependencies
 - **Controller** — owns AI instances, emits typed events (`moveMade`, `gameOver`, `aiThinking`, …)
-- **View** — subscribes to controller events, diffs view state, patches DOM minimally
+- **Semantic view** — uses user-facing methods like `hintTargetSquares()` and `showAiThinking()`, with no DOM API, selectors, datasets, or CSS class names
+- **HTML adapter** — owns DOM operations, templates, event delegation, element lookup, and CSS class maps under `view/html/**`
+- **Intent flow** — converts UI events into actor/action/intent objects before dispatching controller commands
+
+Run the boundary check after view changes:
+
+```bash
+npm run check:view-boundaries
+```
+
+Run the game-flow smoke checks after behavior-affecting changes:
+
+```bash
+npm run smoke:game-flow
+```
+
+Run the full Jest suite:
+
+```bash
+npm test
+```
 
 ---
 
 ## Technical Highlights
 
 - **ES2025** throughout — private class fields (`#`), `Promise.withResolvers()`, `Object.groupBy()`, `Array.toSorted()`, `structuredClone()`, `Array.flat().reduce()`
-- **Zero dependencies** — no npm packages, no build tools
+- **Runtime zero dependencies** — no framework or bundler; Jest and Tailwind CLI are development-only tooling
 - **SVG sprite** — icons defined as `<symbol>` in `index.html`, referenced via `<use href="#icon-*">`
-- **Tailwind CSS** via CDN (development only)
+- **Tailwind CSS** compiled to `view/css/tailwind.css`
 
 ---
 

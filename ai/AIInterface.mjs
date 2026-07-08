@@ -22,7 +22,6 @@ export class AIInterface {
 
   /**
    * Select the best move given current game state.
-   * Must be async to allow for future async computations (WebWorker, API, etc.)
    */
   async makeMove(state) {
     throw new Error('makeMove must be implemented');

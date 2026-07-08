@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "echo 'No tests configured. Open index.html in a browser to play.'"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "build:css": "tailwindcss -i ./view/css/tailwind-input.css -o ./view/css/tailwind.css --minify"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.2",
+    "jest": "^30.4.2",
+    "tailwindcss": "^4.3.2"
+  }
 }

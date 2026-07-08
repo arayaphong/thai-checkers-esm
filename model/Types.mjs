@@ -18,6 +18,5 @@ export const INITIAL_BOARD = Object.freeze([
 export const DEFAULT_CONFIG = Object.freeze({
   whiteIsAI: false,
   blackIsAI: false,
-  aiDifficulty: 'medium',
-  animationSpeed: 300
+  aiDifficulty: 'medium'
 });

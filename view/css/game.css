@@ -1,8 +1,8 @@
-@keyframes bounce-dot {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-25%); }
+@keyframes target-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(0.75); }
 }
-.animate-bounce-dot { animation: bounce-dot 1s infinite; }
+.animate-target-pulse { animation: target-pulse 1s ease-in-out infinite; }
 
 @keyframes piece-pulse {
   0%, 100% { opacity: 1; }
