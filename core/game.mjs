@@ -268,18 +268,19 @@ export class Game {
         const color = this.player();
         const explorer = new Explorer(board);
 
-        this.#moveableCache = new Map(
-            board
-                .getPieces(color)
-                .keys()
-                .map((pos) => [pos, explorer.findValidMoves(pos)])
-                .filter(([, legals]) => !legals.empty()),
-        );
+        const moveableCache = new Map();
+        const sortedPositions = [];
 
-        this.#sortedPositionsCache = this.#moveableCache
-            .keys()
-            .toArray()
-            .toSorted((a, b) => a.compare(b));
+        board.getPieces(color).forEach((_, pos) => {
+            const legals = explorer.findValidMoves(pos);
+            if (!legals.empty()) {
+                moveableCache.set(pos, legals);
+                sortedPositions.push(pos);
+            }
+        });
+
+        this.#moveableCache = moveableCache;
+        this.#sortedPositionsCache = sortedPositions;
     }
 
     /**

@@ -297,24 +297,28 @@ export class Board {
      */
     getPieces(color) {
         assertPieceColor(color);
-        return new Map(
-            Position.allValid()
-                .values()
-                .filter((pos) => (this.#occBits & bit(pos.hash())) !== 0)
-                .filter((pos) => (color === PieceColor.BLACK) === this.isBlackPiece(pos))
-                .map((pos) => {
-                    const mask = bit(pos.hash());
-                    const isBlack = (this.#blackBits & mask) !== 0;
-                    const isDame = (this.#dameBits & mask) !== 0;
-                    return [
-                        pos,
-                        {
-                            color: isBlack ? PieceColor.BLACK : PieceColor.WHITE,
-                            type: isDame ? PieceType.DAME : PieceType.PION,
-                        },
-                    ];
-                }),
-        );
+        const map = new Map();
+        const allValid = Position.allValid();
+        const occBits = this.#occBits;
+        const blackBits = this.#blackBits;
+        const dameBits = this.#dameBits;
+        const isColorBlack = color === PieceColor.BLACK;
+
+        for (let i = 0; i < allValid.length; i++) {
+            const pos = allValid[i];
+            const mask = (1 << i) >>> 0;
+            if ((occBits & mask) !== 0) {
+                const isBlack = (blackBits & mask) !== 0;
+                if (isColorBlack === isBlack) {
+                    const isDame = (dameBits & mask) !== 0;
+                    map.set(pos, {
+                        color: isBlack ? PieceColor.BLACK : PieceColor.WHITE,
+                        type: isDame ? PieceType.DAME : PieceType.PION,
+                    });
+                }
+            }
+        }
+        return map;
     }
 
     // ─── Transformations ───
