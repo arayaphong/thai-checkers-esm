@@ -9,9 +9,14 @@ const LOW_16_BITS = 0xffff;
 const LOW_32_BITS = 0xffff_ffffn;
 const HOME_ROWS = Object.freeze([0, 1, 6, 7]);
 
-/** 1 << idx as unsigned 32-bit integer (idx must be an integer 0..31).
- *  Guards explicitly because JS `<<` silently masks the shift count to 5 bits,
- *  which would otherwise turn an out-of-range index into a wrong-bit result. */
+/** 
+ * 1 << idx as unsigned 32-bit integer (idx must be an integer 0..31).
+ * Guards explicitly because JS `<<` silently masks the shift count to 5 bits,
+ * which would otherwise turn an out-of-range index into a wrong-bit result.
+ * @param {number} idx
+ * @returns {number}
+ * @throws {RangeError}
+ */
 const bit = (idx) => {
     if (!Number.isInteger(idx) || idx < 0 || idx > 31) {
         throw new RangeError(`Bit index out of range: ${idx}`);
@@ -19,28 +24,63 @@ const bit = (idx) => {
     return (1 << idx) >>> 0;
 };
 
+/**
+ * Set a bit.
+ * @param {number} bits
+ * @param {number} mask
+ * @returns {number}
+ */
 const setBit = (bits, mask) => (bits | mask) >>> 0;
 
+/**
+ * Clear a bit.
+ * @param {number} bits
+ * @param {number} mask
+ * @returns {number}
+ */
 const clearBit = (bits, mask) => (bits & ~mask) >>> 0;
 
+/**
+ * Computes population count using SWAR algorithm.
+ * @param {number} v
+ * @returns {number}
+ */
 const popCount32 = (v) => {
     v = v - ((v >>> 1) & 0x55555555);
     v = (v & 0x33333333) + ((v >>> 2) & 0x33333333);
     return (((v + (v >>> 4)) & 0x0f0f0f0f) * 0x01010101) >>> 24;
 };
 
+/**
+ * Asserts that the piece count is within limits.
+ * @param {number} count
+ * @throws {RangeError}
+ */
 const assertValidPieceCount = (count) => {
     if (count > MAX_PIECES) {
         throw new RangeError(`Thai checkers boards cannot contain more than ${MAX_PIECES} pieces`);
     }
 };
 
+/**
+ * Asserts that a value is an unsigned 32-bit integer.
+ * @param {string} name
+ * @param {any} value
+ * @throws {RangeError}
+ */
 const assertUInt32 = (name, value) => {
     if (!Number.isInteger(value) || value < 0 || value > Number(LOW_32_BITS)) {
         throw new RangeError(`${name} must be an unsigned 32-bit integer`);
     }
 };
 
+/**
+ * Asserts that all bitboards are valid.
+ * @param {number} occBits
+ * @param {number} blackBits
+ * @param {number} dameBits
+ * @throws {RangeError}
+ */
 const assertValidBitboards = (occBits, blackBits, dameBits) => {
     assertUInt32('occBits', occBits);
     assertUInt32('blackBits', blackBits);
@@ -54,6 +94,11 @@ const assertValidBitboards = (occBits, blackBits, dameBits) => {
     }
 };
 
+/**
+ * Helper to get piece hash key from position or index.
+ * @param {Position|number} position
+ * @returns {number}
+ */
 const toPieceKey = (position) =>
     position instanceof Position ? position.hash() : Position.fromIndex(position).hash();
 
@@ -61,11 +106,21 @@ const toPieceKey = (position) =>
 // already known to satisfy the invariants, skipping the full revalidation.
 const TRUSTED = Symbol('Board.trusted');
 
+/**
+ * Immutable Board representation using 32-bit bitboards.
+ */
 export class Board {
     // Bitboards — each bit i corresponds to Position.fromIndex(i)
     #occBits;
     #blackBits;
     #dameBits;
+
+    /**
+     * @param {number} [occBits=0]
+     * @param {number} [blackBits=0]
+     * @param {number} [dameBits=0]
+     * @param {symbol} [trusted]
+     */
     constructor(occBits = 0, blackBits = 0, dameBits = 0, trusted = undefined) {
         if (trusted !== TRUSTED) {
             assertValidBitboards(occBits, blackBits, dameBits);
@@ -75,15 +130,33 @@ export class Board {
         this.#dameBits = dameBits >>> 0;
         Object.freeze(this);
     }
-    /** Build from bitboards already known to satisfy the invariants (produced by
-     *  transforming an existing valid Board), bypassing revalidation. */
+
+    /** 
+     * Build from bitboards already known to satisfy the invariants (produced by
+     * transforming an existing valid Board), bypassing revalidation.
+     * @param {number} occBits
+     * @param {number} blackBits
+     * @param {number} dameBits
+     * @returns {Board}
+     */
     static #unchecked(occBits, blackBits, dameBits) {
         return new Board(occBits, blackBits, dameBits, TRUSTED);
     }
+
     // ─── Factories ───
+
+    /**
+     * Returns an empty Board.
+     * @returns {Board}
+     */
     static empty() {
         return new Board();
     }
+
+    /**
+     * Returns a Board in the standard starting layout.
+     * @returns {Board}
+     */
     static setup() {
         const { occBits, blackBits } = HOME_ROWS.reduce(
             (acc, row) => {
@@ -100,6 +173,13 @@ export class Board {
         );
         return new Board(occBits, blackBits, 0);
     }
+
+    /**
+     * Constructs a Board from an array of [position, info] pairs.
+     * @param {readonly [Position, import('./piece.mjs').PieceInfo][]} pieces
+     * @returns {Board}
+     * @throws {Error}
+     */
     static fromPieces(pieces) {
         let occBits = 0;
         let blackBits = 0;
@@ -124,9 +204,22 @@ export class Board {
         assertValidPieceCount(popCount32(occBits));
         return new Board(occBits, blackBits, dameBits);
     }
+
+    /**
+     * Copy factory.
+     * @param {Board} other
+     * @returns {Board}
+     */
     static copy(other) {
         return Board.#unchecked(other.#occBits, other.#blackBits, other.#dameBits);
     }
+
+    /**
+     * Decodes a 64-bit bigint board representation.
+     * @param {bigint} encoded
+     * @returns {Board}
+     * @throws {RangeError|Error}
+     */
     static decode(encoded) {
         if (encoded < 0n || encoded > MAX_ENCODED) {
             throw new RangeError('Encoded board must be an unsigned 64-bit value');
@@ -154,22 +247,53 @@ export class Board {
         }
         return board;
     }
+
     // ─── Queries ───
+
+    /**
+     * Checks if the position is a valid board coordinate.
+     * @param {Position} pos
+     * @returns {boolean}
+     */
     static isValidPosition(pos) {
         return Position.isValid(pos.x, pos.y);
     }
+
+    /**
+     * Checks if a square is occupied.
+     * @param {Position} pos
+     * @returns {boolean}
+     */
     isOccupied(pos) {
         if (!Board.isValidPosition(pos)) return false;
         return (this.#occBits & bit(pos.hash())) !== 0;
     }
+
+    /**
+     * Checks if the piece at the square is black.
+     * @param {Position} pos
+     * @returns {boolean}
+     */
     isBlackPiece(pos) {
         const mask = bit(pos.hash());
         return (this.#occBits & mask) !== 0 && (this.#blackBits & mask) !== 0;
     }
+
+    /**
+     * Checks if the piece at the square is a promoted dame.
+     * @param {Position} pos
+     * @returns {boolean}
+     */
     isDamePiece(pos) {
         const mask = bit(pos.hash());
         return (this.#occBits & mask) !== 0 && (this.#dameBits & mask) !== 0;
     }
+
+    /**
+     * Returns a Map of active pieces for a player color.
+     * @param {number} color
+     * @returns {Map<Position, import('./piece.mjs').PieceInfo>}
+     */
     getPieces(color) {
         assertPieceColor(color);
         return new Map(
@@ -191,7 +315,15 @@ export class Board {
                 }),
         );
     }
+
     // ─── Transformations ───
+
+    /**
+     * Promotes the piece at the position to a dame.
+     * @param {Position} pos
+     * @returns {Board}
+     * @throws {Error}
+     */
     promotePiece(pos) {
         const mask = bit(pos.hash());
         if ((this.#occBits & mask) === 0) {
@@ -202,6 +334,14 @@ export class Board {
         }
         return Board.#unchecked(this.#occBits, this.#blackBits, setBit(this.#dameBits, mask));
     }
+
+    /**
+     * Moves a piece from one square to another.
+     * @param {Position} from
+     * @param {Position} to
+     * @returns {Board}
+     * @throws {Error}
+     */
     movePiece(from, to) {
         const fm = bit(from.hash());
         const tm = bit(to.hash());
@@ -220,6 +360,13 @@ export class Board {
         if (wasDame) dameBits = setBit(dameBits, tm);
         return Board.#unchecked(occBits, blackBits, dameBits);
     }
+
+    /**
+     * Removes a piece from the board.
+     * @param {Position} pos
+     * @returns {Board}
+     * @throws {Error}
+     */
     removePiece(pos) {
         const mask = bit(pos.hash());
         if ((this.#occBits & mask) === 0) {
@@ -231,7 +378,13 @@ export class Board {
             clearBit(this.#dameBits, mask),
         );
     }
+
     // ─── Encoding ───
+
+    /**
+     * Encodes the board state into a 64-bit bigint.
+     * @returns {bigint}
+     */
     encode() {
         const occupiedIndices = Array.from({ length: BOARD_SQUARES }, (_, i) => i)
             .filter((i) => (this.#occBits & bit(i)) !== 0);
@@ -253,17 +406,40 @@ export class Board {
             BigInt(damePacked & LOW_16_BITS)
         );
     }
+
     // ─── Accessors ───
+
+    /**
+     * Occupancy bitboard.
+     * @type {number}
+     */
     get occBits() {
         return this.#occBits >>> 0;
     }
+
+    /**
+     * Black piece bitboard.
+     * @type {number}
+     */
     get blackBits() {
         return this.#blackBits >>> 0;
     }
+
+    /**
+     * Dame piece bitboard.
+     * @type {number}
+     */
     get dameBits() {
         return this.#dameBits >>> 0;
     }
+
     // ─── Equality ───
+
+    /**
+     * Checks if this board is equal to another board.
+     * @param {Board} other
+     * @returns {boolean}
+     */
     equals(other) {
         return (
             this.#occBits === other.#occBits &&
@@ -271,6 +447,11 @@ export class Board {
             this.#dameBits === other.#dameBits
         );
     }
+
+    /**
+     * Computes unique hash for board configuration.
+     * @returns {number}
+     */
     hashCode() {
         return (this.#occBits ^ this.#blackBits ^ this.#dameBits) >>> 0;
     }

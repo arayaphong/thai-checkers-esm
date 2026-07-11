@@ -4,6 +4,13 @@
 import { PieceColor } from '../piece.mjs';
 import { pstMoveDelta } from '../evaluation.mjs';
 
+/**
+ * Assigns a weight score to a candidate move.
+ * @param {import('../game.mjs').Move} move
+ * @param {import('../board.mjs').Board} board
+ * @param {number} promoRow
+ * @returns {number}
+ */
 const moveOrderScore = (move, board, promoRow) => {
     if (move.captured.length > 0) {
         return 1_000 + move.captured.length;
@@ -19,6 +26,13 @@ const moveOrderScore = (move, board, promoRow) => {
     return pstMoveDelta(board, move.from, move.to);
 };
 
+/**
+ * Returns move indices sorted by priority.
+ * @param {import('../game.mjs').Move[]} moves
+ * @param {import('../board.mjs').Board} board
+ * @param {number} player - PieceColor
+ * @returns {number[]}
+ */
 export const orderMoveIndices = (moves, board, player) => {
     const promoRow = player === PieceColor.WHITE ? 0 : 7;
     return moves

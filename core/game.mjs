@@ -4,6 +4,11 @@ import { Board } from './board.mjs';
 import { Explorer } from './explorer.mjs';
 import { CaptureTrace } from './legals.mjs';
 
+/**
+ * Creates a deep copy of a Move object.
+ * @param {import('./game.mjs').Move} move
+ * @returns {import('./game.mjs').Move}
+ */
 const copyMove = (move) => ({
     from: move.from,
     to: move.to,
@@ -12,11 +17,21 @@ const copyMove = (move) => ({
     trace: move.trace,
 });
 
+/**
+ * Generates a unique string key for a Move instance to deduplicate moves.
+ * @param {import('./game.mjs').Move} move
+ * @returns {string}
+ */
 const moveIdentityKey = (move) => {
     const sortedCaptured = move.captured.map((pos) => pos.hash()).toSorted();
     return `${move.from.hash()}:${move.to.hash()}:${sortedCaptured.toString()}`;
 };
 
+/**
+ * Filter out duplicate moves.
+ * @param {import('./game.mjs').Move[]} moves
+ * @returns {import('./game.mjs').Move[]}
+ */
 const uniqueMoves = (moves) => {
     const seen = new Set();
     return moves.filter((move) => {
@@ -29,8 +44,16 @@ const uniqueMoves = (moves) => {
     });
 };
 
+/**
+ * Helper to get the opposite PieceColor.
+ * @param {number} color
+ * @returns {number}
+ */
 const oppositeColor = (color) => (color === PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE);
 
+/**
+ * Orchestrates game rules, legal moves generation, and board history.
+ */
 export class Game {
     #boardHistory = [];
     #encodedHistory = [];
@@ -45,6 +68,7 @@ export class Game {
     #moveableCache = new Map();
     #moveCountCache = 0;
     #sortedPositionsCache = [];
+
     /**
      * @typedef {Object} Move
      * @property {import('./position.mjs').Position} from - The starting position of the move.
@@ -55,6 +79,7 @@ export class Game {
      */
 
     // ─── Constructors ───
+
     /**
      * Constructs a Game state machine.
      * @param {import('./board.mjs').Board} [board] The starting board configuration (defaults to standard setup).
@@ -64,6 +89,7 @@ export class Game {
         this.#boardHistory.push(initial);
         this.#encodedHistory.push(initial.encode());
     }
+
     /**
      * Creates a deep copy of another Game instance.
      * @param {Game} other The game to copy.
@@ -79,11 +105,13 @@ export class Game {
         g.#moveableDirty = true;
         return g;
     }
+
     /**
      * Build a Game rooted at an arbitrary board with an explicit side to move,
      * and no move history.
      * @param {import('./board.mjs').Board} board
      * @param {number} sideToMove PieceColor of the player to move at this board.
+     * @returns {Game}
      */
     static from(board, sideToMove) {
         assertPieceColor(sideToMove);
@@ -91,7 +119,9 @@ export class Game {
         g.#rootPlayer = sideToMove;
         return g;
     }
+
     // ─── Core actions ───
+
     /**
      * Advances the game state by selecting a legal move index.
      * @param {number} index The index of the move in the current choices list.
@@ -102,6 +132,7 @@ export class Game {
         this.#indexHistory.push(index);
         this.#executeMove(move);
     }
+
     /**
      * Reverts the game state by undoing the last selected move.
      */
@@ -113,7 +144,9 @@ export class Game {
         this.#choicesDirty = true;
         this.#moveableDirty = true;
     }
+
     // ─── Queries ───
+
     /**
      * Returns the number of legal moves available in the current position.
      * @returns {number}
@@ -122,6 +155,7 @@ export class Game {
         this.#updateChoicesCache();
         return this.#moveCountCache;
     }
+
     /**
      * Returns the list of legal moves available in the current position.
      * @returns {Move[]}
@@ -130,6 +164,7 @@ export class Game {
         this.#updateChoicesCache();
         return this.#choicesCache.map(copyMove);
     }
+
     /**
      * Returns the array of selected move indices played in this game.
      * @returns {number[]}
@@ -137,6 +172,7 @@ export class Game {
     getMoveSequence() {
         return [...this.#indexHistory];
     }
+
     /**
      * Returns the board state history since the root of this game.
      * @returns {import('./board.mjs').Board[]}
@@ -144,6 +180,7 @@ export class Game {
     getBoardHistory() {
         return [...this.#boardHistory];
     }
+
     /**
      * Returns the history of encoded board states (64-bit bigints).
      * @returns {bigint[]}
@@ -151,6 +188,7 @@ export class Game {
     getEncodedHistory() {
         return [...this.#encodedHistory];
     }
+
     /**
      * Returns the current board state.
      * @returns {import('./board.mjs').Board}
@@ -158,6 +196,7 @@ export class Game {
     board() {
         return this.#boardHistory.at(-1);
     }
+
     /**
      * Returns the side to move (PieceColor).
      * @returns {number} PieceColor
@@ -167,6 +206,7 @@ export class Game {
             ? this.#rootPlayer
             : oppositeColor(this.#rootPlayer);
     }
+
     /**
      * Canonical transposition-table key for the current position: the encoded
      * board with the side-to-move packed into the low bit.
@@ -175,7 +215,13 @@ export class Game {
     positionKey() {
         return (this.board().encode() << 1n) | BigInt(this.player());
     }
+
     // ─── Private: move execution ───
+
+    /**
+     * Helper to apply a Move to the board state.
+     * @param {Move} move
+     */
     #executeMove(move) {
         const current = this.board();
         // Remove captured pieces first so a long chain can finish on a
@@ -200,7 +246,12 @@ export class Game {
         this.#choicesDirty = true;
         this.#moveableDirty = true;
     }
+
     // ─── Private: move generation ───
+
+    /**
+     * Rebuilds the cache of legal moves if dirty.
+     */
     #updateChoicesCache() {
         if (!this.#choicesDirty) return;
         this.#choicesDirty = false;
@@ -208,6 +259,10 @@ export class Game {
         this.#choicesCache = uniqueMoves(this.#buildAllMoves());
         this.#moveCountCache = this.#choicesCache.length;
     }
+
+    /**
+     * Rebuilds pieces moveable cache.
+     */
     #updateMoveableCache() {
         if (!this.#moveableDirty) return;
         this.#moveableDirty = false;
@@ -228,9 +283,21 @@ export class Game {
             .toArray()
             .toSorted((a, b) => a.compare(b));
     }
+
+    /**
+     * Checks if there are any mandatory captures.
+     * @returns {boolean}
+     */
     #hasMandatoryCapture() {
         return this.#moveableCache.values().some((legals) => legals.hasCaptured());
     }
+
+    /**
+     * Maps explorer legal MoveInfo to a Move structure.
+     * @param {import('./position.mjs').Position} from
+     * @param {import('./legals.mjs').MoveInfo} info
+     * @returns {Move}
+     */
     #toMove(from, info) {
         const move = {
             from,
@@ -243,6 +310,11 @@ export class Game {
         }
         return move;
     }
+
+    /**
+     * Assembles all valid moves.
+     * @returns {Move[]}
+     */
     #buildAllMoves() {
         const hasCaptures = this.#hasMandatoryCapture();
         return (
@@ -258,6 +330,12 @@ export class Game {
                 .toArray()
         );
     }
+
+    /**
+     * Asserts that index is a valid move sequence index.
+     * @param {number} index
+     * @throws {RangeError}
+     */
     #assertValidMoveIndex(index) {
         if (!Number.isInteger(index)) {
             throw new RangeError(`Move index must be an integer: ${index}`);

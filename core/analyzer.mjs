@@ -5,12 +5,20 @@ import {
     evaluatePosition,
     isImmediateDraw,
     MATE_SCORE,
-    MATE_SCORE_THRESHOLD,
 } from './evaluation.mjs';
 import { orderMoveIndices } from './moves/move-order.mjs';
 
+/**
+ * Capped limit for depth search to avoid stack overflow.
+ * @type {number}
+ */
 export const MAX_ANALYSIS_DEPTH = 16;
 
+/**
+ * Asserts depth parameter validity.
+ * @param {number} depth
+ * @throws {RangeError}
+ */
 const assertValidDepth = (depth) => {
     if (!Number.isSafeInteger(depth) || depth < 1 || depth > MAX_ANALYSIS_DEPTH) {
         throw new RangeError(
@@ -33,7 +41,10 @@ export class Analyzer {
         this.#game = game;
     }
 
-    /** Number of #negamax and #quiescence invocations during the most recent analyze() call. */
+    /** 
+     * Number of #negamax and #quiescence invocations during the most recent analyze() call. 
+     * @type {number}
+     */
     get nodeCount() {
         return this.#nodeCount;
     }
@@ -56,7 +67,7 @@ export class Analyzer {
      * costs comparatively little next to the exponential subtree beneath it,
      * where #negamax's own narrowing is unaffected and still safe.
      * @param {number} depth The search depth in plies. Must be an integer from 1 to MAX_ANALYSIS_DEPTH.
-     * @returns {{move: object, score: number}|null} The best move and its score, or null if no moves are available.
+     * @returns {{move: import('./game.mjs').Move, score: number}|null} The best move and its score, or null if no moves are available.
      */
     analyze(depth) {
         assertValidDepth(depth);
@@ -92,6 +103,7 @@ export class Analyzer {
     }
 
     /**
+     * Alpha-beta minimax recursive search.
      * @param {import('./game.mjs').Game} game
      * @param {number} depth
      * @param {number} alpha

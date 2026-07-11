@@ -10,21 +10,48 @@ import {
     isOpponentPiece,
 } from './directions.mjs';
 
+/**
+ * Returns available move directions based on color and type.
+ * @param {number} color
+ * @param {boolean} isDame
+ * @returns {readonly import('./directions.mjs').Direction[]}
+ */
 const getDirs = (color, isDame) =>
     isDame ? DAME_DIRS : color === PieceColor.BLACK ? BLACK_PION_DIRS : WHITE_PION_DIRS;
 
+/**
+ * Helper to compute positions along a direction vector.
+ * @param {Position} from
+ * @param {number} dx
+ * @param {number} dy
+ * @returns {Position[]}
+ */
 const getRayCoords = (from, dx, dy) =>
     Array.from({ length: 7 }, (_, i) => ({ x: from.x + dx * (i + 1), y: from.y + dy * (i + 1) }))
         .filter(({ x, y }) => Position.isValid(x, y))
         .map(({ x, y }) => Position.fromCoords(x, y));
 
-// ─── Explorer ───
+/**
+ * Board state explorer for computing legal moves.
+ */
 export class Explorer {
     #board;
+
+    /**
+     * @param {import('./board.mjs').Board} board
+     */
     constructor(board) {
         this.#board = board;
     }
+
     // ─── public API ───
+
+    /**
+     * Finds all legal moves for a piece at the position.
+     * @param {Position} from
+     * @returns {import('./legals.mjs').Legals}
+     * @throws {Error}
+     */
     findValidMoves(from) {
         if (!this.#board.isOccupied(from)) {
             throw new Error(`No piece at ${from.toString()}`);
@@ -40,7 +67,16 @@ export class Explorer {
         const positions = this.#findRegularMoves(from, color, isDame, dirs);
         return Legals.fromRegularMoves(positions);
     }
+
     // ─── capture sequence finding ───
+
+    /**
+     * Finds all capture sequences from a starting square.
+     * @param {Position} from
+     * @param {number} color
+     * @param {boolean} isDame
+     * @returns {Position[][]}
+     */
     #findAllCaptureSequences(from, color, isDame) {
         const results = this.#findCapturesFrom(this.#board, from, color, isDame, []);
         // Deduplicate exact capture sequences while preserving alternative
@@ -53,6 +89,16 @@ export class Explorer {
             return true;
         });
     }
+
+    /**
+     * Recursive helper to find captures.
+     * @param {import('./board.mjs').Board} board
+     * @param {Position} pos
+     * @param {number} color
+     * @param {boolean} isDame
+     * @param {Position[][]} path
+     * @returns {Position[][]}
+     */
     #findCapturesFrom(board, pos, color, isDame, path) {
         const dirs = getDirs(color, isDame);
         return dirs.flatMap((d) => {
@@ -68,13 +114,37 @@ export class Explorer {
             });
         });
     }
+
+    /**
+     * Helper to reconstruct the capture path.
+     * @param {Position[][]} path
+     * @param {Position[]} last
+     * @returns {Position[]}
+     */
     #flatten(path, last) {
         return [...path.flatMap(([captured, landing]) => [captured, landing]), ...last];
     }
+
+    /**
+     * Helper to apply a capture on a temporary board during simulation.
+     * @param {import('./board.mjs').Board} board
+     * @param {Position} from
+     * @param {Position} captured
+     * @param {Position} landing
+     * @returns {import('./board.mjs').Board}
+     */
     #applyCapture(board, from, captured, landing) {
         return board.removePiece(captured).movePiece(from, landing);
     }
-    // ─── find the capture available in one direction (at most one) ───
+
+    /**
+     * Finds single capture in a direction.
+     * @param {import('./board.mjs').Board} board
+     * @param {Position} from
+     * @param {import('./directions.mjs').Direction} dir
+     * @param {boolean} isDame
+     * @returns {Position[][]}
+     */
     #findCapturesInDir(board, from, dir, isDame) {
         const myColor = board.isBlackPiece(from) ? PieceColor.BLACK : PieceColor.WHITE;
         const { dx, dy } = dir;
@@ -106,7 +176,17 @@ export class Explorer {
         if (!isOpp) return [];
         return [[midPos, landPos]];
     }
+
     // ─── regular moves ───
+
+    /**
+     * Finds regular (non-capturing) moves.
+     * @param {Position} from
+     * @param {number} color
+     * @param {boolean} isDame
+     * @param {readonly import('./directions.mjs').Direction[]} dirs
+     * @returns {Position[]}
+     */
     #findRegularMoves(from, color, isDame, dirs) {
         if (isDame) {
             return dirs.flatMap(({ dx, dy }) => {

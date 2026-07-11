@@ -7,6 +7,7 @@
 import { Position } from '../position.mjs';
 
 /**
+ * Fills in the cell gaps in the path representation.
  * @param {import('../position.mjs').Position[]} waypoints
  * @returns {import('../position.mjs').Position[]}
  */
