@@ -226,21 +226,19 @@ export class Game {
         const current = this.board();
         // Remove captured pieces first so a long chain can finish on a
         // square that was occupied before the sequence began.
-        let next = current;
-        for (const cap of move.captured) {
-            next = next.removePiece(cap);
-        }
+        const removed = move.captured.reduce((acc, cap) => acc.removePiece(cap), current);
         // Move piece (skip when from == to, e.g. a dame loop capture).
-        if (!move.from.equals(move.to)) {
-            next = next.movePiece(move.from, move.to);
-        }
+        const moved = !move.from.equals(move.to)
+            ? removed.movePiece(move.from, move.to)
+            : removed;
         // Promotion check
         const movedIsBlack = current.isBlackPiece(move.from);
         const color = movedIsBlack ? PieceColor.BLACK : PieceColor.WHITE;
         const promoRow = color === PieceColor.WHITE ? 7 : 0;
-        if (move.to.y === promoRow && !current.isDamePiece(move.from)) {
-            next = next.promotePiece(move.to);
-        }
+        const next = move.to.y === promoRow && !current.isDamePiece(move.from)
+            ? moved.promotePiece(move.to)
+            : moved;
+
         this.#boardHistory.push(next);
         this.#encodedHistory.push(next.encode());
         this.#choicesDirty = true;

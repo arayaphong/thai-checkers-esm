@@ -181,26 +181,27 @@ export class Board {
      * @throws {Error}
      */
     static fromPieces(pieces) {
-        let occBits = 0;
-        let blackBits = 0;
-        let dameBits = 0;
         const seen = new Set();
-        pieces.forEach(([position, info]) => {
-            const key = toPieceKey(position);
-            if (seen.has(key)) {
-                throw new Error(`Duplicate piece position: ${Position.fromIndex(key).toString()}`);
-            }
-            seen.add(key);
-            assertPieceInfo(info);
-            const mask = bit(key);
-            occBits = setBit(occBits, mask);
-            if (info.color === PieceColor.BLACK) {
-                blackBits = setBit(blackBits, mask);
-            }
-            if (info.type === PieceType.DAME) {
-                dameBits = setBit(dameBits, mask);
-            }
-        });
+        const { occBits, blackBits, dameBits } = pieces.reduce(
+            (acc, [position, info]) => {
+                const key = toPieceKey(position);
+                if (seen.has(key)) {
+                    throw new Error(`Duplicate piece position: ${Position.fromIndex(key).toString()}`);
+                }
+                seen.add(key);
+                assertPieceInfo(info);
+                const mask = bit(key);
+                acc.occBits = setBit(acc.occBits, mask);
+                if (info.color === PieceColor.BLACK) {
+                    acc.blackBits = setBit(acc.blackBits, mask);
+                }
+                if (info.type === PieceType.DAME) {
+                    acc.dameBits = setBit(acc.dameBits, mask);
+                }
+                return acc;
+            },
+            { occBits: 0, blackBits: 0, dameBits: 0 },
+        );
         assertValidPieceCount(popCount32(occBits));
         return new Board(occBits, blackBits, dameBits);
     }
@@ -354,10 +355,10 @@ export class Board {
         const wasBlack = (this.#blackBits & fm) !== 0;
         const wasDame = (this.#dameBits & fm) !== 0;
         const occBits = setBit(clearBit(this.#occBits, fm), tm);
-        let blackBits = clearBit(this.#blackBits, fm);
-        let dameBits = clearBit(this.#dameBits, fm);
-        if (wasBlack) blackBits = setBit(blackBits, tm);
-        if (wasDame) dameBits = setBit(dameBits, tm);
+        const baseBlack = clearBit(this.#blackBits, fm);
+        const baseDame = clearBit(this.#dameBits, fm);
+        const blackBits = wasBlack ? setBit(baseBlack, tm) : baseBlack;
+        const dameBits = wasDame ? setBit(baseDame, tm) : baseDame;
         return Board.#unchecked(occBits, blackBits, dameBits);
     }
 
