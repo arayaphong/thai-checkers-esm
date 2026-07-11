@@ -7,12 +7,12 @@ import { Analyzer } from '../core/analyzer.mjs';
 import { PieceColor, toStringPieceColor } from '../core/piece.mjs';
 
 const SHOW_BOARD = !process.argv.includes('--no-board');
-const SEARCH_DEPTH_W = 6;
-const SEARCH_DEPTH_B = 6;
+const SEARCH_DEPTH_W = 8;
+const SEARCH_DEPTH_B = 8;
 const PLAYER_NAMES = { [PieceColor.WHITE]: 'Analyzer W', [PieceColor.BLACK]: 'Analyzer B' };
 // Safety net: cap plies to prevent infinite loops in drawish endgames
 const MAX_PLIES = 200;
-const MAX_GAMES = 5;
+const MAX_GAMES = 1;
 
 const playPly = (driver, ply) => {
   const state = driver.getState();
@@ -34,7 +34,7 @@ const playPly = (driver, ply) => {
   driver.playMoveIndex(index);
 
   const captureNote = move.captured.length ? ` (captures ${move.captured.length})` : '';
-  console.log(`Ply ${ply + 1}: ${moverLabel} plays ${move.from} -> ${move.to}${captureNote}  ${note}`);
+  console.log(`\r\x1b[KPly ${ply + 1}: ${moverLabel} plays ${move.from} -> ${move.to}${captureNote}  ${note}`);
   if (SHOW_BOARD) console.log(renderBoard(driver.game.board()));
 
   return playPly(driver, ply + 1);
