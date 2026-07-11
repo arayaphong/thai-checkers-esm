@@ -304,19 +304,15 @@ export class Board {
         const dameBits = this.#dameBits;
         const isColorBlack = color === PieceColor.BLACK;
 
-        for (let i = 0; i < allValid.length; i++) {
-            const pos = allValid[i];
-            const mask = (1 << i) >>> 0;
-            if ((occBits & mask) !== 0) {
-                const isBlack = (blackBits & mask) !== 0;
-                if (isColorBlack === isBlack) {
-                    const isDame = (dameBits & mask) !== 0;
-                    map.set(pos, {
-                        color: isBlack ? PieceColor.BLACK : PieceColor.WHITE,
-                        type: isDame ? PieceType.DAME : PieceType.PION,
-                    });
-                }
-            }
+        let pieces = (isColorBlack ? occBits & blackBits : occBits & ~blackBits) >>> 0;
+        while (pieces !== 0) {
+            const mask = pieces & -pieces;
+            const index = 31 - Math.clz32(mask);
+            map.set(allValid[index], {
+                color,
+                type: (dameBits & mask) !== 0 ? PieceType.DAME : PieceType.PION,
+            });
+            pieces = (pieces & (pieces - 1)) >>> 0;
         }
         return map;
     }
