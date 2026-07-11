@@ -32,8 +32,12 @@ export const createUiIntentDispatcher = (controller, modeOptions) => (intent) =>
     controller.updateConfig({ aiDifficulty: intent.actor.payload.difficulty });
     return;
   }
-  if (intent.isStartGame() || intent.isRestartGame()) {
-    controller.reset();
+  if (intent.isStartGame()) {
+    controller.reset({ paused: false });
+    return;
+  }
+  if (intent.isRestartGame()) {
+    controller.reset({ paused: true });
   }
   // isExpandSetup() has no controller command -- it's pure view
   // navigation, handled by the caller.

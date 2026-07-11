@@ -8,17 +8,20 @@ const BOARD_SIZE = 8;
 // ============================================
 export const createBoardView = (surface) => {
   return {
-    showBoard() {
+    showBoard: () => {
       surface.createBoard();
       Array.from({ length: BOARD_SIZE }, (_, r) => r).forEach((r) => {
         Array.from({ length: BOARD_SIZE }, (_, c) => c).forEach((c) => {
           const position = { r, c };
-          surface.createSquare(position, createBoardSquareView(position, (r + c) % 2 === 1));
+          // Model rows run top-to-bottom while core ranks run bottom-to-top.
+          // In model coordinates the 32 playable (black) squares therefore
+          // have even row+column parity.
+          surface.createSquare(position, createBoardSquareView(position, (r + c) % 2 === 0));
         });
       });
     },
 
-    render(boardState) {
+    render: (boardState) => {
       surface.render(boardState);
     },
   };

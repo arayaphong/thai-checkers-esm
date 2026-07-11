@@ -1,4 +1,6 @@
 import { createGameState } from '../model/GameState.mjs';
+import { moveKey } from '../cli/GameDriver.mjs';
+import { requestAiMove } from './AiMoveChannel.mjs';
 import {
   createStandardDriver,
   createDriverForModelBoard,
@@ -15,26 +17,34 @@ import {
 //   - `state` (model/GameState): drives the view, per-step moves.
 //   - `driver` (GameDriver over core/): decides AI turns, atomic per-turn
 //     moves. Advanced either directly (AI's own turn) or by replaying an
-//     already-completed human turn onto it (see
-//     archived-plans/retire-ai-for-game-driver.md §1.4).
+//     already-completed human turn onto it.
 //
-// reset()/startGame() fully discard and rebuild both `state` and `driver`,
-// but a prior AI turn's delay -> aiThinking -> driver.playAiMove() ->
-// hop replay chain can still be in flight when that happens. pendingAiAbort
-// lets reset()/startGame() cancel that stale chain so it never applies hops
-// computed against a driver/state pair that no longer exists.
+// A single controller-wide operation token owns the turn boundary:
+//   - a human hop owns the lock through its complete animation;
+//   - an AI turn owns it from delay/analysis through authoritative commit
+//     and every replayed model hop.
+//
+// Pause/abort may discard analysis before the authoritative driver is
+// advanced. After commit, the model hops must drain; only reset/new-game
+// may invalidate the replay, because they rebuild both representations.
 // ============================================
 
 const DIFFICULTY_DEPTH = { easy: 1, medium: 4, hard: 8 };
 
 const delay = (ms, signal) => {
   const { promise, resolve } = Promise.withResolvers();
-  const timer = setTimeout(resolve, ms);
+  let settled = false;
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    resolve();
+  };
+  const timer = setTimeout(finish, ms);
   signal?.addEventListener(
     'abort',
     () => {
       clearTimeout(timer);
-      resolve();
+      finish();
     },
     { once: true },
   );
@@ -53,22 +63,48 @@ export const createGameController = (configOrParams) => {
     : createStandardDriver();
 
   let selectedPiece = null;
-  let isAIProcessing = false;
+  let isPaused = false;
   let pendingAiAbort = null;
   let turnPath = [];
   let turnCaptured = [];
   const listeners = new Map();
+
+  // Controller generation invalidates stale continuations; activeOperation
+  // ownership prevents an old finally block from clearing a newer operation.
+  let generation = 0;
+  let activeOperation = null;
 
   const resetTurnAccumulator = () => {
     turnPath = [];
     turnCaptured = [];
   };
 
-  const emit = (type, data) => {
-    const event = { type, state, data };
-    (listeners.get(type) ?? []).forEach((l) => l(event));
+  const invokeListener = (listener, event) => {
+    try {
+      return Promise.resolve(listener(event));
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  };
+
+  const emit = async (type, data, eventState = state) => {
+    const event = { type, state: eventState, data };
+    const pending = [];
+
+    for (const listener of [...(listeners.get(type) ?? [])]) {
+      pending.push(invokeListener(listener, event));
+    }
     if (type !== 'stateChanged') {
-      (listeners.get('stateChanged') ?? []).forEach((l) => l(event));
+      for (const listener of [...(listeners.get('stateChanged') ?? [])]) {
+        pending.push(invokeListener(listener, event));
+      }
+    }
+
+    const settled = await Promise.allSettled(pending);
+    for (const result of settled) {
+      if (result.status === 'rejected') {
+        console.error(`GameController: '${type}' listener failed`, result.reason);
+      }
     }
   };
 
@@ -78,6 +114,40 @@ export const createGameController = (configOrParams) => {
       pendingAiAbort = null;
     }
   };
+
+  const clearPendingAi = (abortController) => {
+    if (pendingAiAbort === abortController) {
+      pendingAiAbort = null;
+    }
+  };
+
+  const beginOperation = (kind) => {
+    if (activeOperation) return null;
+    const { promise: done, resolve: resolveDone } = Promise.withResolvers();
+    const token = { kind, generation, done, resolveDone };
+    activeOperation = token;
+    return token;
+  };
+
+  const ownsOperation = (token) => activeOperation === token && generation === token.generation;
+
+  const finishOperation = (token) => {
+    if (activeOperation === token) activeOperation = null;
+    token.resolveDone();
+  };
+
+  const invalidateOperation = () => {
+    const stale = activeOperation;
+    activeOperation = null;
+    stale?.resolveDone();
+  };
+
+  const waitForQuiescence = async () => {
+    while (activeOperation) await activeOperation.done;
+  };
+
+  const humanInputBlocked = () =>
+    isPaused || activeOperation !== null || state.currentPlayerIsAI || state.status !== 'playing';
 
   const off = (event, listener) => {
     const list = listeners.get(event);
@@ -96,54 +166,59 @@ export const createGameController = (configOrParams) => {
 
   /** Select a piece (human input) */
   const selectPiece = (pos) => {
+    if (humanInputBlocked()) return false;
+
     if (!state.canSelectPiece(pos)) {
       if (!state.mustMovePiece) {
         selectedPiece = null;
-        emit('pieceSelected', { selected: null });
+        void emit('pieceSelected', { selected: null });
       }
       return false;
     }
     selectedPiece = pos;
-    emit('pieceSelected', { selected: pos, moves: state.getMovesForPiece(pos) });
+    void emit('pieceSelected', { selected: pos, moves: state.getMovesForPiece(pos) });
     return true;
   };
 
   /** Deselect current piece */
   const deselect = () => {
+    if (humanInputBlocked()) return;
+
     if (!state.mustMovePiece) {
       selectedPiece = null;
-      emit('pieceSelected', { selected: null });
+      void emit('pieceSelected', { selected: null });
     }
   };
 
   /**
-   * Apply exactly one model-shaped hop (a single walk, or a single jump of
-   * a chain) to `state`, emitting the same events the old single-engine
-   * executeMove() did. Shared by the human path and the AI hop-replay
-   * loop. Returns whether this hop ended the turn -- callers decide what
-   * to do next (sync driver, trigger next AI turn, etc.), since that
-   * differs by source (see archived-plans/retire-ai-for-game-driver.md §1.4).
+   * Apply exactly one model-shaped hop. The outcome is computed before any
+   * awaited event, and every continuation checks operation ownership so a
+   * reset from inside a listener cannot emit stale later events.
    */
-  const applyHop = (move) => {
+  const applyHop = async (move, token) => {
     const oldState = state;
-    state = state.applyMove(move);
+    const nextState = oldState.applyMove(move);
+    const promoted =
+      Math.abs(oldState.board[move.fromR][move.fromC]) === 1 &&
+      Math.abs(nextState.board[move.toR][move.toC]) === 2;
+    const lockedPiece = nextState.mustMovePiece ? { ...nextState.mustMovePiece } : null;
+    const turnComplete = lockedPiece === null;
 
-    const oldPiece = oldState.board[move.fromR][move.fromC];
-    const newPiece = state.board[move.toR][move.toC];
-    if (Math.abs(oldPiece) === 1 && Math.abs(newPiece) === 2) {
-      emit('promotion', { at: { r: move.toR, c: move.toC } });
+    state = nextState;
+    selectedPiece = lockedPiece;
+
+    if (promoted) {
+      await emit('promotion', { at: { r: move.toR, c: move.toC } }, nextState);
+      if (!ownsOperation(token)) return { stale: true };
+    }
+    if (lockedPiece) {
+      await emit('multiCapture', { lockedPiece }, nextState);
+      if (!ownsOperation(token)) return { stale: true };
     }
 
-    if (state.mustMovePiece) {
-      selectedPiece = state.mustMovePiece;
-      emit('multiCapture', { lockedPiece: state.mustMovePiece });
-    } else {
-      selectedPiece = null;
-    }
-
-    emit('moveMade', { move, wasCapture: move.isCapture });
-
-    return { turnComplete: !state.mustMovePiece };
+    await emit('moveMade', { move, wasCapture: move.isCapture }, nextState);
+    if (!ownsOperation(token)) return { stale: true };
+    return { stale: false, turnComplete };
   };
 
   /** Replay the just-completed human turn onto `driver` so it stays in
@@ -156,98 +231,149 @@ export const createGameController = (configOrParams) => {
   };
 
   const maybeStartNextAiTurn = async () => {
-    if (state.currentPlayerIsAI) {
-      await startAiTurn(320);
+    if (!isPaused && state.status === 'playing' && state.currentPlayerIsAI) {
+      await startAiTurn(0);
     }
   };
 
   /** Execute one hop of a human-driven turn (one click's worth). */
   const executeHumanHop = async (move) => {
-    if (turnPath.length === 0) {
-      turnPath.push({ r: move.fromR, c: move.fromC });
+    const token = beginOperation('human-hop');
+    if (!token) return false;
+
+    try {
+      if (turnPath.length === 0) {
+        turnPath.push({ r: move.fromR, c: move.fromC });
+      }
+      turnPath.push({ r: move.toR, c: move.toC });
+      if (move.isCapture) {
+        turnCaptured.push({ r: move.jumpedR, c: move.jumpedC });
+      }
+
+      const result = await applyHop(move, token);
+      if (result.stale) return;
+      if (!result.turnComplete) return;
+
+      syncDriverForCompletedHumanTurn();
+      resetTurnAccumulator();
+
+      if (state.status !== 'playing') {
+        await emit('gameOver', { winner: state.status });
+        return;
+      }
+    } finally {
+      finishOperation(token);
     }
-    turnPath.push({ r: move.toR, c: move.toC });
-    if (move.isCapture) {
-      turnCaptured.push({ r: move.jumpedR, c: move.jumpedC });
-    }
 
-    const { turnComplete } = applyHop(move);
-    if (!turnComplete) return;
-
-    syncDriverForCompletedHumanTurn();
-    resetTurnAccumulator();
-
-    if (state.status !== 'playing') {
-      emit('gameOver', { winner: state.status });
-      return;
-    }
-
+    // Release the human-hop token before allowing the next AI turn to
+    // acquire its own operation token.
     await maybeStartNextAiTurn();
   };
 
   /**
-   * Let GameDriver decide and play a full AI turn (one atomic move, possibly
-   * a whole multi-capture chain), then replay it onto `state` one hop at a
-   * time so the existing per-hop event/animation pipeline is unchanged.
-   * `driver` is already advanced by the time this returns from
-   * driver.playAiMove(), so no post-loop driver sync is needed here.
+   * Let GameDriver decide and play one full AI turn, then replay it onto
+   * `state` one hop at a time. Returns whether the next player is also AI so
+   * startAiTurn() can continue in its iterative runner without recursion.
+   * The authoritative driver advance happens exactly once after validation;
+   * after that, only reset/new-game may stop the hop replay.
    */
-  const playAiTurn = async (signal) => {
-    isAIProcessing = true;
-    emit('aiThinking', { player: state.turn });
-
+  const playAiTurn = async (token, signal) => {
     const depth = DIFFICULTY_DEPTH[state.config.aiDifficulty] ?? DIFFICULTY_DEPTH.medium;
 
-    let result;
+    const requestDriver = driver;
+    const requestGeneration = generation;
+    const session = requestDriver.toJSON();
+
+    // Give the view an explicit, awaited boundary at the start of every AI
+    // turn. In a browser the binder uses this to render the new player's
+    // legal-piece hints and let them reach a paint before synchronous AI work
+    // can replace them with the move-animation board.
+    await emit('turnReady', { player: state.turn });
+    if (!ownsOperation(token) || isPaused || signal.aborted) return;
+
+    await emit('aiThinking', { player: state.turn });
+    if (!ownsOperation(token)) return;
+
+    let choice;
     try {
-      result = driver.playAiMove(depth);
-    } catch (err) {
-      isAIProcessing = false;
-      console.error('AI error:', err);
+      choice = await requestAiMove({ session, depth, signal });
+    } catch (error) {
+      console.error('AI error:', error);
       return;
     }
 
-    if (signal.aborted) return;
-    isAIProcessing = false;
+    if (
+      !ownsOperation(token) ||
+      generation !== requestGeneration ||
+      driver !== requestDriver ||
+      isPaused ||
+      signal.aborted
+    ) {
+      return;
+    }
 
-    if (!result.played) return;
+    if (!choice.played) return;
 
-    emit('aiMoved', { move: result.move, difficulty: state.config.aiDifficulty, depth });
+    const moves = requestDriver.getMoves();
+    const authoritativeMove = moves[choice.matchIndex];
+    if (!authoritativeMove || moveKey(authoritativeMove) !== choice.moveKey) {
+      console.error('GameController: AI choice validation failed');
+      return;
+    }
 
-    const hops = expandDriverMoveToModelHops(result.move);
-    for (let i = 0; i < hops.length; i++) {
-      if (i > 0) {
-        await delay(320, signal);
-        if (signal.aborted) return;
-      }
-      applyHop(hops[i]);
+    requestDriver.playMoveIndex(choice.matchIndex);
+    if (!ownsOperation(token)) return;
+
+    await emit('aiMoved', { move: authoritativeMove, difficulty: state.config.aiDifficulty, depth });
+    if (!ownsOperation(token)) return;
+
+    const hops = expandDriverMoveToModelHops(authoritativeMove);
+    for (const hop of hops) {
+      if (!ownsOperation(token)) return;
+      const result = await applyHop(hop, token);
+      if (result.stale) return;
     }
 
     if (state.status !== 'playing') {
-      emit('gameOver', { winner: state.status });
-      return;
+      await emit('gameOver', { winner: state.status });
+      return false;
     }
 
-    await maybeStartNextAiTurn();
+    return ownsOperation(token) && !isPaused && state.currentPlayerIsAI;
   };
 
-  /** Start (and track) the delay -> AI-turn sequence following a move */
+  /** Start (and track) the delay -> consecutive AI-turn sequence. */
   const startAiTurn = async (delayMs) => {
+    const token = beginOperation('ai-turn');
+    if (!token) return;
+
     const abortController = new AbortController();
     pendingAiAbort = abortController;
     const { signal } = abortController;
 
-    if (delayMs > 0) {
-      await delay(delayMs, signal);
-      if (signal.aborted) return;
-    }
+    try {
+      if (delayMs > 0) {
+        await delay(delayMs, signal);
+        if (signal.aborted || !ownsOperation(token)) return;
+      }
 
-    await playAiTurn(signal);
+      let shouldContinue = true;
+      while (shouldContinue && ownsOperation(token)) {
+        shouldContinue = await playAiTurn(token, signal);
+      }
+    } finally {
+      // This operation may have been invalidated by reset/startGame, which can
+      // install a newer AbortController before this stale continuation runs.
+      // Clear only the controller owned by this operation; never abort the
+      // newer AI task from an old finally block.
+      clearPendingAi(abortController);
+      finishOperation(token);
+    }
   };
 
   /** Attempt a move (human input) */
   const attemptMove = async (pos) => {
-    if (isAIProcessing) return false;
+    if (humanInputBlocked()) return false;
 
     if (selectedPiece) {
       const move = state.validMoves.find(
@@ -267,10 +393,13 @@ export const createGameController = (configOrParams) => {
   };
 
   /** Reset the game */
-  const reset = async () => {
+  const reset = async ({ paused = isPaused } = {}) => {
+    generation += 1;
+    const myGeneration = generation;
     cancelPendingAi();
+    invalidateOperation();
     selectedPiece = null;
-    isAIProcessing = false;
+    isPaused = paused;
     resetTurnAccumulator();
     if (hasCustomBoard(initialParams)) {
       state = createGameState({ ...initialParams, config: state.config });
@@ -279,9 +408,10 @@ export const createGameController = (configOrParams) => {
       state = state.reset();
       driver = createStandardDriver();
     }
-    emit('stateChanged', { action: 'reset' });
+    await emit('stateChanged', { action: 'reset' }, state);
+    if (generation !== myGeneration) return;
 
-    if (state.currentPlayerIsAI) {
+    if (!isPaused && state.currentPlayerIsAI) {
       await startAiTurn(400);
     }
   };
@@ -289,35 +419,41 @@ export const createGameController = (configOrParams) => {
   /** Update config (e.g., toggle AI players) */
   const updateConfig = (newConfig) => {
     state = state.withConfig(newConfig);
-    emit('stateChanged', { action: 'configUpdate' });
+    void emit('stateChanged', { action: 'configUpdate' });
   };
 
   /** Start a new game with specific AI setup */
-  const startGame = (newConfig) => {
+  const startGame = async (newConfig) => {
+    generation += 1;
+    const myGeneration = generation;
     cancelPendingAi();
+    invalidateOperation();
     selectedPiece = null;
-    isAIProcessing = false;
+    isPaused = false;
     resetTurnAccumulator();
     state = createGameState({ config: newConfig });
     driver = createStandardDriver();
-    emit('stateChanged', { action: 'newGame' });
+    await emit('stateChanged', { action: 'newGame' }, state);
+    if (generation !== myGeneration) return;
 
     if (state.currentPlayerIsAI) {
-      startAiTurn(0);
+      await startAiTurn(0);
     }
   };
 
   /** Pause active AI processing */
   const pause = () => {
+    isPaused = true;
     cancelPendingAi();
-    isAIProcessing = false;
   };
 
   /** Resume AI processing if active player is AI */
   const resume = async () => {
     cancelPendingAi();
-    if (state.currentPlayerIsAI && state.status === 'playing') {
-      await startAiTurn(0);
+    isPaused = false;
+    await waitForQuiescence();
+    if (!isPaused && state.currentPlayerIsAI && state.status === 'playing') {
+      await maybeStartNextAiTurn();
     }
   };
 
@@ -330,7 +466,7 @@ export const createGameController = (configOrParams) => {
       return selectedPiece;
     },
     get isAIProcessing() {
-      return isAIProcessing;
+      return activeOperation?.kind === 'ai-turn';
     },
     get driver() {
       return driver;
@@ -349,5 +485,6 @@ export const createGameController = (configOrParams) => {
     startGame,
     pause,
     resume,
+    waitForQuiescence,
   };
 };

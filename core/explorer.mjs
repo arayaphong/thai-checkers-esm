@@ -157,7 +157,8 @@ export class Explorer {
             if (occupiedIndices.length === 0) return [];
 
             const firstIdx = occupiedIndices[0];
-            const hasValidLanding = firstIdx + 1 < ray.length && !board.isOccupied(ray[firstIdx + 1]);
+            const hasValidLanding =
+                firstIdx + 1 < ray.length && !board.isOccupied(ray[firstIdx + 1]);
             if (hasValidLanding && isOpponentPiece(board, ray[firstIdx], myColor)) {
                 return [[ray[firstIdx], ray[firstIdx + 1]]];
             }

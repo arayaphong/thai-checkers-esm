@@ -1,21 +1,18 @@
 // ============================================
 // motionClassMap — owns class names and timing constants for board
-// move/capture animation (slide, ripple, fade, landing).
+// move/capture animation (slide, ripple, fade, landing). Visual durations
+// live in CSS; this module only keeps the transition strings and class
+// names the DOM surface needs.
 // ============================================
 
 export const motionClassMap = Object.freeze({
   rippleWrapper: 'abs-fill flex-center z-10 pointer-events-none',
   rippleInner: 'w-2 h-2 rounded-full bg-white/20 animate-ripple',
-  rippleDurationMs: 350,
 
   slideOverlay: 'absolute pointer-events-none',
-  slideTransitionCss: 'transition:top 280ms ease-out,left 280ms ease-out;',
-  slideDurationMs: 280,
+  slideTransitionCss: 'transition:top 220ms ease-out,left 220ms ease-out;',
 
-  captureVictimWrapper: 'absolute z-[15]',
-  captureVictimFadeTransitionCss: 'opacity 150ms ease-out, transform 150ms ease-out',
-  captureVictimFadeDelayMs: 160,
+  captureVictimFadeTransitionCss: 'opacity 120ms ease-out, transform 120ms ease-out',
 
   landAnimation: 'animate-land',
-  landAnimationDurationMs: 250,
 });

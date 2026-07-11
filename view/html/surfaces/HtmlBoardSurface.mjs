@@ -104,7 +104,7 @@ export const createBoardSurface = (registry) => {
       state.set(key(position), createSquareState());
       return el;
     },
-    render(boardRenderState) {
+    render: (boardRenderState) => {
       const {
         pieces,
         selectedPosition,

@@ -4,7 +4,7 @@
 
 export const createGameStatusView = (surface) => {
   return {
-    render(state) {
+    render: (state) => {
       const { turn, status, mustMovePiece, isAIThinking, gameConfig, pieceCounts } = state;
 
       surface.render({

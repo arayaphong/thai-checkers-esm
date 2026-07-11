@@ -6,8 +6,8 @@
 
 export const boardClassMap = Object.freeze({
   squareDark:
-    'w-full h-full flex items-center justify-center relative bg-slate-700 hover:bg-slate-600 cursor-pointer',
-  squareLight: 'w-full h-full flex items-center justify-center relative bg-stone-800/60',
+    'w-full h-full flex items-center justify-center relative bg-stone-800/60',
+  squareLight: 'w-full h-full flex items-center justify-center relative bg-slate-700',
 
   coordLabelOnDark: 'abs-coord text-white',
   coordLabelOnLight: 'abs-coord text-stone-400/50',
@@ -22,7 +22,7 @@ export const boardClassMap = Object.freeze({
   pieceSelected: 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-slate-900',
   pieceMandatoryCapture:
     'ring-4 ring-rose-500 ring-offset-2 ring-offset-slate-700 animate-piece-pulse',
-  pieceMoveableHint: 'ring-2 ring-amber-400',
+  pieceMoveableHint: 'ring-2 ring-amber-400 cursor-pointer',
 
   pieceInnerWhite:
     'w-[70%] h-[70%] rounded-full border flex items-center justify-center border-stone-400/40',
@@ -33,7 +33,8 @@ export const boardClassMap = Object.freeze({
   kingIconBlack: 'w-3/5 h-3/5 text-amber-400',
 
   dotBase: 'dot abs-fill flex-center z-20 pointer-events-none',
-  dotInnerBase: 'w-4 h-4 sm:w-6 sm:h-6 rounded-full shadow-lg shadow-black/40 animate-target-pulse',
+  dotInnerBase:
+    'move-hint w-4 h-4 sm:w-6 sm:h-6 rounded-full shadow-lg shadow-black/40 animate-target-pulse',
   dotTargetWalk: 'bg-emerald-300',
   dotTargetCapture: 'bg-rose-400 dot-capture',
 });

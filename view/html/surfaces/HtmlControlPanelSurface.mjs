@@ -1,5 +1,4 @@
 import { controlPanelClassMap } from '../styles/controlPanelClassMap.mjs';
-import { layoutClassMap } from '../styles/layoutClassMap.mjs';
 
 const h = (tag, cls) => Object.assign(document.createElement(tag), { className: cls });
 
@@ -168,7 +167,7 @@ export const createControlPanelSurface = (registry) => {
   const updaters = createUpdaters(elements);
 
   return {
-    render(state) {
+    render: (state) => {
       updaters.forEach((updater) => updater(state));
     },
     getCollapsedToggleButton: () => elements.collapsedToggleBtnEl,

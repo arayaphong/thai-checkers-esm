@@ -209,7 +209,7 @@ export const createStatusSurface = (registry) => {
   const updaters = createUpdaters(elements);
 
   return {
-    render(state) {
+    render: (state) => {
       updaters.forEach((update) => update(state));
     },
     getResetButton: () => elements.resetBtnEl,

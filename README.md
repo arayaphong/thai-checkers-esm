@@ -57,6 +57,7 @@ model/
 controller/
   GameController.mjs       Keeps model state and GameDriver in sync
   GameDriverBridge.mjs     Translates model positions/hops and atomic core moves
+  AiMoveChannel.mjs        Serializable, non-mutating AI analysis boundary
 
 core/                       Atomic-move rules and Analyzer search engine
 
@@ -65,17 +66,18 @@ cli/
   cli.mjs                  Node-only terminal REPL
 
 view/
-  GameView.mjs             Semantic facade for the whole visible game UI
-  GameViewBinder.mjs       Subscribes to controller events and refreshes GameView
-  GameViewStateFactory.mjs Translates controller/model state into display state
-  css/                     Stylesheets and Tailwind build input/output
+  GameView.mjs                   Semantic facade for the whole visible game UI
+  GameViewBinder.mjs             Subscribes to controller events and refreshes GameView
+  GameViewStateFactory.mjs       Translates controller/model state into display state
+  GameViewAnimationLifecycle.mjs Tracks active move animation (begin/wait/cancel)
+  css/                           Stylesheets and Tailwind build input/output
     game.css               Animations and small project utility classes
     tailwind-input.css     Tailwind CLI input
     tailwind.css           Generated Tailwind stylesheet
-  icons/                   SVG source files (crown, bot, restart, info)
-  components/              Semantic board/status/control-panel views
-  intent/                  Actor/action/intent flow for user interaction
-  html/                    DOM surfaces, templates, element registry, CSS maps
+  icons/                         SVG source files (crown, bot, restart, info)
+  components/                    Semantic board/status/control-panel views
+  intent/                        Actor/action/intent flow for user interaction
+  html/                          DOM surfaces, templates, element registry, CSS maps
     templates/             Main layout and board HTML fragments
     surfaces/              HTML implementations behind semantic view methods
     styles/                Real CSS class mappings owned by the HTML layer

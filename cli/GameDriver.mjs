@@ -5,7 +5,7 @@
 import { Game } from '../core/game.mjs';
 import { Board } from '../core/board.mjs';
 import { Position } from '../core/position.mjs';
-import { PieceColor, PieceType, toStringPieceColor, toStringPieceType } from '../core/piece.mjs';
+import { PieceColor, PieceType } from '../core/piece.mjs';
 import { Analyzer, MAX_ANALYSIS_DEPTH } from '../core/analyzer.mjs';
 import { isImmediateDraw } from '../core/evaluation.mjs';
 
@@ -37,11 +37,6 @@ const TYPE_NAME_TO_ENUM = new Map([
 const ENUM_TO_COLOR_NAME = new Map([
   [PieceColor.WHITE, 'WHITE'],
   [PieceColor.BLACK, 'BLACK'],
-]);
-
-const ENUM_TO_TYPE_NAME = new Map([
-  [PieceType.PION, 'PION'],
-  [PieceType.DAME, 'DAME'],
 ]);
 
 // Converts omitted/"WHITE"/"BLACK" to PieceColor values and rejects anything else.
