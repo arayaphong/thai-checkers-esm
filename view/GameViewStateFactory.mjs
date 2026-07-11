@@ -102,7 +102,7 @@ export const createFromController = (controller, flags) => ({
   controlPanel: createControlPanelState(controller, flags),
 });
 
-// Not in PLAN.md's literal method list, but showMoveMade() needs the
+// Not in the standard method list, but showMoveMade() needs the
 // moved/captured piece descriptors -- this mirrors the computation that
 // used to live inline in the old move handler.
 export const createMoveDisplay = (controller, move) => {

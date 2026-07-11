@@ -45,7 +45,7 @@ export class Analyzer {
      * move produced the best score, and a narrowed sibling can wrongly appear
      * to tie or beat one it doesn't actually match. An earlier version of
      * this method narrowed the window here and picked the wrong root move on
-     * a genuine near-tie (see PLAN.md's move-ordering-fix work log for the
+     * a genuine near-tie (see the move-ordering-fix notes for the
      * reproduction). The root has only as many moves as there are legal
      * options here (never exponential), so searching each with a full window
      * costs comparatively little next to the exponential subtree beneath it,

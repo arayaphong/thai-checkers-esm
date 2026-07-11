@@ -9,8 +9,8 @@
 // markGameStarted()/markSetupExpanded()/markGameStopped() are called
 // by the UI intent wiring (view/html/HtmlUiEventSource.mjs's consumer)
 // for the three interactions that change these flags without
-// necessarily going through a controller event -- see PLAN.md Phase 7
-// notes for why isExpandSetup doesn't stop a pending animation while
+// necessarily going through a controller event -- see design notes for why
+// isExpandSetup doesn't stop a pending animation while
 // isRestartGame does.
 // ============================================
 

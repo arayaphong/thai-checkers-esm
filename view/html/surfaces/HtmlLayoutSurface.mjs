@@ -1,12 +1,9 @@
 import { layoutClassMap } from '../styles/layoutClassMap.mjs';
 
-// ============================================
 // HtmlLayoutSurface — owns the small remaining layout concern that no
 // other surface claimed: dimming the game area while the setup panel
-// is expanded. Not part of PLAN.md's Phase 7 file list (no phase ever
-// scheduled view/components/layout/**), added here since GameView
-// needs an HTML-layer home for this to stay DOM-free itself.
-// ============================================
+// is expanded. Added here since GameView needs an HTML-layer home for
+// this to stay DOM-free itself.
 
 export const createLayoutSurface = (registry) => {
   const gameAreaEl = registry.getGameArea();
