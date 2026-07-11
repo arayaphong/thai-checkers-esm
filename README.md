@@ -26,19 +26,19 @@ python3 -m http.server 8000
 
 ### Modes
 
-| Mode | Description |
-|---|---|
+| Mode                   | Description                          |
+| ---------------------- | ------------------------------------ |
 | ⚪ Player vs ⚫ Player | Two human players on the same screen |
-| ⚪ Player vs ⚫ AI | Human plays white, AI plays black |
-| ⚪ AI vs ⚫ Player | AI plays white, human plays black |
-| ⚪ AI vs ⚫ AI | Watch two AIs play |
+| ⚪ Player vs ⚫ AI     | Human plays white, AI plays black    |
+| ⚪ AI vs ⚫ Player     | AI plays white, human plays black    |
+| ⚪ AI vs ⚫ AI         | Watch two AIs play                   |
 
 ### AI Difficulty
 
-| Level | Algorithm | Description |
-|---|---|---|
-| ง่าย | `Analyzer` | Atomic-turn search depth 1 |
-| พอสู้ได้ | `Analyzer` | Atomic-turn search depth 4 |
+| Level     | Algorithm  | Description                |
+| --------- | ---------- | -------------------------- |
+| ง่าย      | `Analyzer` | Atomic-turn search depth 1 |
+| พอสู้ได้  | `Analyzer` | Atomic-turn search depth 4 |
 | ไม่ยอมแพ้ | `Analyzer` | Atomic-turn search depth 8 |
 
 ---

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { GameDriver } from '../../cli/GameDriver.mjs';
 import { Position } from '../../core/position.mjs';
-import { PieceColor, PieceType } from '../../core/piece.mjs';
+import { PieceColor } from '../../core/piece.mjs';
 import {
   createDriverForModelBoard,
   demoJsonFromModelBoard,
@@ -63,8 +63,13 @@ describe('GameDriverBridge', () => {
   test('atomic capture chain expands into exact model hops', async () => {
     const demo = JSON.parse(await readFile('examples/demos/demo1.json', 'utf8'));
     const driver = new GameDriver(demo);
-    const move = driver.getMoves().find((candidate) =>
-      candidate.captured.map((position) => position.toString()).toSorted().join(',') === 'D5,D7');
+    const move = driver.getMoves().find(
+      (candidate) =>
+        candidate.captured
+          .map((position) => position.toString())
+          .toSorted()
+          .join(',') === 'D5,D7',
+    );
     const hops = expandDriverMoveToModelHops(move);
 
     assert.deepEqual(hops, [
@@ -99,11 +104,12 @@ describe('GameDriverBridge', () => {
     const driver = new GameDriver(demo);
 
     assert.throws(
-      () => playHumanTurnOnDriver(driver, {
-        fromSquare: 'E4',
-        toSquare: 'E8',
-        capturedSquares: ['A2'],
-      }),
+      () =>
+        playHumanTurnOnDriver(driver, {
+          fromSquare: 'E4',
+          toSquare: 'E8',
+          capturedSquares: ['A2'],
+        }),
       /model\/ and core\/ move generation have diverged/,
     );
   });

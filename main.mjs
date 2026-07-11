@@ -11,10 +11,11 @@ import { createHtmlGameView } from './view/html/HtmlGameViewFactory.mjs';
 const getDemoParam = () => {
   const href = window.location.href;
   const pathname = window.location.pathname;
-  const match = href.match(/[?&#]demo=([^/&?#]+)/) ||
-                href.match(/#(demo\d+)/) ||
-                pathname.match(/^\/demo=(demo\d+)/) ||
-                pathname.match(/^\/(demo\d+)/);
+  const match =
+    href.match(/[?&#]demo=([^/&?#]+)/) ||
+    href.match(/#(demo\d+)/) ||
+    pathname.match(/^\/demo=(demo\d+)/) ||
+    pathname.match(/^\/(demo\d+)/);
   return match ? match[1] : null;
 };
 
@@ -51,7 +52,7 @@ if (demoName) {
   if (demoParams) {
     controllerParams = {
       ...demoParams,
-      config: { whiteIsAI: false, blackIsAI: false }
+      config: { whiteIsAI: false, blackIsAI: false },
     };
   }
 }

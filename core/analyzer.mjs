@@ -1,11 +1,24 @@
 // Deep-first search analysis for Thai Checkers
 import { PieceColor } from './piece.mjs';
 import { Game } from './game.mjs';
-import { evaluatePosition, isImmediateDraw, MATE_SCORE, MATE_SCORE_THRESHOLD } from './evaluation.mjs';
+import {
+    evaluatePosition,
+    isImmediateDraw,
+    MATE_SCORE,
+} from './evaluation.mjs';
 import { orderMoveIndices } from './moves/move-order.mjs';
 
+/**
+ * Capped limit for depth search to avoid stack overflow.
+ * @type {number}
+ */
 export const MAX_ANALYSIS_DEPTH = 16;
 
+/**
+ * Asserts depth parameter validity.
+ * @param {number} depth
+ * @throws {RangeError}
+ */
 const assertValidDepth = (depth) => {
     if (!Number.isSafeInteger(depth) || depth < 1 || depth > MAX_ANALYSIS_DEPTH) {
         throw new RangeError(
@@ -28,7 +41,10 @@ export class Analyzer {
         this.#game = game;
     }
 
-    /** Number of #negamax and #quiescence invocations during the most recent analyze() call. */
+    /** 
+     * Number of #negamax and #quiescence invocations during the most recent analyze() call. 
+     * @type {number}
+     */
     get nodeCount() {
         return this.#nodeCount;
     }
@@ -45,13 +61,13 @@ export class Analyzer {
      * move produced the best score, and a narrowed sibling can wrongly appear
      * to tie or beat one it doesn't actually match. An earlier version of
      * this method narrowed the window here and picked the wrong root move on
-     * a genuine near-tie (see PLAN.md's move-ordering-fix work log for the
+     * a genuine near-tie (see the move-ordering-fix notes for the
      * reproduction). The root has only as many moves as there are legal
      * options here (never exponential), so searching each with a full window
      * costs comparatively little next to the exponential subtree beneath it,
      * where #negamax's own narrowing is unaffected and still safe.
      * @param {number} depth The search depth in plies. Must be an integer from 1 to MAX_ANALYSIS_DEPTH.
-     * @returns {{move: object, score: number}|null} The best move and its score, or null if no moves are available.
+     * @returns {{move: import('./game.mjs').Move, score: number}|null} The best move and its score, or null if no moves are available.
      */
     analyze(depth) {
         assertValidDepth(depth);
@@ -67,23 +83,27 @@ export class Analyzer {
         const board = game.board();
         const player = game.player();
 
-        const { bestMoveIndex, bestScore } = orderMoveIndices(moves, board, player)
-            .reduce((acc, index) => {
+        const { bestMoveIndex, bestScore } = orderMoveIndices(moves, board, player).reduce(
+            (acc, index) => {
                 game.selectMove(index);
                 const score = -this.#negamax(game, depth - 1, -Infinity, Infinity, -playerColor, 1);
                 game.undoMove();
 
                 // Strict improvement wins; ties keep the lowest move index, matching the
                 // ascending-order tie-break of the original unordered scan.
-                return score > acc.bestScore || (score === acc.bestScore && index < acc.bestMoveIndex)
+                return score > acc.bestScore ||
+                    (score === acc.bestScore && index < acc.bestMoveIndex)
                     ? { bestMoveIndex: index, bestScore: score }
                     : acc;
-            }, { bestMoveIndex: 0, bestScore: -Infinity });
+            },
+            { bestMoveIndex: 0, bestScore: -Infinity },
+        );
 
         return { move: moves[bestMoveIndex], score: bestScore };
     }
 
     /**
+     * Alpha-beta minimax recursive search.
      * @param {import('./game.mjs').Game} game
      * @param {number} depth
      * @param {number} alpha
@@ -91,7 +111,7 @@ export class Analyzer {
      * @param {number} color 1 for maximizing player, -1 for minimizing
      * @param {number} plyFromRoot Distance in plies from the analyze() root to `game`'s
      *   current position, used so a terminal score reflects actual mate distance rather
-     *   than remaining search depth (see core/evaluation.js).
+     *   than remaining search depth (see core/evaluation.mjs).
      * @returns {number} The score of the position from the perspective of the current player.
      */
     #negamax(game, depth, alpha, beta, color, plyFromRoot) {
@@ -104,7 +124,7 @@ export class Analyzer {
         const board = game.board();
         const player = game.player();
 
-        // An immediate draw (docs/กฎการเสมอในเกมหมากฮอส.md) scores as a loss for
+        // An immediate draw (per Thai checkers draw rules) scores as a loss for
         // player, not a neutral 0: the real game doesn't stop play here (see
         // analyze()'s doc comment on why the core engine is left alone), but
         // the search should never treat reaching this dead end as acceptable
@@ -122,7 +142,10 @@ export class Analyzer {
         let value = -Infinity;
         for (const index of orderMoveIndices(moves, board, player)) {
             game.selectMove(index);
-            value = Math.max(value, -this.#negamax(game, depth - 1, -beta, -alpha, -color, plyFromRoot + 1));
+            value = Math.max(
+                value,
+                -this.#negamax(game, depth - 1, -beta, -alpha, -color, plyFromRoot + 1),
+            );
             game.undoMove();
             alpha = Math.max(alpha, value);
             if (alpha >= beta) break;
@@ -166,7 +189,10 @@ export class Analyzer {
         let value = -Infinity;
         for (const index of orderMoveIndices(moves, board, player)) {
             game.selectMove(index);
-            value = Math.max(value, -this.#quiescence(game, -beta, -alpha, -color, plyFromRoot + 1));
+            value = Math.max(
+                value,
+                -this.#quiescence(game, -beta, -alpha, -color, plyFromRoot + 1),
+            );
             game.undoMove();
             alpha = Math.max(alpha, value);
             if (alpha >= beta) break;

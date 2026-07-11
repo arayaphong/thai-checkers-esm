@@ -8,7 +8,7 @@
 // showMoveMade() no longer knows any animation-timing constants itself
 // (those live entirely in the motion surface, which resolves a promise
 // per effect) -- it just waits for whatever the animation view reports
-// as finished. See PLAN.md Phase 7 notes for the boundary this keeps.
+// as finished. See the design notes for the boundary this keeps.
 //
 // pendingAnimationDone is the single source of truth for "is an
 // animation currently playing." Callers (e.g. GameViewBinder) ask via
@@ -17,7 +17,13 @@
 // stale continuation clobber a newer animation's state in practice.
 // ============================================
 
-export const createGameView = ({ boardView, animationView, statusView, controlPanelView, layoutSurface }) => {
+export const createGameView = ({
+  boardView,
+  animationView,
+  statusView,
+  controlPanelView,
+  layoutSurface,
+}) => {
   let pendingAnimationAbort = null;
   let pendingAnimationDone = null;
 
@@ -52,8 +58,8 @@ export const createGameView = ({ boardView, animationView, statusView, controlPa
     // already empty in the settled state.
     const preAnimationBoard = {
       ...settledViewState.board,
-      pieces: settledViewState.board.pieces.filter((p) =>
-        !(p.position.r === to.r && p.position.c === to.c)
+      pieces: settledViewState.board.pieces.filter(
+        (p) => !(p.position.r === to.r && p.position.c === to.c),
       ),
     };
     applyBoardState(preAnimationBoard);

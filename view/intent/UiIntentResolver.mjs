@@ -30,7 +30,6 @@ export const resolveUiIntent = (rawEvent) => {
     case 'setupPanel':
       return UiIntent.expandSetup();
     default:
-
       return null;
   }
 };

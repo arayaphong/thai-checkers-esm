@@ -1,20 +1,44 @@
 // Shared direction vectors and small helpers used by both move generation
-// (core/explorer.js) and static evaluation (core/evaluation.js).
+// (core/explorer.mjs) and static evaluation (core/evaluation.mjs).
 import { PieceColor } from './piece.mjs';
 
+/**
+ * @typedef {Object} Direction
+ * @property {number} dx
+ * @property {number} dy
+ */
+
+/**
+ * Freezes the direction vectors.
+ * @param {Direction[]} dirs
+ * @returns {readonly Direction[]}
+ */
 const freezeDirs = (dirs) => Object.freeze(dirs.map((dir) => Object.freeze(dir)));
 
-export const WHITE_PION_DIRS = freezeDirs([{ dx: -1, dy: 1 }, { dx: 1, dy: 1 }]);
-export const BLACK_PION_DIRS = freezeDirs([{ dx: -1, dy: -1 }, { dx: 1, dy: -1 }]);
+/** @type {readonly Direction[]} */
+export const WHITE_PION_DIRS = freezeDirs([
+    { dx: -1, dy: 1 },
+    { dx: 1, dy: 1 },
+]);
+
+/** @type {readonly Direction[]} */
+export const BLACK_PION_DIRS = freezeDirs([
+    { dx: -1, dy: -1 },
+    { dx: 1, dy: -1 },
+]);
+
+/** @type {readonly Direction[]} */
 export const DAME_DIRS = freezeDirs([
-    { dx: -1, dy: -1 }, { dx: 1, dy: -1 },
-    { dx: -1, dy: 1 }, { dx: 1, dy: 1 },
+    { dx: -1, dy: -1 },
+    { dx: 1, dy: -1 },
+    { dx: -1, dy: 1 },
+    { dx: 1, dy: 1 },
 ]);
 
 /**
  * Forward-diagonal direction vectors for a pion of `color`.
  * @param {number} color PieceColor
- * @returns {readonly {dx:number, dy:number}[]}
+ * @returns {readonly Direction[]}
  */
 export const pionForwardDirs = (color) =>
     color === PieceColor.BLACK ? BLACK_PION_DIRS : WHITE_PION_DIRS;

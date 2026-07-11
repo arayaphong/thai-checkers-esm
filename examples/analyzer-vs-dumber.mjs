@@ -2,18 +2,18 @@
 // "Analyzer", a single Analyzer at depth 8 (BLACK), and play the game out to
 // completion.
 //
-// Run with: node examples/analyze-vs-random.mjs [--no-board]
+// Run with: node examples/analyzer-vs-dumber.mjs [--no-board]
 import { GameDriver, renderBoard, moveKey } from '../cli/cli.mjs';
 import { Analyzer } from '../core/analyzer.mjs';
 import { PieceColor, toStringPieceColor } from '../core/piece.mjs';
 
 const SHOW_BOARD = !process.argv.includes('--no-board');
-const SEARCH_DEPTH = 6;
+const SEARCH_DEPTH = 8;
 const ANALYZER_COLOR = PieceColor.BLACK;
 const PLAYER_NAMES = { [PieceColor.WHITE]: 'Dumber', [PieceColor.BLACK]: 'Analyzer' };
 // Safety net: cap plies to prevent infinite loops in drawish endgames
 const MAX_PLIES = 200;
-const MAX_GAMES = 5;
+const MAX_GAMES = 1;
 
 const playPly = (driver, ply) => {
   const state = driver.getState();
@@ -24,21 +24,27 @@ const playPly = (driver, ply) => {
   process.stdout.write(`${SHOW_BOARD ? '\n' : ''}Ply ${ply + 1}: ${moverLabel} is thinking...`);
   const turnStart = performance.now();
 
-  const { index, note } = mover === ANALYZER_COLOR
-    ? (() => {
-        const analyzer = new Analyzer(driver.game);
-        const { move, score } = analyzer.analyze(SEARCH_DEPTH);
-        const idx = state.moves.findIndex((m) => moveKey(m) === moveKey(move));
-        const thinkSeconds = ((performance.now() - turnStart) / 1000).toFixed(2);
-        return { index: idx, note: `[score=${score}, nodes=${analyzer.nodeCount}, time=${thinkSeconds}s]` };
-      })()
-    : { index: Math.floor(Math.random() * state.moves.length), note: '(random)' };
+  const { index, note } =
+    mover === ANALYZER_COLOR
+      ? (() => {
+          const analyzer = new Analyzer(driver.game);
+          const { move, score } = analyzer.analyze(SEARCH_DEPTH);
+          const idx = state.moves.findIndex((m) => moveKey(m) === moveKey(move));
+          const thinkSeconds = ((performance.now() - turnStart) / 1000).toFixed(2);
+          return {
+            index: idx,
+            note: `[score=${score}, nodes=${analyzer.nodeCount}, time=${thinkSeconds}s]`,
+          };
+        })()
+      : { index: Math.floor(Math.random() * state.moves.length), note: '(random)' };
 
   const move = state.moves[index];
   driver.playMoveIndex(index);
 
   const captureNote = move.captured.length ? ` (captures ${move.captured.length})` : '';
-  console.log(`\rPly ${ply + 1}: ${moverLabel} plays ${move.from} -> ${move.to}${captureNote}  ${note}`);
+  console.log(
+    `\r\x1b[KPly ${ply + 1}: ${moverLabel} plays ${move.from} -> ${move.to}${captureNote}  ${note}`,
+  );
   if (SHOW_BOARD) console.log(renderBoard(driver.game.board()));
 
   return playPly(driver, ply + 1);
@@ -60,9 +66,9 @@ const runGame = (gameNumber) => {
   const analyzerLost = state.isGameOver && state.winner !== ANALYZER_COLOR && !state.isDraw;
 
   const resultMessage = state.isGameOver
-    ? (state.isDraw
-        ? `Draw by ${state.drawReason} in ${ply} plies`
-        : `${PLAYER_NAMES[state.winner]} wins in ${ply} plies`)
+    ? state.isDraw
+      ? `Draw by ${state.drawReason} in ${ply} plies`
+      : `${PLAYER_NAMES[state.winner]} wins in ${ply} plies`
     : `Stopped after reaching the ${MAX_PLIES}-ply safety cap with no result.`;
 
   console.log(`\n${resultMessage}`);

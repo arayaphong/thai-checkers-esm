@@ -21,7 +21,7 @@ export const createUiEventSource = (registry) => {
       const hasPiece = !!squareEl.querySelector('.piece');
       emit({
         source: 'board',
-        visibleRole: hasDot ? 'boardSquare' : (hasPiece ? 'piece' : 'boardSquare'),
+        visibleRole: hasDot ? 'boardSquare' : hasPiece ? 'piece' : 'boardSquare',
         visibleAction: 'press',
         position: { row: Number(squareEl.dataset.row), col: Number(squareEl.dataset.col) },
       });
@@ -30,13 +30,23 @@ export const createUiEventSource = (registry) => {
 
     const modeEl = event.target.closest('[data-mode]');
     if (modeEl) {
-      emit({ source: 'control-panel', visibleRole: 'gameModeOption', visibleAction: 'press', mode: modeEl.dataset.mode });
+      emit({
+        source: 'control-panel',
+        visibleRole: 'gameModeOption',
+        visibleAction: 'press',
+        mode: modeEl.dataset.mode,
+      });
       return;
     }
 
     const diffEl = event.target.closest('[data-diff]');
     if (diffEl) {
-      emit({ source: 'control-panel', visibleRole: 'difficultyOption', visibleAction: 'press', difficulty: diffEl.dataset.diff });
+      emit({
+        source: 'control-panel',
+        visibleRole: 'difficultyOption',
+        visibleAction: 'press',
+        difficulty: diffEl.dataset.diff,
+      });
       return;
     }
 
@@ -49,7 +59,6 @@ export const createUiEventSource = (registry) => {
       emit({ source: 'control-panel', visibleRole: 'startGameAction', visibleAction: 'press' });
       return;
     }
-
 
     if (event.target.closest('#resetBtn')) {
       emit({ source: 'status', visibleRole: 'restartGameAction', visibleAction: 'press' });

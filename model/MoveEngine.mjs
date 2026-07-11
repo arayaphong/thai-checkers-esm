@@ -24,7 +24,15 @@ const getPawnMoves = (board, r, c, piece) => {
       const jumped = board[jr][jc];
       return jumped !== 0 && Math.sign(jumped) !== Math.sign(piece) && board[nr][nc] === 0;
     })
-    .map(({ jr, jc, nr, nc }) => ({ fromR: r, fromC: c, toR: nr, toC: nc, isCapture: true, jumpedR: jr, jumpedC: jc }));
+    .map(({ jr, jc, nr, nc }) => ({
+      fromR: r,
+      fromC: c,
+      toR: nr,
+      toC: nc,
+      isCapture: true,
+      jumpedR: jr,
+      jumpedC: jc,
+    }));
 
   return { walks, captures };
 };
@@ -53,10 +61,17 @@ const scanDameRay = (board, piece, r, c, dr, dc) => {
       }
       return {
         walks: [],
-        captures: [{
-          fromR: r, fromC: c, toR: currR, toC: currC,
-          isCapture: true, jumpedR: foundOpponent.r, jumpedC: foundOpponent.c,
-        }],
+        captures: [
+          {
+            fromR: r,
+            fromC: c,
+            toR: currR,
+            toC: currC,
+            isCapture: true,
+            jumpedR: foundOpponent.r,
+            jumpedC: foundOpponent.c,
+          },
+        ],
       };
     }
 
@@ -73,8 +88,12 @@ const scanDameRay = (board, piece, r, c, dr, dc) => {
  * Get walk/capture moves for a dame (king) at (r, c).
  */
 const getDameMoves = (board, r, c, piece) => {
-  const rays = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-    .map(([dr, dc]) => scanDameRay(board, piece, r, c, dr, dc));
+  const rays = [
+    [-1, -1],
+    [-1, 1],
+    [1, -1],
+    [1, 1],
+  ].map(([dr, dc]) => scanDameRay(board, piece, r, c, dr, dc));
 
   return {
     walks: rays.flatMap((ray) => ray.walks),
@@ -102,9 +121,10 @@ const getMovesForPiece = (board, r, c) => {
 const getAllValidMoves = (board, player, mustMovePiece = null) => {
   const allMoves = board
     .flatMap((row, r) => row.map((piece, c) => ({ r, c, piece })))
-    .filter(({ r, c, piece }) =>
-      Math.sign(piece) === player &&
-      (!mustMovePiece || (r === mustMovePiece.r && c === mustMovePiece.c))
+    .filter(
+      ({ r, c, piece }) =>
+        Math.sign(piece) === player &&
+        (!mustMovePiece || (r === mustMovePiece.r && c === mustMovePiece.c)),
     )
     .flatMap(({ r, c }) => {
       const { walks, captures } = getMovesForPiece(board, r, c);
@@ -150,7 +170,7 @@ const executeMove = (board, move) => {
     newBoard,
     promoted,
     canContinue,
-    positionAfter: { r: move.toR, c: move.toC }
+    positionAfter: { r: move.toR, c: move.toC },
   };
 };
 

@@ -2,20 +2,56 @@
 import { PieceColor } from './piece.mjs';
 import { Position } from './position.mjs';
 import { Legals } from './legals.mjs';
-import { WHITE_PION_DIRS, BLACK_PION_DIRS, DAME_DIRS, promotionRow, isOpponentPiece } from './directions.mjs';
+import {
+    WHITE_PION_DIRS,
+    BLACK_PION_DIRS,
+    DAME_DIRS,
+    promotionRow,
+    isOpponentPiece,
+} from './directions.mjs';
 
+/**
+ * Returns available move directions based on color and type.
+ * @param {number} color
+ * @param {boolean} isDame
+ * @returns {readonly import('./directions.mjs').Direction[]}
+ */
 const getDirs = (color, isDame) =>
-    isDame
-        ? DAME_DIRS
-        : color === PieceColor.BLACK ? BLACK_PION_DIRS : WHITE_PION_DIRS;
+    isDame ? DAME_DIRS : color === PieceColor.BLACK ? BLACK_PION_DIRS : WHITE_PION_DIRS;
 
-// ─── Explorer ───
+/**
+ * Helper to compute positions along a direction vector.
+ * @param {Position} from
+ * @param {number} dx
+ * @param {number} dy
+ * @returns {Position[]}
+ */
+const getRayCoords = (from, dx, dy) =>
+    Array.from({ length: 7 }, (_, i) => ({ x: from.x + dx * (i + 1), y: from.y + dy * (i + 1) }))
+        .filter(({ x, y }) => Position.isValid(x, y))
+        .map(({ x, y }) => Position.fromCoords(x, y));
+
+/**
+ * Board state explorer for computing legal moves.
+ */
 export class Explorer {
     #board;
+
+    /**
+     * @param {import('./board.mjs').Board} board
+     */
     constructor(board) {
         this.#board = board;
     }
+
     // ─── public API ───
+
+    /**
+     * Finds all legal moves for a piece at the position.
+     * @param {Position} from
+     * @returns {import('./legals.mjs').Legals}
+     * @throws {Error}
+     */
     findValidMoves(from) {
         if (!this.#board.isOccupied(from)) {
             throw new Error(`No piece at ${from.toString()}`);
@@ -24,15 +60,23 @@ export class Explorer {
         const color = this.#board.isBlackPiece(from) ? PieceColor.BLACK : PieceColor.WHITE;
         // 1. Try captures
         const captures = this.#findAllCaptureSequences(from, color, isDame);
-        if (captures.length > 0)
-            return Legals.fromCaptures(captures);
+        if (captures.length > 0) return Legals.fromCaptures(captures);
 
         // 2. Regular moves
         const dirs = getDirs(color, isDame);
         const positions = this.#findRegularMoves(from, color, isDame, dirs);
         return Legals.fromRegularMoves(positions);
     }
+
     // ─── capture sequence finding ───
+
+    /**
+     * Finds all capture sequences from a starting square.
+     * @param {Position} from
+     * @param {number} color
+     * @param {boolean} isDame
+     * @returns {Position[][]}
+     */
     #findAllCaptureSequences(from, color, isDame) {
         const results = this.#findCapturesFrom(this.#board, from, color, isDame, []);
         // Deduplicate exact capture sequences while preserving alternative
@@ -45,60 +89,77 @@ export class Explorer {
             return true;
         });
     }
+
+    /**
+     * Recursive helper to find captures.
+     * @param {import('./board.mjs').Board} board
+     * @param {Position} pos
+     * @param {number} color
+     * @param {boolean} isDame
+     * @param {Position[][]} path
+     * @returns {Position[][]}
+     */
     #findCapturesFrom(board, pos, color, isDame, path) {
-        const results = [];
         const dirs = getDirs(color, isDame);
-        for (const d of dirs) {
+        return dirs.flatMap((d) => {
             const caps = this.#findCapturesInDir(board, pos, d, isDame);
-            for (const cap of caps) {
+            return caps.flatMap((cap) => {
                 const sim = this.#applyCapture(board, pos, cap[0], cap[1]);
                 const becameDame = !isDame && cap[1].y === promotionRow(color);
                 if (becameDame) {
-                    // Pion promotion ends the capture sequence immediately.
-                    results.push(this.#flatten(path, cap));
-                    continue;
+                    return [this.#flatten(path, cap)];
                 }
                 const rec = this.#findCapturesFrom(sim, cap[1], color, isDame, [...path, cap]);
-                if (rec.length > 0)
-                    results.push(...rec);
-                else
-                    results.push(this.#flatten(path, cap));
-            }
-        }
-        return results;
+                return rec.length > 0 ? rec : [this.#flatten(path, cap)];
+            });
+        });
     }
+
+    /**
+     * Helper to reconstruct the capture path.
+     * @param {Position[][]} path
+     * @param {Position[]} last
+     * @returns {Position[]}
+     */
     #flatten(path, last) {
         return [...path.flatMap(([captured, landing]) => [captured, landing]), ...last];
     }
+
+    /**
+     * Helper to apply a capture on a temporary board during simulation.
+     * @param {import('./board.mjs').Board} board
+     * @param {Position} from
+     * @param {Position} captured
+     * @param {Position} landing
+     * @returns {import('./board.mjs').Board}
+     */
     #applyCapture(board, from, captured, landing) {
         return board.removePiece(captured).movePiece(from, landing);
     }
-    // ─── find the capture available in one direction (at most one) ───
+
+    /**
+     * Finds single capture in a direction.
+     * @param {import('./board.mjs').Board} board
+     * @param {Position} from
+     * @param {import('./directions.mjs').Direction} dir
+     * @param {boolean} isDame
+     * @returns {Position[][]}
+     */
     #findCapturesInDir(board, from, dir, isDame) {
         const myColor = board.isBlackPiece(from) ? PieceColor.BLACK : PieceColor.WHITE;
         const { dx, dy } = dir;
         if (isDame) {
-            // Flying dame: glide over empty squares to the first opponent, then
-            // land on the single empty square immediately behind it (Thai "short
-            // king" rule — no choice of a farther landing square).
-            let x = from.x + dx;
-            let y = from.y + dy;
-            let foundOpponent = null;
-            while (Position.isValid(x, y)) {
-                const pos = Position.fromCoords(x, y);
-                if (board.isOccupied(pos)) {
-                    // A blocker before any opponent, or a second piece behind the
-                    // captured one, ends this ray with no capture.
-                    if (foundOpponent || !isOpponentPiece(board, pos, myColor)) {
-                        return [];
-                    }
-                    foundOpponent = pos;
-                }
-                else if (foundOpponent) {
-                    return [[foundOpponent, pos]];
-                }
-                x += dx;
-                y += dy;
+            const ray = getRayCoords(from, dx, dy);
+            const occupiedIndices = ray
+                .map((pos, idx) => (board.isOccupied(pos) ? idx : -1))
+                .filter((idx) => idx !== -1);
+
+            if (occupiedIndices.length === 0) return [];
+
+            const firstIdx = occupiedIndices[0];
+            const hasValidLanding = firstIdx + 1 < ray.length && !board.isOccupied(ray[firstIdx + 1]);
+            if (hasValidLanding && isOpponentPiece(board, ray[firstIdx], myColor)) {
+                return [[ray[firstIdx], ray[firstIdx + 1]]];
             }
             return [];
         }
@@ -107,45 +168,37 @@ export class Explorer {
         const midY = from.y + dy;
         const landX = from.x + 2 * dx;
         const landY = from.y + 2 * dy;
-        if (!Position.isValid(midX, midY) || !Position.isValid(landX, landY))
-            return [];
+        if (!Position.isValid(midX, midY) || !Position.isValid(landX, landY)) return [];
         const midPos = Position.fromCoords(midX, midY);
         const landPos = Position.fromCoords(landX, landY);
-        if (!board.isOccupied(midPos) || board.isOccupied(landPos))
-            return [];
+        if (!board.isOccupied(midPos) || board.isOccupied(landPos)) return [];
         const isOpp = isOpponentPiece(board, midPos, myColor);
-        if (!isOpp)
-            return [];
+        if (!isOpp) return [];
         return [[midPos, landPos]];
     }
+
     // ─── regular moves ───
+
+    /**
+     * Finds regular (non-capturing) moves.
+     * @param {Position} from
+     * @param {number} color
+     * @param {boolean} isDame
+     * @param {readonly import('./directions.mjs').Direction[]} dirs
+     * @returns {Position[]}
+     */
     #findRegularMoves(from, color, isDame, dirs) {
-        const positions = [];
         if (isDame) {
-            for (const { dx, dy } of dirs) {
-                let x = from.x + dx;
-                let y = from.y + dy;
-                while (Position.isValid(x, y)) {
-                    const pos = Position.fromCoords(x, y);
-                    if (this.#board.isOccupied(pos))
-                        break;
-                    positions.push(pos);
-                    x += dx;
-                    y += dy;
-                }
-            }
+            return dirs.flatMap(({ dx, dy }) => {
+                const ray = getRayCoords(from, dx, dy);
+                const firstOccupiedIdx = ray.findIndex((pos) => this.#board.isOccupied(pos));
+                return firstOccupiedIdx === -1 ? ray : ray.slice(0, firstOccupiedIdx);
+            });
         }
-        else {
-            for (const { dx, dy } of dirs) {
-                const nx = from.x + dx;
-                const ny = from.y + dy;
-                if (Position.isValid(nx, ny)) {
-                    const pos = Position.fromCoords(nx, ny);
-                    if (!this.#board.isOccupied(pos))
-                        positions.push(pos);
-                }
-            }
-        }
-        return positions;
+        return dirs
+            .map(({ dx, dy }) => ({ x: from.x + dx, y: from.y + dy }))
+            .filter(({ x, y }) => Position.isValid(x, y))
+            .map(({ x, y }) => Position.fromCoords(x, y))
+            .filter((pos) => !this.#board.isOccupied(pos));
     }
 }

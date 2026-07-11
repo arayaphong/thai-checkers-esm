@@ -36,8 +36,14 @@ const buildTopRow = () => {
   badges.append(whiteBadgeEl, vs, blackBadgeEl);
 
   const counts = h('div', 'flex gap-3 text-xs text-neutral-400');
-  const { box: whiteCountBox, value: whiteCountEl } = buildCount('⚪ หมาก', statusClassMap.pieceCountWhiteValue);
-  const { box: blackCountBox, value: blackCountEl } = buildCount('⚫ หมาก', statusClassMap.pieceCountBlackValue);
+  const { box: whiteCountBox, value: whiteCountEl } = buildCount(
+    '⚪ หมาก',
+    statusClassMap.pieceCountWhiteValue,
+  );
+  const { box: blackCountBox, value: blackCountEl } = buildCount(
+    '⚫ หมาก',
+    statusClassMap.pieceCountBlackValue,
+  );
   const sep = h('div', 'text-neutral-600');
   sep.textContent = '|';
   counts.append(whiteCountBox, sep, blackCountBox);
@@ -48,7 +54,18 @@ const buildTopRow = () => {
 
   row.append(badges, counts, resetBtnEl);
 
-  return { topRow: row, whiteBadgeEl, whiteLabelEl, whiteRoleEl, blackBadgeEl, blackLabelEl, blackRoleEl, whiteCountEl, blackCountEl, resetBtnEl };
+  return {
+    topRow: row,
+    whiteBadgeEl,
+    whiteLabelEl,
+    whiteRoleEl,
+    blackBadgeEl,
+    blackLabelEl,
+    blackRoleEl,
+    whiteCountEl,
+    blackCountEl,
+    resetBtnEl,
+  };
 };
 
 const buildMessageArea = () => {
@@ -57,7 +74,8 @@ const buildMessageArea = () => {
   const messageRowEl = h('div', '');
   const resultEl = h('span', statusClassMap.resultBannerWinner);
   const aiThinkingEl = h('span', statusClassMap.aiThinkingText);
-  aiThinkingEl.innerHTML = '<svg class="w-4 h-4 inline"><use href="#icon-bot"/></svg> AI กำลังคิด...';
+  aiThinkingEl.innerHTML =
+    '<svg class="w-4 h-4 inline"><use href="#icon-bot"/></svg> AI กำลังคิด...';
   const turnMessageEl = h('span', '');
   const turnLabelEl = h('span', '');
   turnMessageEl.append('ตาของ: ', turnLabelEl);
@@ -70,7 +88,14 @@ const buildMessageArea = () => {
 
   area.append(messageRowEl, mandatoryWrapperEl);
 
-  return { messageArea: area, turnMessageEl, turnLabelEl, aiThinkingEl, resultEl, mandatoryWrapperEl };
+  return {
+    messageArea: area,
+    turnMessageEl,
+    turnLabelEl,
+    aiThinkingEl,
+    resultEl,
+    mandatoryWrapperEl,
+  };
 };
 
 const buildPanel = (panel) => {
@@ -106,10 +131,18 @@ const createUpdaters = ({
 
   const updateBadges = ({ turn }) => {
     const isWhiteTurn = turn === 'white';
-    whiteBadgeEl.className = isWhiteTurn ? statusClassMap.turnBadgeActiveWhite : statusClassMap.turnBadgeInactive;
-    whiteLabelEl.className = isWhiteTurn ? statusClassMap.whiteLabelActive : statusClassMap.whiteLabelInactive;
-    blackBadgeEl.className = !isWhiteTurn ? statusClassMap.turnBadgeActiveBlack : statusClassMap.turnBadgeInactive;
-    blackLabelEl.className = !isWhiteTurn ? statusClassMap.blackLabelActive : statusClassMap.blackLabelInactive;
+    whiteBadgeEl.className = isWhiteTurn
+      ? statusClassMap.turnBadgeActiveWhite
+      : statusClassMap.turnBadgeInactive;
+    whiteLabelEl.className = isWhiteTurn
+      ? statusClassMap.whiteLabelActive
+      : statusClassMap.whiteLabelInactive;
+    blackBadgeEl.className = !isWhiteTurn
+      ? statusClassMap.turnBadgeActiveBlack
+      : statusClassMap.turnBadgeInactive;
+    blackLabelEl.className = !isWhiteTurn
+      ? statusClassMap.blackLabelActive
+      : statusClassMap.blackLabelInactive;
   };
 
   const updateRoles = ({ gameConfig }) => {
@@ -143,7 +176,10 @@ const createUpdaters = ({
       showOnlyMessage(aiThinkingEl);
     } else {
       turnLabelEl.textContent = turn === 'white' ? 'ขาว' : 'ดำ';
-      turnLabelEl.className = turn === 'white' ? statusClassMap.currentTurnLabelWhite : statusClassMap.currentTurnLabelBlack;
+      turnLabelEl.className =
+        turn === 'white'
+          ? statusClassMap.currentTurnLabelWhite
+          : statusClassMap.currentTurnLabelBlack;
       showOnlyMessage(turnMessageEl);
     }
   };
@@ -152,7 +188,14 @@ const createUpdaters = ({
     mandatoryWrapperEl.classList.toggle(statusClassMap.hidden, !mustMovePiece || isAIThinking);
   };
 
-  return [updateBadges, updateRoles, updatePieceCounts, updateResetButton, updateMessageArea, updateMandatoryCapture];
+  return [
+    updateBadges,
+    updateRoles,
+    updatePieceCounts,
+    updateResetButton,
+    updateMessageArea,
+    updateMandatoryCapture,
+  ];
 };
 
 // ============================================

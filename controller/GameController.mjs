@@ -30,10 +30,14 @@ const DIFFICULTY_DEPTH = { easy: 1, medium: 4, hard: 8 };
 const delay = (ms, signal) => {
   const { promise, resolve } = Promise.withResolvers();
   const timer = setTimeout(resolve, ms);
-  signal?.addEventListener('abort', () => {
-    clearTimeout(timer);
-    resolve();
-  }, { once: true });
+  signal?.addEventListener(
+    'abort',
+    () => {
+      clearTimeout(timer);
+      resolve();
+    },
+    { once: true },
+  );
   return promise;
 };
 
@@ -247,8 +251,11 @@ export const createGameController = (configOrParams) => {
 
     if (selectedPiece) {
       const move = state.validMoves.find(
-        (m) => m.fromR === selectedPiece.r && m.fromC === selectedPiece.c &&
-               m.toR === pos.r && m.toC === pos.c
+        (m) =>
+          m.fromR === selectedPiece.r &&
+          m.fromC === selectedPiece.c &&
+          m.toR === pos.r &&
+          m.toC === pos.c,
       );
       if (move) {
         await executeHumanHop(move);
@@ -316,10 +323,18 @@ export const createGameController = (configOrParams) => {
 
   return {
     // ---- State Access ----
-    get state() { return state; },
-    get selectedPiece() { return selectedPiece; },
-    get isAIProcessing() { return isAIProcessing; },
-    get driver() { return driver; },
+    get state() {
+      return state;
+    },
+    get selectedPiece() {
+      return selectedPiece;
+    },
+    get isAIProcessing() {
+      return isAIProcessing;
+    },
+    get driver() {
+      return driver;
+    },
 
     // ---- Event System ----
     on,
