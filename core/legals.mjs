@@ -61,9 +61,9 @@ const assertValidCaptureSequence = (seq, context = 'Capture sequence') => {
     if (seq.length === 0 || seq.length % 2 !== 0) {
         throw new Error('Capture sequence must contain captured/landing position pairs');
     }
-    for (const [index, position] of seq.entries()) {
+    seq.forEach((position, index) => {
         assertPosition(position, `${context} item ${index}`);
-    }
+    });
 };
 
 /**
