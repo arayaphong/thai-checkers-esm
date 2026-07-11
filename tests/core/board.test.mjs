@@ -121,6 +121,14 @@ describe('core/board', () => {
         assert.deepEqual(blackPieces.get(p2Canonical), { color: PieceColor.BLACK, type: PieceType.DAME });
     });
 
+    test('getPieceBits filters occupied squares by color', () => {
+        const board = Board.setup();
+
+        assert.equal(board.getPieceBits(PieceColor.WHITE), 0x000000ff);
+        assert.equal(board.getPieceBits(PieceColor.BLACK), 0xff000000 >>> 0);
+        assert.throws(() => board.getPieceBits(99), RangeError);
+    });
+
     test('promotePiece mutation', () => {
         const p = Position.fromString('B1');
         const board = Board.fromPieces([
