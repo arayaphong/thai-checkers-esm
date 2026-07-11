@@ -82,7 +82,10 @@ export const createHtmlGameView = (controller, rootId) => {
       binder.markGameStopped();
     } else if (intent.isExpandSetup()) {
       binder.markSetupExpanded();
+    } else if (intent.isCollapseSetup()) {
+      binder.markSetupCollapsed();
     }
+
 
     dispatchIntent(intent);
   });

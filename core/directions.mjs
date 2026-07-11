@@ -4,8 +4,8 @@ import { PieceColor } from './piece.mjs';
 
 const freezeDirs = (dirs) => Object.freeze(dirs.map((dir) => Object.freeze(dir)));
 
-export const WHITE_PION_DIRS = freezeDirs([{ dx: -1, dy: -1 }, { dx: 1, dy: -1 }]);
-export const BLACK_PION_DIRS = freezeDirs([{ dx: -1, dy: 1 }, { dx: 1, dy: 1 }]);
+export const WHITE_PION_DIRS = freezeDirs([{ dx: -1, dy: 1 }, { dx: 1, dy: 1 }]);
+export const BLACK_PION_DIRS = freezeDirs([{ dx: -1, dy: -1 }, { dx: 1, dy: -1 }]);
 export const DAME_DIRS = freezeDirs([
     { dx: -1, dy: -1 }, { dx: 1, dy: -1 },
     { dx: -1, dy: 1 }, { dx: 1, dy: 1 },
@@ -24,7 +24,7 @@ export const pionForwardDirs = (color) =>
  * @param {number} color PieceColor
  * @returns {number}
  */
-export const promotionRow = (color) => (color === PieceColor.WHITE ? 0 : 7);
+export const promotionRow = (color) => (color === PieceColor.WHITE ? 7 : 0);
 
 /**
  * True when `pos` is occupied by an opponent piece of `color`.

@@ -43,8 +43,15 @@ const abortableTimeout = (ms, signal, onSettle) => {
 // ============================================
 export const createMotionSurface = (registry) => {
   const animLayer = h('div', layoutClassMap.animLayer);
+  // Mark the animation layer with a data attribute so it can be
+  // reliably identified and preserved during board rebuilds.
+  animLayer.dataset.uiRole = layoutClassMap.animLayerUiRole;
   animLayer.style.cssText = layoutClassMap.animLayerCssText;
-  registry.getBoard().append(animLayer);
+  const boardEl = registry.getBoard();
+  if (!boardEl) {
+    throw new Error('HtmlMotionSurface: #board not found in DOM');
+  }
+  boardEl.append(animLayer);
 
   return {
     slidePiece: ({ from, to, piece }, signal) => {

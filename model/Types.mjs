@@ -4,14 +4,14 @@
 
 /** Initial board setup */
 export const INITIAL_BOARD = Object.freeze([
-  Object.freeze([0, -1, 0, -1, 0, -1, 0, -1]),
   Object.freeze([-1, 0, -1, 0, -1, 0, -1, 0]),
+  Object.freeze([0, -1, 0, -1, 0, -1, 0, -1]),
   Object.freeze([0, 0, 0, 0, 0, 0, 0, 0]),
   Object.freeze([0, 0, 0, 0, 0, 0, 0, 0]),
   Object.freeze([0, 0, 0, 0, 0, 0, 0, 0]),
   Object.freeze([0, 0, 0, 0, 0, 0, 0, 0]),
-  Object.freeze([0, 1, 0, 1, 0, 1, 0, 1]),
-  Object.freeze([1, 0, 1, 0, 1, 0, 1, 0])
+  Object.freeze([1, 0, 1, 0, 1, 0, 1, 0]),
+  Object.freeze([0, 1, 0, 1, 0, 1, 0, 1])
 ]);
 
 /** Default game config */

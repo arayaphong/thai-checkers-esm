@@ -91,6 +91,7 @@ export const createControlPanelState = (controller, flags) => {
   return {
     gameConfig: { ...state.config },
     collapsed: flags.gameStarted && createScreenState(controller, flags) !== 'setup',
+    isCancelable: !!flags.isCancelable,
   };
 };
 

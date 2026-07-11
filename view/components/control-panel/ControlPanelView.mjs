@@ -6,9 +6,9 @@ const MODE_OPTIONS = Object.freeze([
 ]);
 
 const DIFFICULTY_OPTIONS = Object.freeze([
-  { key: 'easy', label: 'สุ่ม', description: 'Random' },
-  { key: 'medium', label: 'ฉลาด', description: 'Greedy' },
-  { key: 'hard', label: 'Minimax', description: 'Alpha-Beta' },
+  { key: 'easy', label: 'ง่าย', description: 'คิดลึกระดับ 1' },
+  { key: 'medium', label: 'พอสู้ได้', description: 'คิดลึกระดับ 4' },
+  { key: 'hard', label: 'ไม่ยอมแพ้', description: 'คิดลึกระดับ 8' },
 ]);
 
 export const createControlPanelView = (controlPanelSurface) => {
@@ -20,7 +20,7 @@ export const createControlPanelView = (controlPanelSurface) => {
     difficultyOptions: DIFFICULTY_OPTIONS,
 
     render(state) {
-      const { collapsed, gameConfig } = state;
+      const { collapsed, gameConfig, isCancelable } = state;
       const { whiteIsAI, blackIsAI, aiDifficulty } = gameConfig;
 
       const anyAI = whiteIsAI || blackIsAI;
@@ -39,6 +39,7 @@ export const createControlPanelView = (controlPanelSurface) => {
         isDifficultyVisible: anyAI,
         isStartButtonVisible: !collapsed,
         isStartButtonEnabled: true,
+        isCancelable: !!isCancelable,
       });
     },
   };

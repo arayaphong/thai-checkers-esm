@@ -13,4 +13,6 @@ export const UiAction = {
   startGame: () => createUiAction('startGame'),
   restartGame: () => createUiAction('restartGame'),
   expandSetup: () => createUiAction('expandSetup'),
+  collapseSetup: () => createUiAction('collapseSetup'),
 };
+

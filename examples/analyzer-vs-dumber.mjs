@@ -3,48 +3,45 @@
 // completion.
 //
 // Run with: node examples/analyze-vs-random.mjs [--no-board]
-import { Game } from '../core/game.mjs';
+import { GameDriver, renderBoard, moveKey } from '../cli/cli.mjs';
 import { Analyzer } from '../core/analyzer.mjs';
 import { PieceColor, toStringPieceColor } from '../core/piece.mjs';
-import { renderBoard, moveKey } from './common.mjs';
 
 const SHOW_BOARD = !process.argv.includes('--no-board');
 const SEARCH_DEPTH = 6;
 const ANALYZER_COLOR = PieceColor.BLACK;
 const PLAYER_NAMES = { [PieceColor.WHITE]: 'Dumber', [PieceColor.BLACK]: 'Analyzer' };
-// Safety net: core/ has no repetition/no-progress draw tracking outside the
-// search engine's own isImmediateDraw, so an actual game between these two
-// players has no built-in stop condition beyond "no legal moves". Cap plies
-// so a drifting random-vs-random-ish endgame can't loop forever.
+// Safety net: cap plies to prevent infinite loops in drawish endgames
 const MAX_PLIES = 200;
 const MAX_GAMES = 5;
 
-const playPly = (game, analyzer, ply) => {
-  const moves = game.getMoves();
-  if (moves.length === 0 || ply >= MAX_PLIES) return ply;
+const playPly = (driver, ply) => {
+  const state = driver.getState();
+  if (state.isGameOver || ply >= MAX_PLIES) return ply;
 
-  const mover = game.player();
+  const mover = state.player;
   const moverLabel = `${PLAYER_NAMES[mover]} (${toStringPieceColor(mover)})`;
   process.stdout.write(`${SHOW_BOARD ? '\n' : ''}Ply ${ply + 1}: ${moverLabel} is thinking...`);
   const turnStart = performance.now();
 
   const { index, note } = mover === ANALYZER_COLOR
     ? (() => {
+        const analyzer = new Analyzer(driver.game);
         const { move, score } = analyzer.analyze(SEARCH_DEPTH);
-        const idx = moves.findIndex((m) => moveKey(m) === moveKey(move));
+        const idx = state.moves.findIndex((m) => moveKey(m) === moveKey(move));
         const thinkSeconds = ((performance.now() - turnStart) / 1000).toFixed(2);
         return { index: idx, note: `[score=${score}, nodes=${analyzer.nodeCount}, time=${thinkSeconds}s]` };
       })()
-    : { index: Math.floor(Math.random() * moves.length), note: '(random)' };
+    : { index: Math.floor(Math.random() * state.moves.length), note: '(random)' };
 
-  const move = moves[index];
-  game.selectMove(index);
+  const move = state.moves[index];
+  driver.playMoveIndex(index);
 
   const captureNote = move.captured.length ? ` (captures ${move.captured.length})` : '';
   console.log(`\rPly ${ply + 1}: ${moverLabel} plays ${move.from} -> ${move.to}${captureNote}  ${note}`);
-  if (SHOW_BOARD) console.log(renderBoard(game.board()));
+  if (SHOW_BOARD) console.log(renderBoard(driver.game.board()));
 
-  return playPly(game, analyzer, ply + 1);
+  return playPly(driver, ply + 1);
 };
 
 const runGame = (gameNumber) => {
@@ -52,22 +49,22 @@ const runGame = (gameNumber) => {
 
   console.log(`\n=== Game ${gameNumber}/${MAX_GAMES} ===`);
 
-  const game = new Game();
-  const analyzer = new Analyzer(game);
-  if (SHOW_BOARD) console.log(renderBoard(game.board()));
+  const driver = new GameDriver();
+  if (SHOW_BOARD) console.log(renderBoard(driver.game.board()));
 
   const gameStart = performance.now();
-  const ply = playPly(game, analyzer, 0);
+  const ply = playPly(driver, 0);
   const totalSeconds = ((performance.now() - gameStart) / 1000).toFixed(2);
 
-  const noMovesLeft = game.getMoves().length === 0;
-  const loserColor = game.player();
-  const winnerColor = loserColor === PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
-  const analyzerLost = noMovesLeft && winnerColor !== ANALYZER_COLOR;
+  const state = driver.getState();
+  const analyzerLost = state.isGameOver && state.winner !== ANALYZER_COLOR && !state.isDraw;
 
-  const resultMessage = noMovesLeft
-    ? `${PLAYER_NAMES[winnerColor]} wins in ${ply} plies`
+  const resultMessage = state.isGameOver
+    ? (state.isDraw
+        ? `Draw by ${state.drawReason} in ${ply} plies`
+        : `${PLAYER_NAMES[state.winner]} wins in ${ply} plies`)
     : `Stopped after reaching the ${MAX_PLIES}-ply safety cap with no result.`;
+
   console.log(`\n${resultMessage}`);
   console.log(`Game ${gameNumber} time: ${totalSeconds}s`);
 

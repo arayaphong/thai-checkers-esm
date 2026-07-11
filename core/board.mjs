@@ -91,13 +91,13 @@ export class Board {
     static setup() {
         let occBits = 0;
         let blackBits = 0;
-        // Black home rows are 0-1, white home rows are 6-7 (white stays unset in blackBits)
+        // White home rows are 0-1 (bottom), black home rows are 6-7 (top)
         for (const row of HOME_ROWS) {
             const startCol = row % 2 === 0 ? 1 : 0;
             for (let i = 0; i < 4; i++) {
                 const mask = bit(Position.fromCoords(startCol + i * 2, row).hash());
                 occBits = setBit(occBits, mask);
-                if (row < 2)
+                if (row >= 6)
                     blackBits = setBit(blackBits, mask);
             }
         }

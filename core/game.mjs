@@ -137,7 +137,7 @@ export class Game {
         // Promotion check
         const movedIsBlack = current.isBlackPiece(move.from);
         const color = movedIsBlack ? PieceColor.BLACK : PieceColor.WHITE;
-        const promoRow = color === PieceColor.WHITE ? 0 : 7;
+        const promoRow = color === PieceColor.WHITE ? 7 : 0;
         if (move.to.y === promoRow && !current.isDamePiece(move.from)) {
             next = next.promotePiece(move.to);
         }

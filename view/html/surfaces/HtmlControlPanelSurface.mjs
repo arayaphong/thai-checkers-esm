@@ -14,6 +14,7 @@ const createUpdaters = ({
   difficultyRowEl,
   difficultyButtons,
   startBtnEl,
+  cancelBtnEl,
 }) => {
   const updateVisibility = ({ isCollapsed }) => {
     collapsedEl.classList.toggle(controlPanelClassMap.hidden, !isCollapsed);
@@ -55,6 +56,10 @@ const createUpdaters = ({
     startBtnEl.disabled = !isStartButtonEnabled;
   };
 
+  const updateCancelButton = ({ isCancelable }) => {
+    cancelBtnEl.classList.toggle(controlPanelClassMap.hidden, !isCancelable);
+  };
+
   return [
     updateVisibility,
     updateCollapsedText,
@@ -62,6 +67,7 @@ const createUpdaters = ({
     updateDifficultyButtons,
     updateDifficultyVisibility,
     updateStartButton,
+    updateCancelButton,
   ];
 };
 
@@ -90,8 +96,14 @@ const buildCollapsed = () => {
 
 const buildExpanded = () => {
   const expandedEl = h('div', '');
-  const title = h('h2', controlPanelClassMap.expandedTitle);
+  const titleRowEl = h('div', 'flex items-center justify-between mb-4');
+  const title = h('h2', 'text-lg font-bold text-gray-200');
   title.textContent = 'ตั้งค่าผู้เล่น';
+  const cancelBtnEl = h('button', controlPanelClassMap.collapsedEditHint);
+  cancelBtnEl.id = 'cancelBtn';
+  cancelBtnEl.textContent = 'ยกเลิก';
+  titleRowEl.append(title, cancelBtnEl);
+
   const modeLabel = h('label', 'label');
   modeLabel.textContent = 'โหมดเกม';
   const modeGridEl = h('div', controlPanelClassMap.modeGrid);
@@ -104,9 +116,9 @@ const buildExpanded = () => {
   startBtnEl.id = 'startBtn';
   startBtnEl.textContent = 'เริ่มเกม!';
 
-  expandedEl.append(title, modeLabel, modeGridEl, difficultyLabelEl, difficultyRowEl, startBtnEl);
+  expandedEl.append(titleRowEl, modeLabel, modeGridEl, difficultyLabelEl, difficultyRowEl, startBtnEl);
 
-  return { expandedEl, modeGridEl, modeButtons, difficultyLabelEl, difficultyRowEl, difficultyButtons, startBtnEl };
+  return { expandedEl, modeGridEl, modeButtons, difficultyLabelEl, difficultyRowEl, difficultyButtons, startBtnEl, cancelBtnEl };
 };
 
 const buildPanel = (panel) => {
@@ -133,6 +145,7 @@ export const createControlPanelSurface = (registry) => {
       updaters.forEach((updater) => updater(state));
     },
     getCollapsedToggleButton: () => elements.collapsedToggleBtnEl,
+    getCancelButton: () => elements.cancelBtnEl,
     getModeButton: (key) => elements.modeButtons.get(key),
     getDifficultyButton: (key) => elements.difficultyButtons.get(key),
     getStartButton: () => elements.startBtnEl,

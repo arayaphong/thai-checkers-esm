@@ -2,17 +2,18 @@ import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createGameController } from '../controller/GameController.mjs';
-import { createGameState } from '../model/GameState.mjs';
-import { MoveEngine } from '../model/MoveEngine.mjs';
-import { DEFAULT_CONFIG } from '../model/Types.mjs';
+import { createGameController } from '../../controller/GameController.mjs';
+import { createGameState } from '../../model/GameState.mjs';
+import { MoveEngine } from '../../model/MoveEngine.mjs';
+import { DEFAULT_CONFIG } from '../../model/Types.mjs';
+import { createGameViewBinder } from '../../view/GameViewBinder.mjs';
 import {
   createFromController,
   createBoardState,
   createStatusState,
   createControlPanelState,
   createMoveDisplay
-} from '../view/GameViewStateFactory.mjs';
+} from '../../view/GameViewStateFactory.mjs';
 
 const fullHumanConfig = Object.freeze({
   whiteIsAI: false,
@@ -254,6 +255,233 @@ const createGameFlowSmokeSteps = () => {
         assert.equal(MoveEngine.countPieces(controller.state.board, 1).total, 8);
         assert.equal(MoveEngine.countPieces(controller.state.board, -1).total, 8);
         assert.equal(controller.state.validMoves.every((move) => !move.isCapture), true);
+      },
+    },
+    {
+      label: 'setup panel isCancelable flag and config restore on cancel',
+      run: () => {
+        const controller = createGameController(fullHumanConfig);
+        const initialControlState = createControlPanelState(controller, {
+          gameStarted: false,
+          isAIThinking: false,
+          isAnimating: false,
+          isCancelable: false,
+        });
+        assert.equal(initialControlState.isCancelable, false);
+
+        const editingControlState = createControlPanelState(controller, {
+          gameStarted: false,
+          isAIThinking: false,
+          isAnimating: false,
+          isCancelable: true,
+        });
+        assert.equal(editingControlState.isCancelable, true);
+
+        let pauseCalled = 0;
+        let resumeCalled = 0;
+        const originalPause = controller.pause;
+        const originalResume = controller.resume;
+        controller.pause = () => {
+          pauseCalled++;
+          originalPause();
+        };
+        controller.resume = () => {
+          resumeCalled++;
+          originalResume();
+        };
+
+        const calls = [];
+        const mockGameView = {
+          refresh: (s) => calls.push({ type: 'refresh', state: s }),
+          refreshBoard: () => {},
+          refreshStatus: () => {},
+          stopAnimation: () => {},
+          showPlayingScreen: (s) => calls.push({ type: 'playing', state: s }),
+          showSetupScreen: (s) => calls.push({ type: 'setup', state: s }),
+          showGameOverScreen: () => {},
+        };
+
+        const binder = createGameViewBinder(controller, {
+          createFromController: (c, f) => ({
+            controlPanel: createControlPanelState(c, f),
+          }),
+        }, mockGameView);
+
+        binder.markGameStarted();
+        assert.equal(binder.isGameStarted, true);
+
+        binder.markSetupExpanded();
+        assert.equal(binder.isGameStarted, false);
+        assert.equal(pauseCalled, 1);
+        const lastCall = calls[calls.length - 1];
+        assert.equal(lastCall.type, 'setup');
+        assert.equal(lastCall.state.controlPanel.isCancelable, true);
+
+        controller.updateConfig({ whiteIsAI: false, blackIsAI: true });
+        assert.equal(controller.state.config.blackIsAI, true);
+
+        binder.markSetupCollapsed();
+        assert.equal(binder.isGameStarted, true);
+        assert.equal(resumeCalled, 1);
+        assert.equal(controller.state.config.blackIsAI, false);
+      },
+    },
+    {
+      label: 'console log on turn finalized',
+      run: async () => {
+        const controller = createGameController(fullHumanConfig);
+        const logs = [];
+        const originalLog = console.log;
+        console.log = (...args) => logs.push(args.join(' '));
+
+        const mockGameView = {
+          refresh: () => {},
+          refreshBoard: () => {},
+          refreshStatus: () => {},
+          stopAnimation: () => {},
+          showPlayingScreen: () => {},
+          showSetupScreen: () => {},
+          showGameOverScreen: () => {},
+          showMoveMade: () => Promise.resolve(),
+        };
+
+        const binder = createGameViewBinder(controller, {
+          createFromController,
+          createBoardState,
+          createStatusState,
+          createControlPanelState,
+          createMoveDisplay,
+        }, mockGameView);
+
+        binder.markGameStarted();
+
+        const move = controller.state.validMoves.find((m) => !m.isCapture);
+        assert.ok(move);
+
+        controller.selectPiece({ r: move.fromR, c: move.fromC });
+        await controller.attemptMove({ r: move.toR, c: move.toC });
+
+        console.log = originalLog;
+
+        assert.equal(logs.length, 1);
+        assert.match(logs[0], /^\[WHITE\] [A-H][1-8]->[A-H][1-8]$/);
+      },
+    },
+    {
+      label: 'demo initialization loads board layout and preserves it on reset',
+      run: async () => {
+        const demo1 = JSON.parse(await readFile(path.join(process.cwd(), 'examples/demos/demo1.json'), 'utf8'));
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        const COLOR_MAP = { WHITE: 1, BLACK: -1 };
+        const TYPE_MAP = { PION: 1, DAME: 2 };
+        
+        for (const [square, info] of demo1.pieces) {
+          const col = square.toUpperCase().charCodeAt(0) - 65;
+          const row = 8 - parseInt(square.substring(1), 10);
+          const colorSign = COLOR_MAP[info.color.toUpperCase()];
+          const pieceType = TYPE_MAP[info.type.toUpperCase()];
+          board[row][col] = colorSign * pieceType;
+        }
+        const turn = demo1.sideToMove === 'BLACK' ? -1 : 1;
+
+        const controller = createGameController({
+          board,
+          turn,
+          config: fullHumanConfig,
+        });
+
+        const viewState = createFromController(controller, {
+          gameStarted: true,
+          isAIThinking: false,
+          isAnimating: false,
+        });
+        assert.equal(viewState.screen, 'playing');
+        assert.equal(viewState.controlPanel.collapsed, true);
+
+        const boardState = createBoardState(controller, {
+          gameStarted: true,
+          isAIThinking: false,
+          isAnimating: false,
+        });
+        
+        const whitePiece = boardState.pieces.find((p) => samePos(p.position, { r: 4, c: 4 }));
+        assert.ok(whitePiece);
+        assert.equal(whitePiece.color, 'white');
+        assert.equal(whitePiece.rank, 'man');
+
+        const blackPiece = boardState.pieces.find((p) => samePos(p.position, { r: 3, c: 3 }));
+        assert.ok(blackPiece);
+        assert.equal(blackPiece.color, 'black');
+
+        controller.selectPiece({ r: 4, c: 4 });
+        await controller.attemptMove({ r: 2, c: 2 });
+        
+        await controller.reset();
+        
+        const resetBoardState = createBoardState(controller);
+        const whitePieceAfterReset = resetBoardState.pieces.find((p) => samePos(p.position, { r: 4, c: 4 }));
+        assert.ok(whitePieceAfterReset);
+        assert.equal(whitePieceAfterReset.color, 'white');
+      },
+    },
+    {
+      label: 'demo play turn finalized logging with captures',
+      run: async () => {
+        const demo1 = JSON.parse(await readFile(path.join(process.cwd(), 'examples/demos/demo1.json'), 'utf8'));
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        const COLOR_MAP = { WHITE: 1, BLACK: -1 };
+        const TYPE_MAP = { PION: 1, DAME: 2 };
+        
+        for (const [square, info] of demo1.pieces) {
+          const col = square.toUpperCase().charCodeAt(0) - 65;
+          const row = 8 - parseInt(square.substring(1), 10);
+          const colorSign = COLOR_MAP[info.color.toUpperCase()];
+          const pieceType = TYPE_MAP[info.type.toUpperCase()];
+          board[row][col] = colorSign * pieceType;
+        }
+        const turn = demo1.sideToMove === 'BLACK' ? -1 : 1;
+
+        const controller = createGameController({
+          board,
+          turn,
+          config: fullHumanConfig,
+        });
+
+        const logs = [];
+        const originalLog = console.log;
+        console.log = (...args) => logs.push(args.join(' '));
+
+        const mockGameView = {
+          refresh: () => {},
+          refreshBoard: () => {},
+          refreshStatus: () => {},
+          stopAnimation: () => {},
+          showPlayingScreen: () => {},
+          showSetupScreen: () => {},
+          showGameOverScreen: () => {},
+          showMoveMade: () => Promise.resolve(),
+        };
+
+        const binder = createGameViewBinder(controller, {
+          createFromController,
+          createBoardState,
+          createStatusState,
+          createControlPanelState,
+          createMoveDisplay,
+        }, mockGameView);
+
+        binder.markGameStarted();
+
+        controller.selectPiece({ r: 4, c: 4 });
+        await controller.attemptMove({ r: 2, c: 2 });
+        assert.equal(logs.length, 0);
+
+        await controller.attemptMove({ r: 0, c: 4 });
+
+        console.log = originalLog;
+
+        assert.equal(logs.length, 1);
+        assert.equal(logs[0], '[WHITE] E4->C6->*E8 [xD5 xD7]');
       },
     },
   ];

@@ -1,6 +1,6 @@
 # หมากฮอสไทย — Thai Checkers
 
-A browser-based Thai Checkers game built with **pure ES2025 modules** — no framework, no bundler, no build step. Open `index.html` and play.
+A browser-based Thai Checkers game built with **pure ES2025 modules** — no framework, no bundler, no build step. Serve the project directory with any static HTTP server and play.
 
 **Version:** 0.0.1
 
@@ -8,7 +8,13 @@ A browser-based Thai Checkers game built with **pure ES2025 modules** — no fra
 
 ## How to Play
 
-Open `index.html` directly in any modern browser (Chrome, Firefox, Edge).
+ES module scripts are blocked by browser CORS rules when loaded from `file://`.
+Start a local static server from the project directory, then open
+<http://localhost:8000>:
+
+```bash
+python3 -m http.server 8000
+```
 
 ### Rules
 
@@ -31,9 +37,9 @@ Open `index.html` directly in any modern browser (Chrome, Firefox, Edge).
 
 | Level | Algorithm | Description |
 |---|---|---|
-| สุ่ม (Easy) | `RandomAI` | Picks a random valid move |
-| ฉลาด (Medium) | `GreedyAI` | 1-ply + opponent reply sampling with board heuristics |
-| Minimax (Hard) | `MinimaxAI` | Alpha-beta pruning, 4-ply lookahead, move ordering |
+| ง่าย | `Analyzer` | Atomic-turn search depth 1 |
+| พอสู้ได้ | `Analyzer` | Atomic-turn search depth 4 |
+| ไม่ยอมแพ้ | `Analyzer` | Atomic-turn search depth 8 |
 
 ---
 
@@ -49,14 +55,14 @@ model/
   GameState.mjs            Immutable game state — all updates return new instances
 
 controller/
-  GameController.mjs       Orchestrates model + AI + view via event emitter
+  GameController.mjs       Keeps model state and GameDriver in sync
+  GameDriverBridge.mjs     Translates model positions/hops and atomic core moves
 
-ai/
-  AIInterface.mjs          Abstract base class for all AI strategies
-  RandomAI.mjs             Random move selection
-  GreedyAI.mjs             1-ply greedy + opponent response check
-  Heuristic.mjs            Board evaluation (material, position, mobility)
-  MinimaxAI.mjs            Alpha-beta minimax, depth 4
+core/                       Atomic-move rules and Analyzer search engine
+
+cli/
+  GameDriver.mjs           Browser-safe adapter over core game and Analyzer
+  cli.mjs                  Node-only terminal REPL
 
 view/
   GameView.mjs             Semantic facade for the whole visible game UI
@@ -102,7 +108,9 @@ jest.config.mjs                   Jest config for ESM .mjs tests
 ```
 
 - **Model** — pure functions, immutable state, no DOM dependencies
-- **Controller** — owns AI instances, emits typed events (`moveMade`, `gameOver`, `aiThinking`, …)
+- **Controller** — keeps view-facing model state synchronized with the atomic
+  `GameDriver` used for AI decisions, and emits typed events (`moveMade`,
+  `gameOver`, `aiThinking`, …)
 - **Semantic view** — uses user-facing methods like `hintTargetSquares()` and `showAiThinking()`, with no DOM API, selectors, datasets, or CSS class names
 - **HTML adapter** — owns DOM operations, templates, event delegation, element lookup, and CSS class maps under `view/html/**`
 - **Intent flow** — converts UI events into actor/action/intent objects before dispatching controller commands

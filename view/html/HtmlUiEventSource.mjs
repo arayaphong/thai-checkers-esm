@@ -40,10 +40,16 @@ export const createUiEventSource = (registry) => {
       return;
     }
 
+    if (event.target.closest('#cancelBtn')) {
+      emit({ source: 'control-panel', visibleRole: 'cancelSetupAction', visibleAction: 'press' });
+      return;
+    }
+
     if (event.target.closest('#startBtn')) {
       emit({ source: 'control-panel', visibleRole: 'startGameAction', visibleAction: 'press' });
       return;
     }
+
 
     if (event.target.closest('#resetBtn')) {
       emit({ source: 'status', visibleRole: 'restartGameAction', visibleAction: 'press' });

@@ -1,5 +1,6 @@
 import { coordLabel, moveDot } from '../templates/board.template.mjs';
 import { boardClassMap } from '../styles/boardClassMap.mjs';
+import { layoutClassMap } from '../styles/layoutClassMap.mjs';
 import { createPieceElement } from '../pieceElement.mjs';
 
 const h = (tag, cls) => Object.assign(document.createElement(tag), { className: cls });
@@ -74,7 +75,12 @@ export const createBoardSurface = (registry) => {
   return {
     createBoard: () => {
       const boardEl = registry.getBoard();
-      [...boardEl.children].forEach((child) => child.remove());
+      if (!boardEl) {
+        throw new Error('HtmlBoardSurface: #board not found in DOM');
+      }
+      [...boardEl.children].forEach((child) => {
+        if (child.dataset.uiRole !== layoutClassMap.animLayerUiRole) child.remove();
+      });
       state.clear();
     },
     createSquare: (position, squareDisplay) => {

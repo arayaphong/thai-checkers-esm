@@ -1,0 +1,14 @@
+{
+  "id": "demo3",
+  "title": "Demo 3: equivalent dame loops reduced to one move.",
+  "description": "Demo 3: equivalent dame loops reduced to one move.\n\nThe white dame on E8 is surrounded by six black pions. It can travel around\nthe ring in either direction, but both routes have the same endpoints and use\nthe same set of intermediate landing squares. They are therefore one legal\nmove, represented by the first generated route:\n\n  E8 -> F7 -> G6 -> F5 -> E4 -> D3 -> C2 -> B3 -> A4 -> B5 -> C6 -> D7 -> E8\n\nIn the REPL, try:\n  > e8 e8\nThe move applies immediately without asking for a route index.\n",
+  "pieces": [
+    ["E8", { "color": "WHITE", "type": "DAME" }],
+    ["F7", { "color": "BLACK", "type": "PION" }],
+    ["F5", { "color": "BLACK", "type": "PION" }],
+    ["D3", { "color": "BLACK", "type": "PION" }],
+    ["B3", { "color": "BLACK", "type": "PION" }],
+    ["B5", { "color": "BLACK", "type": "PION" }],
+    ["D7", { "color": "BLACK", "type": "PION" }]
+  ]
+}

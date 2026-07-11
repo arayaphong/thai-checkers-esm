@@ -200,11 +200,11 @@ const BREAKTHROUGH_PROXIMITY_MAX = 30;
 const oppositeColor = (color) => (color === PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE);
 
 // "Passed" per PLAN.md's practical definition: White passed row iff its y is
-// less than every BLACK PION's y (dames don't count — outracing a flying
-// king isn't about row position); Black passed row iff its y is greater than
-// every WHITE PION's y. Vacuously true if the opponent has no pions left.
+// greater than every BLACK PION's y (White moves up — dames don't count);
+// Black passed row iff its y is less than every WHITE PION's y (Black moves
+// down). Vacuously true if the opponent has no pions left.
 //
-// "y < every enemy pion's y" is exactly "y < min(enemy pion y)", so the
+// "y > every enemy pion's y" is exactly "y > max(enemy pion y)", so the
 // board only needs one O(pieces) scan per color per evaluateBoard call
 // (findEnemyPionRowLimit) instead of an O(pieces) scan per candidate pion
 // (an O(pieces²) blow-up on positions with many pions still on the board,
@@ -212,16 +212,16 @@ const oppositeColor = (color) => (color === PieceColor.WHITE ? PieceColor.BLACK 
 const findEnemyPionRowLimit = (board, color) => {
     const enemyColor = oppositeColor(color);
     const reducer = color === PieceColor.WHITE
-        ? (acc, y) => Math.min(acc, y)
-        : (acc, y) => Math.max(acc, y);
-    const initial = color === PieceColor.WHITE ? Infinity : -Infinity;
+        ? (acc, y) => Math.max(acc, y)
+        : (acc, y) => Math.min(acc, y);
+    const initial = color === PieceColor.WHITE ? -Infinity : Infinity;
     return [...board.getPieces(enemyColor)]
         .filter(([, { type }]) => type === PieceType.PION)
         .reduce((acc, [pos]) => reducer(acc, pos.y), initial);
 };
 
 const isPassedPion = (pos, color, enemyPionRowLimit) =>
-    color === PieceColor.WHITE ? pos.y < enemyPionRowLimit : pos.y > enemyPionRowLimit;
+    color === PieceColor.WHITE ? pos.y > enemyPionRowLimit : pos.y < enemyPionRowLimit;
 
 // BFS over forward-diagonal empty squares (see core/board.js's promotion
 // rows), matching PLAN.md's "BFS/flood-fill เฉพาะทิศเดินหน้า...จนถึง
@@ -252,7 +252,7 @@ const hasOpenPathToPromotion = (board, pos, color) => {
 
 // Distance-to-promotion proximity bonus, clamped to PLAN.md's +10..+30 target.
 const proximityBonus = (pos, color) => {
-    const distance = color === PieceColor.WHITE ? pos.y : 7 - pos.y;
+    const distance = color === PieceColor.WHITE ? 7 - pos.y : pos.y;
     return Math.max(BREAKTHROUGH_PROXIMITY_MIN, BREAKTHROUGH_PROXIMITY_MAX - distance * 3);
 };
 

@@ -1,0 +1,338 @@
+// Thai Checkers CLI — Node-only REPL command layer.
+import { readFile, writeFile } from 'node:fs/promises';
+import { createInterface } from 'node:readline/promises';
+import process from 'node:process';
+import { Position } from '../core/position.mjs';
+import { PieceColor, pieceSymbol } from '../core/piece.mjs';
+import {
+    GameDriver,
+    moveKey,
+    isOneDameEachDraw,
+    moveRecordMatches,
+    parsePieces,
+    parseSideToMove,
+    SaveIncompatibilityError,
+    AmbiguousMoveError,
+} from './GameDriver.mjs';
+
+export {
+    GameDriver,
+    moveKey,
+    isOneDameEachDraw,
+    moveRecordMatches,
+    parsePieces,
+    parseSideToMove,
+    SaveIncompatibilityError,
+    AmbiguousMoveError,
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+// Display helpers
+// ─────────────────────────────────────────────────────────────────────────
+
+// '.' marks a non-playable (light) square; a blank marks an empty playable
+// (dark) square; a piece glyph marks an occupied one.
+// Row 8 is printed first (top) through row 1 (bottom), matching the
+// standard algebraic notation where Black starts at the top (rows 7-8)
+// and White starts at the bottom (rows 1-2).
+export const renderBoard = (board) => {
+    const pieceAt = (x, y) => {
+        const pos = Position.fromCoords(x, y);
+        return board.isOccupied(pos) ? pieceSymbol(board.isBlackPiece(pos), board.isDamePiece(pos)) : ' ';
+    };
+
+    const cell = (x, y) =>
+        Position.isValid(x, y) ? pieceAt(x, y) : '.';
+
+    // Print from y=7 (row 8) down to y=0 (row 1)
+    const cells = (_, i) => {
+        const y = 7 - i;
+        return `${y + 1} ${Array.from({ length: 8 }, (_, x) => cell(x, y)).join(' ')}`;
+    };
+
+    const rows = Array.from({ length: 8 }, cells);
+    return [`  A B C D E F G H`, ...rows].join('\n');
+};
+
+// Promotion row for a color: White promotes on y=7 (row 8), Black on y=0 (row 1).
+const promotionRowOf = (color) => (color === PieceColor.WHITE ? 7 : 0);
+
+// True when the moving piece is not already a dame and the landing square is
+// that color's promotion row.
+const isPromotion = (board, move) => {
+    const movingIsDame = board.isDamePiece(move.from);
+    if (movingIsDame) {
+        return false;
+    }
+    const movingIsBlack = board.isBlackPiece(move.from);
+    const color = movingIsBlack ? PieceColor.BLACK : PieceColor.WHITE;
+    return move.to.y === promotionRowOf(color);
+};
+
+// Format a single move for display: full path, captures prefixed with x, and a
+// promotion marker * on the final landing square.
+// Example: `D5 -> B3 -> D1* (x C4 x C2)`
+export const formatMove = (move, board) => {
+    const path = move.path && move.path.length > 0 ? move.path : [move.from, move.to];
+    const last = path[path.length - 1];
+    const promo = isPromotion(board, move) ? '*' : '';
+    const route = path.map((pos) => pos.toString()).join(' -> ');
+    const captures = move.captured.length === 0
+        ? ''
+        : ` (${move.captured.map((pos) => `x${pos.toString()}`).join(' ')})`;
+    return `${route}${promo}${captures}`;
+};
+
+// Format the candidate-route list shown when a coordinate command is ambiguous.
+// Each candidate is a one-based local choice among the endpoint-matching routes.
+export const formatCandidateRoutes = (candidates, board) =>
+    candidates
+        .map(({ choice, move }) => `  ${choice}) ${formatMove(move, board)}`)
+        .join('\n');
+
+// ─────────────────────────────────────────────────────────────────────────
+// REPL command layer (Node-only)
+// ─────────────────────────────────────────────────────────────────────────
+
+const COLOR_LABEL = new Map([
+    [PieceColor.WHITE, 'WHITE'],
+    [PieceColor.BLACK, 'BLACK'],
+]);
+
+const HELP_LINE =
+    'Commands: <n> (move by number) | <from> <to> [choice] (move by square) | ' +
+    'ai [depth] | undo | redo | history | save <file> | load <file> | exit | quit';
+
+// Print the current state: player, board, move list, warnings, game-over.
+const printState = (driver) => {
+    const state = driver.getState();
+    const colorName = COLOR_LABEL.get(state.player);
+    console.log(`\nPlayer to move: ${colorName}`);
+    console.log(renderBoard(state.board));
+
+    if (state.drawWarning !== null) {
+        console.log('Draw warning: draw is likely/possible under the draw rule. You may continue playing.');
+    }
+
+    if (state.isGameOver) {
+        if (state.isDraw) {
+            console.log('Game over: forced draw (ONE_DAME_EACH).');
+        } else {
+            const winnerName = COLOR_LABEL.get(state.winner);
+            console.log(`Game over: ${winnerName} wins.`);
+        }
+        return;
+    }
+
+    const moves = state.moves;
+    console.log('Moves:');
+    moves.forEach((move, i) => {
+        console.log(`[${i + 1}] ${formatMove(move, state.board)}`);
+    });
+};
+
+const printHistory = (driver) => {
+    const played = driver.history();
+    if (played.length === 0) {
+        console.log('No moves played yet.');
+        return;
+    }
+    const currentIndex = driver.toJSON().currentIndex;
+    const board = driver.getState().board;
+    played.forEach((move, i) => {
+        const marker = i + 1 === currentIndex ? '*' : ' ';
+        console.log(`${marker} ${i + 1}. ${formatMove(move, board)}`);
+    });
+};
+
+// Parse a single input line into a command descriptor.
+const parseCommand = (line) => {
+    const tokens = line.trim().split(/\s+/).filter((t) => t.length > 0);
+    if (tokens.length === 0) {
+        return { kind: 'noop' };
+    }
+    const head = tokens[0].toLowerCase();
+    if (head === 'exit' || head === 'quit') {
+        return { kind: 'exit' };
+    }
+    if (head === 'undo') {
+        return { kind: 'undo' };
+    }
+    if (head === 'redo') {
+        return { kind: 'redo' };
+    }
+    if (head === 'history') {
+        return { kind: 'history' };
+    }
+    if (head === 'ai') {
+        const depth = tokens[1] !== undefined ? Number(tokens[1]) : 6;
+        return { kind: 'ai', depth };
+    }
+    if (head === 'save') {
+        if (tokens[1] === undefined) {
+            return { kind: 'error', message: 'save requires a file path' };
+        }
+        return { kind: 'save', file: tokens[1] };
+    }
+    if (head === 'load') {
+        if (tokens[1] === undefined) {
+            return { kind: 'error', message: 'load requires a file path' };
+        }
+        return { kind: 'load', file: tokens[1] };
+    }
+    // Move by number: a single positive integer.
+    if (tokens.length === 1 && /^\d+$/.test(tokens[0])) {
+        const n = Number(tokens[0]);
+        if (n < 1) {
+            return { kind: 'error', message: 'Move number must be a positive integer' };
+        }
+        return { kind: 'moveIndex', index: n };
+    }
+    // Move by position: two or three tokens, both squares (optionally a choice).
+    if (tokens.length >= 2 && /^[a-hA-H][1-8]$/.test(tokens[0]) && /^[a-hA-H][1-8]$/.test(tokens[1])) {
+        const choice = tokens[2] !== undefined ? Number(tokens[2]) : undefined;
+        if (tokens[2] !== undefined && (!Number.isInteger(choice) || choice < 1)) {
+            return { kind: 'error', message: 'Choice must be a positive integer' };
+        }
+        return { kind: 'movePosition', from: tokens[0], to: tokens[1], choice };
+    }
+    return { kind: 'unknown' };
+};
+
+// Execute a parsed command against the driver. Returns true to continue, false to quit.
+const executeCommand = async (driver, cmd) => {
+    switch (cmd.kind) {
+        case 'noop':
+            return true;
+        case 'exit':
+            return false;
+        case 'undo': {
+            const result = driver.undo();
+            if (!result.changed) {
+                console.log('Already at the initial position.');
+            }
+            return true;
+        }
+        case 'redo': {
+            const result = driver.redo();
+            if (!result.changed) {
+                console.log('Already at the latest position.');
+            }
+            return true;
+        }
+        case 'history':
+            printHistory(driver);
+            return true;
+        case 'ai': {
+            const result = driver.playAiMove(cmd.depth);
+            if (!result.played) {
+                console.log('No legal moves; AI could not play.');
+            } else {
+                const secondsStr = result.time.toFixed(3);
+                const moveStr = formatMove(result.move, result.board);
+                console.log(`AI played: [${result.choice}] ${moveStr} [score=${result.score} nodes=${result.nodes} time=${secondsStr}s]`);
+            }
+            return true;
+        }
+        case 'save': {
+            const json = driver.toJSON();
+            await writeFile(cmd.file, JSON.stringify(json, null, 2) + '\n', 'utf8');
+            console.log(`Saved session to ${cmd.file}`);
+            return true;
+        }
+        case 'load': {
+            const raw = await readFile(cmd.file, 'utf8');
+            const parsed = JSON.parse(raw);
+            driver.load(parsed);
+            console.log(`Loaded session from ${cmd.file}`);
+            return true;
+        }
+        case 'moveIndex': {
+            driver.playMoveIndex(cmd.index - 1);
+            return true;
+        }
+        case 'movePosition': {
+            driver.playMovePosition(cmd.from, cmd.to, cmd.choice);
+            return true;
+        }
+        case 'error':
+            console.log(`Error: ${cmd.message}`);
+            return true;
+        case 'unknown':
+        default:
+            console.log(`Unknown command. ${HELP_LINE}`);
+            return true;
+    }
+};
+
+// Print a friendly message for a driver error, surfacing ambiguous routes.
+const handleDriverError = (driver, error) => {
+    if (error.code === 'AMBIGUOUS_MOVE' && Array.isArray(error.candidates)) {
+        const board = driver.getState().board;
+        console.log(`Ambiguous move: ${error.message}`);
+        error.candidates.forEach(({ choice, move, index }) => {
+            console.log(`  ${choice}) [${index + 1}] ${formatMove(move, board)}`);
+        });
+        console.log('Retry with e.g. "d5 d1 1".');
+        return;
+    }
+    console.log(`Error: ${error.message}`);
+};
+
+const replLoop = async (driver, rl) => {
+    printState(driver);
+    const line = await rl.question('> ').catch(() => null);
+    if (line === null) {
+        rl.close();
+        return;
+    }
+    const cmd = parseCommand(line);
+    try {
+        const keepGoing = await executeCommand(driver, cmd);
+        if (!keepGoing) {
+            rl.close();
+            return;
+        }
+    } catch (error) {
+        handleDriverError(driver, error);
+    }
+    await replLoop(driver, rl);
+};
+
+const runRepl = async (driver) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const meta = driver.metadata;
+    if (meta !== null && meta !== undefined) {
+        if (meta.title) {
+            console.log(meta.title);
+        }
+        if (meta.description) {
+            console.log(meta.description);
+        }
+    }
+    await replLoop(driver, rl);
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+// Entry-point guard: importing this module in tests must not start the REPL.
+// ─────────────────────────────────────────────────────────────────────────
+
+const isMainModule = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+
+if (isMainModule) {
+    const startupFile = process.argv[2];
+    const startDriver = async () => {
+        if (startupFile === undefined) {
+            return new GameDriver();
+        }
+        const raw = await readFile(startupFile, 'utf8');
+        const parsed = JSON.parse(raw);
+        return new GameDriver(parsed);
+    };
+    startDriver()
+        .then(runRepl)
+        .catch((error) => {
+            console.error(`Startup failed: ${error.message}`);
+            process.exitCode = 1;
+        });
+}

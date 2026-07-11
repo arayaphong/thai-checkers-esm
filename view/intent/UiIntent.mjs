@@ -30,4 +30,6 @@ export const UiIntent = {
   startGame: () => createUiIntent(UiActor.startGameAction(), UiAction.startGame()),
   restartGame: () => createUiIntent(UiActor.restartGameAction(), UiAction.restartGame()),
   expandSetup: () => createUiIntent(UiActor.setupPanel(), UiAction.expandSetup()),
+  collapseSetup: () => createUiIntent(UiActor.setupPanel(), UiAction.collapseSetup()),
 };
+

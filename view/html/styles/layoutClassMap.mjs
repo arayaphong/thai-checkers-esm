@@ -25,6 +25,7 @@ export const layoutClassMap = Object.freeze({
 
   animLayer: 'absolute z-30 pointer-events-none',
   animLayerCssText: 'position:absolute;top:0;left:0;width:100%;height:100%;',
+  animLayerUiRole: 'animLayer',
 
   footer: 'mt-8 text-gray-400 text-sm max-w-lg text-center leading-relaxed',
 });

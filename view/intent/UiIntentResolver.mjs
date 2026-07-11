@@ -25,9 +25,12 @@ export const resolveUiIntent = (rawEvent) => {
       return UiIntent.startGame();
     case 'restartGameAction':
       return UiIntent.restartGame();
+    case 'cancelSetupAction':
+      return UiIntent.collapseSetup();
     case 'setupPanel':
       return UiIntent.expandSetup();
     default:
+
       return null;
   }
 };
