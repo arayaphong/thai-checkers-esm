@@ -1,5 +1,5 @@
 import { Position } from '../core/position.mjs';
-import { PieceColor, PieceType } from '../core/piece.mjs';
+import { PieceColor } from '../core/piece.mjs';
 import { GameDriver } from '../cli/GameDriver.mjs';
 
 /**
@@ -56,16 +56,16 @@ export const pieceColorOfTurn = (turn) => (turn === 1 ? PieceColor.WHITE : Piece
 export const turnOfPieceColor = (color) => (color === PieceColor.WHITE ? 1 : -1);
 
 export const demoJsonFromModelBoard = (board, turn) => {
-  const pieces = [];
-  for (let r = 0; r < 8; r += 1) {
-    for (let c = 0; c < 8; c += 1) {
-      const value = board[r][c];
-      if (value === 0) continue;
-      const color = value > 0 ? 'WHITE' : 'BLACK';
-      const type = Math.abs(value) === 2 ? 'DAME' : 'PION';
-      pieces.push([squareOfModelPos({ r, c }), { color, type }]);
-    }
-  }
+  const pieces = board.flatMap((row, r) =>
+    row
+      .map((value, c) => {
+        if (value === 0) return null;
+        const color = value > 0 ? 'WHITE' : 'BLACK';
+        const type = Math.abs(value) === 2 ? 'DAME' : 'PION';
+        return [squareOfModelPos({ r, c }), { color, type }];
+      })
+      .filter((item) => item !== null),
+  );
   return { pieces, sideToMove: turn === 1 ? 'WHITE' : 'BLACK' };
 };
 
@@ -77,9 +77,8 @@ export const createStandardDriver = () => new GameDriver();
 export const expandDriverMoveToModelHops = (move) => {
   const path = move.path?.length > 0 ? move.path : [move.from, move.to];
   const isCaptureChain = move.captured.length > 0;
-  const hops = [];
-  for (let i = 0; i < path.length - 1; i += 1) {
-    const from = modelPosOfPosition(path[i]);
+  return path.slice(0, -1).map((current, i) => {
+    const from = modelPosOfPosition(current);
     const to = modelPosOfPosition(path[i + 1]);
     const hop = {
       fromR: from.r,
@@ -93,9 +92,8 @@ export const expandDriverMoveToModelHops = (move) => {
       hop.jumpedR = jumped.r;
       hop.jumpedC = jumped.c;
     }
-    hops.push(hop);
-  }
-  return hops;
+    return hop;
+  });
 };
 
 export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSquares }) => {

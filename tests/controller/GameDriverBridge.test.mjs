@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { GameDriver } from '../../cli/GameDriver.mjs';
 import { Position } from '../../core/position.mjs';
-import { PieceColor, PieceType } from '../../core/piece.mjs';
+import { PieceColor } from '../../core/piece.mjs';
 import {
   createDriverForModelBoard,
   demoJsonFromModelBoard,
