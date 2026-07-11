@@ -1,5 +1,5 @@
 // Shared, WHITE-perspective static evaluator for the sequential negamax
-// (core/analyzer.js).
+// (core/analyzer.mjs).
 import { PieceColor, PieceType } from './piece.mjs';
 import { Position } from './position.mjs';
 import {
@@ -28,7 +28,7 @@ export const MATE_SCORE = 100_000;
 /**
  * Distinguishes near-mate scores (which bake in root-relative ply distance
  * and are unsafe to cache across differing remaining-depth budgets) from
- * ordinary heuristic scores (safe to cache). See core/search/negamax.js.
+ * ordinary heuristic scores (safe to cache). See core/analyzer.mjs's #negamax.
  * @type {number}
  */
 export const MATE_SCORE_THRESHOLD = 90_000;
@@ -110,7 +110,7 @@ const pstValue = (type, color, pos) => {
 
 /**
  * PST change a quiet move would cause for the piece making it — used by
- * core/search/move-order.js as a cheap (two table lookups, no board copy or
+ * core/moves/move-order.mjs as a cheap (two table lookups, no board copy or
  * full evaluateBoard() call) tiebreaker among quiet moves, which otherwise
  * all sort as equal and gave alpha-beta nothing to distinguish them by once
  * Phase 4 (PST) made most positions no longer tie on material alone (due to the
@@ -143,7 +143,7 @@ const sideScore = (pieces, color) =>
 // ─── Mobility (Phase 5) ───
 // Direct coordinate scans only — never Explorer/game.getMoves() — so mobility
 // stays cheap enough to compute at every leaf. Mirrors the direction vectors
-// core/explorer.js uses for real move generation, but only counts squares
+// core/explorer.mjs uses for real move generation, but only counts squares
 // instead of allocating move/Legals objects.
 
 const PION_MOBILITY_PER_SQUARE = 2;
@@ -576,7 +576,7 @@ const structureScore = (board) =>
         );
     }, 0);
 
-// ─── Immediate Draw (per docs/กฎการเสมอในเกมหมากฮอส.md) ───
+// ─── Immediate Draw (per Thai checkers draw rules) ───
 // With no mandatory capture pending for sideToMove, a position is an
 // immediate draw once both sides hold at least one dame, at most one pion
 // each, a combined piece count of at most 7, and a piece-count difference of
@@ -601,11 +601,11 @@ const countPionsAndDames = (board, color) =>
     );
 
 /**
- * True if `board` is an immediate draw per docs/กฎการเสมอในเกมหมากฮอส.md.
+ * True if `board` is an immediate draw per Thai checkers draw rules.
  * Reuses the same direct-scan hasMandatoryCapture Mobility/Breakthrough rely
  * on (not full move generation), so this stays cheap enough to call at every
- * search node — see core/analyzer.js's #negamax/#quiescence and
- * core/search/negamax.js, which both score an immediate draw as a loss for
+ * search node — see core/analyzer.mjs's #negamax/#quiescence,
+ * which both score an immediate draw as a loss for
  * sideToMove (same -MATE_SCORE + plyFromRoot convention as having no legal
  * moves at all), rather than the neutral score a genuine mutual draw would
  * otherwise get.

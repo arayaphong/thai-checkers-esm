@@ -111,7 +111,7 @@ export class Analyzer {
      * @param {number} color 1 for maximizing player, -1 for minimizing
      * @param {number} plyFromRoot Distance in plies from the analyze() root to `game`'s
      *   current position, used so a terminal score reflects actual mate distance rather
-     *   than remaining search depth (see core/evaluation.js).
+     *   than remaining search depth (see core/evaluation.mjs).
      * @returns {number} The score of the position from the perspective of the current player.
      */
     #negamax(game, depth, alpha, beta, color, plyFromRoot) {
@@ -124,7 +124,7 @@ export class Analyzer {
         const board = game.board();
         const player = game.player();
 
-        // An immediate draw (docs/กฎการเสมอในเกมหมากฮอส.md) scores as a loss for
+        // An immediate draw (per Thai checkers draw rules) scores as a loss for
         // player, not a neutral 0: the real game doesn't stop play here (see
         // analyze()'s doc comment on why the core engine is left alone), but
         // the search should never treat reaching this dead end as acceptable

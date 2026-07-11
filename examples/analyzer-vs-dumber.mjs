@@ -2,7 +2,7 @@
 // "Analyzer", a single Analyzer at depth 8 (BLACK), and play the game out to
 // completion.
 //
-// Run with: node examples/analyze-vs-random.mjs [--no-board]
+// Run with: node examples/analyzer-vs-dumber.mjs [--no-board]
 import { GameDriver, renderBoard, moveKey } from '../cli/cli.mjs';
 import { Analyzer } from '../core/analyzer.mjs';
 import { PieceColor, toStringPieceColor } from '../core/piece.mjs';

@@ -1,4 +1,4 @@
-// Move ordering heuristic for the sequential search (core/analyzer.js).
+// Move ordering heuristic for the sequential search (core/analyzer.mjs).
 // Order only affects how much of the tree alpha-beta prunes — it never
 // changes the resulting score.
 import { PieceColor } from '../piece.mjs';
@@ -22,7 +22,7 @@ const moveOrderScore = (move, board, promoRow) => {
     // (score 0) here, which cost alpha-beta nothing while evaluation was
     // material-only, but became a real liability once PST (and later
     // Mobility/Breakthrough) made positions rarely tie on value — see
-    // core/evaluation.js's pstMoveDelta doc comment.
+    // core/evaluation.mjs's pstMoveDelta doc comment.
     return pstMoveDelta(board, move.from, move.to);
 };
 

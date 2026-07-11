@@ -1,5 +1,5 @@
 // Shared direction vectors and small helpers used by both move generation
-// (core/explorer.js) and static evaluation (core/evaluation.js).
+// (core/explorer.mjs) and static evaluation (core/evaluation.mjs).
 import { PieceColor } from './piece.mjs';
 
 /**
