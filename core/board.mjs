@@ -89,17 +89,19 @@ export class Board {
         return new Board();
     }
     static setup() {
-        let occBits = 0;
-        let blackBits = 0;
-        // White home rows are 0-1 (bottom), black home rows are 6-7 (top)
-        for (const row of HOME_ROWS) {
-            const startCol = row % 2 === 0 ? 1 : 0;
-            for (let i = 0; i < 4; i++) {
-                const mask = bit(Position.fromCoords(startCol + i * 2, row).hash());
-                occBits = setBit(occBits, mask);
-                if (row >= 6) blackBits = setBit(blackBits, mask);
-            }
-        }
+        const { occBits, blackBits } = HOME_ROWS.reduce(
+            (acc, row) => {
+                const startCol = row % 2 === 0 ? 1 : 0;
+                return Array.from({ length: 4 }).reduce((innerAcc, _, i) => {
+                    const mask = bit(Position.fromCoords(startCol + i * 2, row).hash());
+                    return {
+                        occBits: setBit(innerAcc.occBits, mask),
+                        blackBits: row >= 6 ? setBit(innerAcc.blackBits, mask) : innerAcc.blackBits,
+                    };
+                }, acc);
+            },
+            { occBits: 0, blackBits: 0 },
+        );
         return new Board(occBits, blackBits, 0);
     }
     static fromPieces(pieces) {
@@ -107,7 +109,7 @@ export class Board {
         let blackBits = 0;
         let dameBits = 0;
         const seen = new Set();
-        for (const [position, info] of pieces) {
+        pieces.forEach(([position, info]) => {
             const key = toPieceKey(position);
             if (seen.has(key)) {
                 throw new Error(`Duplicate piece position: ${Position.fromIndex(key).toString()}`);
@@ -122,7 +124,7 @@ export class Board {
             if (info.type === PieceType.DAME) {
                 dameBits = setBit(dameBits, mask);
             }
-        }
+        });
         assertValidPieceCount(popCount32(occBits));
         return new Board(occBits, blackBits, dameBits);
     }
@@ -135,17 +137,21 @@ export class Board {
         }
         const occBits = Number((encoded >> 32n) & LOW_32_BITS) >>> 0;
         assertValidPieceCount(popCount32(occBits));
-        let blackBits = 0;
-        let dameBits = 0;
         const low32 = Number(encoded & LOW_32_BITS) >>> 0;
-        let count = 0;
-        for (let i = 0; i < BOARD_SQUARES && count < MAX_PIECES; i++) {
-            const mask = bit(i);
-            if ((occBits & mask) === 0) continue;
-            if ((low32 & bit(count)) !== 0) dameBits = setBit(dameBits, mask);
-            if ((low32 & bit(count + MAX_PIECES)) !== 0) blackBits = setBit(blackBits, mask);
-            count++;
-        }
+
+        const occupiedIndices = Array.from({ length: BOARD_SQUARES }, (_, i) => i)
+            .filter((i) => (occBits & bit(i)) !== 0);
+
+        const { blackBits, dameBits } = occupiedIndices.reduce(
+            (acc, index, count) => {
+                const mask = bit(index);
+                const nextDameBits = (low32 & bit(count)) !== 0 ? setBit(acc.dameBits, mask) : acc.dameBits;
+                const nextBlackBits = (low32 & bit(count + MAX_PIECES)) !== 0 ? setBit(acc.blackBits, mask) : acc.blackBits;
+                return { dameBits: nextDameBits, blackBits: nextBlackBits };
+            },
+            { blackBits: 0, dameBits: 0 },
+        );
+
         const board = new Board(occBits, blackBits, dameBits);
         if (board.encode() !== encoded) {
             throw new Error('Encoded board is not canonical');
@@ -231,16 +237,20 @@ export class Board {
     }
     // ─── Encoding ───
     encode() {
-        let damePacked = 0;
-        let blackPacked = 0;
-        let count = 0;
-        for (let i = 0; i < BOARD_SQUARES; i++) {
-            const mask = bit(i);
-            if ((this.#occBits & mask) === 0) continue;
-            if ((this.#dameBits & mask) !== 0) damePacked |= bit(count);
-            if ((this.#blackBits & mask) !== 0) blackPacked |= bit(count);
-            count++;
-        }
+        const occupiedIndices = Array.from({ length: BOARD_SQUARES }, (_, i) => i)
+            .filter((i) => (this.#occBits & bit(i)) !== 0);
+
+        const { damePacked, blackPacked } = occupiedIndices.reduce(
+            (acc, index, count) => {
+                const mask = bit(index);
+                return {
+                    damePacked: (this.#dameBits & mask) !== 0 ? acc.damePacked | bit(count) : acc.damePacked,
+                    blackPacked: (this.#blackBits & mask) !== 0 ? acc.blackPacked | bit(count) : acc.blackPacked,
+                };
+            },
+            { damePacked: 0, blackPacked: 0 },
+        );
+
         return (
             (BigInt(this.#occBits >>> 0) << 32n) |
             (BigInt(blackPacked & LOW_16_BITS) << 16n) |

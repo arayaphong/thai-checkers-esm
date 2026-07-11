@@ -13,6 +13,11 @@ import {
 const getDirs = (color, isDame) =>
     isDame ? DAME_DIRS : color === PieceColor.BLACK ? BLACK_PION_DIRS : WHITE_PION_DIRS;
 
+const getRayCoords = (from, dx, dy) =>
+    Array.from({ length: 7 }, (_, i) => ({ x: from.x + dx * (i + 1), y: from.y + dy * (i + 1) }))
+        .filter(({ x, y }) => Position.isValid(x, y))
+        .map(({ x, y }) => Position.fromCoords(x, y));
+
 // ─── Explorer ───
 export class Explorer {
     #board;
@@ -49,24 +54,19 @@ export class Explorer {
         });
     }
     #findCapturesFrom(board, pos, color, isDame, path) {
-        const results = [];
         const dirs = getDirs(color, isDame);
-        for (const d of dirs) {
+        return dirs.flatMap((d) => {
             const caps = this.#findCapturesInDir(board, pos, d, isDame);
-            for (const cap of caps) {
+            return caps.flatMap((cap) => {
                 const sim = this.#applyCapture(board, pos, cap[0], cap[1]);
                 const becameDame = !isDame && cap[1].y === promotionRow(color);
                 if (becameDame) {
-                    // Pion promotion ends the capture sequence immediately.
-                    results.push(this.#flatten(path, cap));
-                    continue;
+                    return [this.#flatten(path, cap)];
                 }
                 const rec = this.#findCapturesFrom(sim, cap[1], color, isDame, [...path, cap]);
-                if (rec.length > 0) results.push(...rec);
-                else results.push(this.#flatten(path, cap));
-            }
-        }
-        return results;
+                return rec.length > 0 ? rec : [this.#flatten(path, cap)];
+            });
+        });
     }
     #flatten(path, last) {
         return [...path.flatMap(([captured, landing]) => [captured, landing]), ...last];
@@ -79,26 +79,17 @@ export class Explorer {
         const myColor = board.isBlackPiece(from) ? PieceColor.BLACK : PieceColor.WHITE;
         const { dx, dy } = dir;
         if (isDame) {
-            // Flying dame: glide over empty squares to the first opponent, then
-            // land on the single empty square immediately behind it (Thai "short
-            // king" rule — no choice of a farther landing square).
-            let x = from.x + dx;
-            let y = from.y + dy;
-            let foundOpponent = null;
-            while (Position.isValid(x, y)) {
-                const pos = Position.fromCoords(x, y);
-                if (board.isOccupied(pos)) {
-                    // A blocker before any opponent, or a second piece behind the
-                    // captured one, ends this ray with no capture.
-                    if (foundOpponent || !isOpponentPiece(board, pos, myColor)) {
-                        return [];
-                    }
-                    foundOpponent = pos;
-                } else if (foundOpponent) {
-                    return [[foundOpponent, pos]];
-                }
-                x += dx;
-                y += dy;
+            const ray = getRayCoords(from, dx, dy);
+            const occupiedIndices = ray
+                .map((pos, idx) => (board.isOccupied(pos) ? idx : -1))
+                .filter((idx) => idx !== -1);
+
+            if (occupiedIndices.length === 0) return [];
+
+            const firstIdx = occupiedIndices[0];
+            const hasValidLanding = firstIdx + 1 < ray.length && !board.isOccupied(ray[firstIdx + 1]);
+            if (hasValidLanding && isOpponentPiece(board, ray[firstIdx], myColor)) {
+                return [[ray[firstIdx], ray[firstIdx + 1]]];
             }
             return [];
         }
@@ -117,29 +108,17 @@ export class Explorer {
     }
     // ─── regular moves ───
     #findRegularMoves(from, color, isDame, dirs) {
-        const positions = [];
         if (isDame) {
-            for (const { dx, dy } of dirs) {
-                let x = from.x + dx;
-                let y = from.y + dy;
-                while (Position.isValid(x, y)) {
-                    const pos = Position.fromCoords(x, y);
-                    if (this.#board.isOccupied(pos)) break;
-                    positions.push(pos);
-                    x += dx;
-                    y += dy;
-                }
-            }
-        } else {
-            for (const { dx, dy } of dirs) {
-                const nx = from.x + dx;
-                const ny = from.y + dy;
-                if (Position.isValid(nx, ny)) {
-                    const pos = Position.fromCoords(nx, ny);
-                    if (!this.#board.isOccupied(pos)) positions.push(pos);
-                }
-            }
+            return dirs.flatMap(({ dx, dy }) => {
+                const ray = getRayCoords(from, dx, dy);
+                const firstOccupiedIdx = ray.findIndex((pos) => this.#board.isOccupied(pos));
+                return firstOccupiedIdx === -1 ? ray : ray.slice(0, firstOccupiedIdx);
+            });
         }
-        return positions;
+        return dirs
+            .map(({ dx, dy }) => ({ x: from.x + dx, y: from.y + dy }))
+            .filter(({ x, y }) => Position.isValid(x, y))
+            .map(({ x, y }) => Position.fromCoords(x, y))
+            .filter((pos) => !this.#board.isOccupied(pos));
     }
 }
