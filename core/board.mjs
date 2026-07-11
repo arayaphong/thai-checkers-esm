@@ -387,19 +387,18 @@ export class Board {
      * @returns {bigint}
      */
     encode() {
-        const occupiedIndices = Array.from({ length: BOARD_SQUARES }, (_, i) => i)
-            .filter((i) => (this.#occBits & bit(i)) !== 0);
+        let occupied = this.#occBits;
+        let packedMask = 1;
+        let damePacked = 0;
+        let blackPacked = 0;
 
-        const { damePacked, blackPacked } = occupiedIndices.reduce(
-            (acc, index, count) => {
-                const mask = bit(index);
-                return {
-                    damePacked: (this.#dameBits & mask) !== 0 ? acc.damePacked | bit(count) : acc.damePacked,
-                    blackPacked: (this.#blackBits & mask) !== 0 ? acc.blackPacked | bit(count) : acc.blackPacked,
-                };
-            },
-            { damePacked: 0, blackPacked: 0 },
-        );
+        while (occupied !== 0) {
+            const mask = occupied & -occupied;
+            if ((this.#dameBits & mask) !== 0) damePacked |= packedMask;
+            if ((this.#blackBits & mask) !== 0) blackPacked |= packedMask;
+            occupied = (occupied & (occupied - 1)) >>> 0;
+            packedMask <<= 1;
+        }
 
         return (
             (BigInt(this.#occBits >>> 0) << 32n) |
