@@ -17,7 +17,13 @@
 // stale continuation clobber a newer animation's state in practice.
 // ============================================
 
-export const createGameView = ({ boardView, animationView, statusView, controlPanelView, layoutSurface }) => {
+export const createGameView = ({
+  boardView,
+  animationView,
+  statusView,
+  controlPanelView,
+  layoutSurface,
+}) => {
   let pendingAnimationAbort = null;
   let pendingAnimationDone = null;
 
@@ -52,8 +58,8 @@ export const createGameView = ({ boardView, animationView, statusView, controlPa
     // already empty in the settled state.
     const preAnimationBoard = {
       ...settledViewState.board,
-      pieces: settledViewState.board.pieces.filter((p) =>
-        !(p.position.r === to.r && p.position.c === to.c)
+      pieces: settledViewState.board.pieces.filter(
+        (p) => !(p.position.r === to.r && p.position.c === to.c),
       ),
     };
     applyBoardState(preAnimationBoard);

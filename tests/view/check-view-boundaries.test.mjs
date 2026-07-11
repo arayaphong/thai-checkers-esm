@@ -59,9 +59,7 @@ const forbiddenCssTokens = [
   'flex-center',
 ];
 
-const htmlDetailDirectoriesThatMustNotExist = [
-  'view/templates',
-];
+const htmlDetailDirectoriesThatMustNotExist = ['view/templates'];
 
 const cssDetailFilesThatMustNotExist = [
   'view/game.css',
@@ -69,9 +67,7 @@ const cssDetailFilesThatMustNotExist = [
   'view/tailwind-input.css',
 ];
 
-const legacyViewFilesThatMustNotExist = [
-  'view/DOMView.mjs',
-];
+const legacyViewFilesThatMustNotExist = ['view/DOMView.mjs'];
 
 const exists = async (filePath) => {
   try {
@@ -92,19 +88,22 @@ const walkFiles = async (rootDir, targetPath) => {
   }
 
   const entries = await readdir(absolutePath, { withFileTypes: true });
-  const childFiles = await Promise.all(entries.map((entry) => {
-    const childPath = path.join(targetPath, entry.name);
-    return walkFiles(rootDir, childPath);
-  }));
+  const childFiles = await Promise.all(
+    entries.map((entry) => {
+      const childPath = path.join(targetPath, entry.name);
+      return walkFiles(rootDir, childPath);
+    }),
+  );
   return childFiles.flat();
 };
 
-const lineMatches = (line, tokens) => tokens
-  .filter((token) => line.includes(token))
-  .map((token) => ({ token, line }));
+const lineMatches = (line, tokens) =>
+  tokens.filter((token) => line.includes(token)).map((token) => ({ token, line }));
 
 const collectViewBoundaryViolations = async ({ rootDir = process.cwd() } = {}) => {
-  const files = (await Promise.all(semanticTargets.map((target) => walkFiles(rootDir, target)))).flat();
+  const files = (
+    await Promise.all(semanticTargets.map((target) => walkFiles(rootDir, target)))
+  ).flat();
   const tokenGroups = [
     { label: 'DOM/API implementation detail', tokens: forbiddenImplementationTokens },
     { label: 'HTML/template detail', tokens: forbiddenHtmlTokens },
@@ -183,7 +182,8 @@ const formatViewBoundaryViolations = (violations, { rootDir = process.cwd() } = 
   const lines = ['View boundary check failed:'];
   for (const violation of violations) {
     const relativePath = path.relative(rootDir, violation.filePath);
-    const location = violation.lineNumber > 0 ? `${relativePath}:${violation.lineNumber}` : relativePath;
+    const location =
+      violation.lineNumber > 0 ? `${relativePath}:${violation.lineNumber}` : relativePath;
     lines.push(`- ${location} [${violation.label}] ${violation.token}`);
     lines.push(`  ${violation.line}`);
   }

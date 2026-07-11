@@ -2,12 +2,16 @@
 import { PieceColor } from './piece.mjs';
 import { Position } from './position.mjs';
 import { Legals } from './legals.mjs';
-import { WHITE_PION_DIRS, BLACK_PION_DIRS, DAME_DIRS, promotionRow, isOpponentPiece } from './directions.mjs';
+import {
+    WHITE_PION_DIRS,
+    BLACK_PION_DIRS,
+    DAME_DIRS,
+    promotionRow,
+    isOpponentPiece,
+} from './directions.mjs';
 
 const getDirs = (color, isDame) =>
-    isDame
-        ? DAME_DIRS
-        : color === PieceColor.BLACK ? BLACK_PION_DIRS : WHITE_PION_DIRS;
+    isDame ? DAME_DIRS : color === PieceColor.BLACK ? BLACK_PION_DIRS : WHITE_PION_DIRS;
 
 // ─── Explorer ───
 export class Explorer {
@@ -24,8 +28,7 @@ export class Explorer {
         const color = this.#board.isBlackPiece(from) ? PieceColor.BLACK : PieceColor.WHITE;
         // 1. Try captures
         const captures = this.#findAllCaptureSequences(from, color, isDame);
-        if (captures.length > 0)
-            return Legals.fromCaptures(captures);
+        if (captures.length > 0) return Legals.fromCaptures(captures);
 
         // 2. Regular moves
         const dirs = getDirs(color, isDame);
@@ -59,10 +62,8 @@ export class Explorer {
                     continue;
                 }
                 const rec = this.#findCapturesFrom(sim, cap[1], color, isDame, [...path, cap]);
-                if (rec.length > 0)
-                    results.push(...rec);
-                else
-                    results.push(this.#flatten(path, cap));
+                if (rec.length > 0) results.push(...rec);
+                else results.push(this.#flatten(path, cap));
             }
         }
         return results;
@@ -93,8 +94,7 @@ export class Explorer {
                         return [];
                     }
                     foundOpponent = pos;
-                }
-                else if (foundOpponent) {
+                } else if (foundOpponent) {
                     return [[foundOpponent, pos]];
                 }
                 x += dx;
@@ -107,15 +107,12 @@ export class Explorer {
         const midY = from.y + dy;
         const landX = from.x + 2 * dx;
         const landY = from.y + 2 * dy;
-        if (!Position.isValid(midX, midY) || !Position.isValid(landX, landY))
-            return [];
+        if (!Position.isValid(midX, midY) || !Position.isValid(landX, landY)) return [];
         const midPos = Position.fromCoords(midX, midY);
         const landPos = Position.fromCoords(landX, landY);
-        if (!board.isOccupied(midPos) || board.isOccupied(landPos))
-            return [];
+        if (!board.isOccupied(midPos) || board.isOccupied(landPos)) return [];
         const isOpp = isOpponentPiece(board, midPos, myColor);
-        if (!isOpp)
-            return [];
+        if (!isOpp) return [];
         return [[midPos, landPos]];
     }
     // ─── regular moves ───
@@ -127,22 +124,19 @@ export class Explorer {
                 let y = from.y + dy;
                 while (Position.isValid(x, y)) {
                     const pos = Position.fromCoords(x, y);
-                    if (this.#board.isOccupied(pos))
-                        break;
+                    if (this.#board.isOccupied(pos)) break;
                     positions.push(pos);
                     x += dx;
                     y += dy;
                 }
             }
-        }
-        else {
+        } else {
             for (const { dx, dy } of dirs) {
                 const nx = from.x + dx;
                 const ny = from.y + dy;
                 if (Position.isValid(nx, ny)) {
                     const pos = Position.fromCoords(nx, ny);
-                    if (!this.#board.isOccupied(pos))
-                        positions.push(pos);
+                    if (!this.#board.isOccupied(pos)) positions.push(pos);
                 }
             }
         }

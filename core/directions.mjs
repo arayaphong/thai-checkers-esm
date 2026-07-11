@@ -4,11 +4,19 @@ import { PieceColor } from './piece.mjs';
 
 const freezeDirs = (dirs) => Object.freeze(dirs.map((dir) => Object.freeze(dir)));
 
-export const WHITE_PION_DIRS = freezeDirs([{ dx: -1, dy: 1 }, { dx: 1, dy: 1 }]);
-export const BLACK_PION_DIRS = freezeDirs([{ dx: -1, dy: -1 }, { dx: 1, dy: -1 }]);
+export const WHITE_PION_DIRS = freezeDirs([
+    { dx: -1, dy: 1 },
+    { dx: 1, dy: 1 },
+]);
+export const BLACK_PION_DIRS = freezeDirs([
+    { dx: -1, dy: -1 },
+    { dx: 1, dy: -1 },
+]);
 export const DAME_DIRS = freezeDirs([
-    { dx: -1, dy: -1 }, { dx: 1, dy: -1 },
-    { dx: -1, dy: 1 }, { dx: 1, dy: 1 },
+    { dx: -1, dy: -1 },
+    { dx: 1, dy: -1 },
+    { dx: -1, dy: 1 },
+    { dx: 1, dy: 1 },
 ]);
 
 /**

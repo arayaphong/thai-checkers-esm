@@ -1,31 +1,70 @@
 @keyframes target-pulse {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(0.75); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.75);
+  }
 }
-.animate-target-pulse { animation: target-pulse 1s ease-in-out infinite; }
+.animate-target-pulse {
+  animation: target-pulse 1s ease-in-out infinite;
+}
 
 @keyframes piece-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: .5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
-.animate-piece-pulse { animation: piece-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-piece-pulse {
+  animation: piece-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
 @keyframes ripple {
-  0%   { width: .5rem; height: .5rem; opacity: .6; }
-  100% { width: 2rem;  height: 2rem;  opacity: 0; }
+  0% {
+    width: 0.5rem;
+    height: 0.5rem;
+    opacity: 0.6;
+  }
+  100% {
+    width: 2rem;
+    height: 2rem;
+    opacity: 0;
+  }
 }
-.animate-ripple { animation: ripple 300ms ease-out forwards; }
+.animate-ripple {
+  animation: ripple 300ms ease-out forwards;
+}
 
 @keyframes land-pop {
-  0%   { transform: scale(.85); }
-  50%  { transform: scale(1.08); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(0.85);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
-.animate-land { animation: land-pop 250ms ease-out; }
+.animate-land {
+  animation: land-pop 250ms ease-out;
+}
 
-.abs-fill   { position: absolute; inset: 0; }
-.flex-center { display: flex; align-items: center; justify-content: center; }
-.abs-coord  {
+.abs-fill {
+  position: absolute;
+  inset: 0;
+}
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.abs-coord {
   position: absolute;
   font-size: 10px;
   font-weight: 700;

@@ -11,20 +11,20 @@ import { Position } from '../position.mjs';
  * @returns {import('../position.mjs').Position[]}
  */
 export const expandRoute = (waypoints) =>
-  waypoints.length === 0
-    ? []
-    : [
-        waypoints[0],
-        ...waypoints.slice(0, -1).flatMap((from, i) => {
-          const to = waypoints[i + 1];
-          const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
-          const stepX = Math.sign(to.x - from.x);
-          const stepY = Math.sign(to.y - from.y);
-          return Array.from({ length: steps }, (_, s) =>
-            Position.fromCoords(from.x + stepX * (s + 1), from.y + stepY * (s + 1)),
-          );
-        }),
-      ];
+    waypoints.length === 0
+        ? []
+        : [
+              waypoints[0],
+              ...waypoints.slice(0, -1).flatMap((from, i) => {
+                  const to = waypoints[i + 1];
+                  const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+                  const stepX = Math.sign(to.x - from.x);
+                  const stepY = Math.sign(to.y - from.y);
+                  return Array.from({ length: steps }, (_, s) =>
+                      Position.fromCoords(from.x + stepX * (s + 1), from.y + stepY * (s + 1)),
+                  );
+              }),
+          ];
 
 /**
  * The continuous trail from `from` to `to`, but only when it is unambiguous:
@@ -38,8 +38,8 @@ export const expandRoute = (waypoints) =>
  * @returns {import('../position.mjs').Position[] | null}
  */
 export const singleRoute = (moves, from, to) => {
-  const matches = moves.filter(
-    (move) => move.from.toString() === from && move.to.toString() === to,
-  );
-  return matches.length === 1 ? expandRoute(matches[0].path) : null;
+    const matches = moves.filter(
+        (move) => move.from.toString() === from && move.to.toString() === to,
+    );
+    return matches.length === 1 ? expandRoute(matches[0].path) : null;
 };

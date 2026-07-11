@@ -68,7 +68,8 @@ export const createBoardSurface = (registry) => {
     el.querySelector('.dot')?.remove();
     if (dotState.dot === 'none') return;
 
-    const color = dotState.dot === 'capture' ? boardClassMap.dotTargetCapture : boardClassMap.dotTargetWalk;
+    const color =
+      dotState.dot === 'capture' ? boardClassMap.dotTargetCapture : boardClassMap.dotTargetWalk;
     el.insertAdjacentHTML('beforeend', moveDot(color));
   };
 
@@ -86,19 +87,32 @@ export const createBoardSurface = (registry) => {
     createSquare: (position, squareDisplay) => {
       const boardEl = registry.getBoard();
       const { r, c } = position;
-      const el = h('div', squareDisplay.isDark ? boardClassMap.squareDark : boardClassMap.squareLight);
+      const el = h(
+        'div',
+        squareDisplay.isDark ? boardClassMap.squareDark : boardClassMap.squareLight,
+      );
       el.dataset.row = String(r);
       el.dataset.col = String(c);
       if (c === 0) el.insertAdjacentHTML('beforeend', coordLabel(8 - r, squareDisplay.isDark));
-      if (r === 7) el.insertAdjacentHTML('beforeend', coordLabel(String.fromCharCode(65 + c), squareDisplay.isDark));
+      if (r === 7)
+        el.insertAdjacentHTML(
+          'beforeend',
+          coordLabel(String.fromCharCode(65 + c), squareDisplay.isDark),
+        );
       boardEl.append(el);
       registry.registerSquare(position, el);
       state.set(key(position), createSquareState());
       return el;
     },
     render(boardRenderState) {
-      const { pieces, selectedPosition, moveablePositions, mandatoryCapturePosition, targetSquares, captureTargets } =
-        boardRenderState;
+      const {
+        pieces,
+        selectedPosition,
+        moveablePositions,
+        mandatoryCapturePosition,
+        targetSquares,
+        captureTargets,
+      } = boardRenderState;
 
       const moveableSet = new Set(moveablePositions?.map(key) || []);
       const targetSet = new Set(targetSquares?.map(key) || []);
@@ -111,9 +125,13 @@ export const createBoardSurface = (registry) => {
         const squareCache = stateFor(pos);
 
         const pieceOnSquare = pieceMap.get(k) || null;
-        const isSelected = selectedPosition && selectedPosition.r === pos.r && selectedPosition.c === pos.c;
+        const isSelected =
+          selectedPosition && selectedPosition.r === pos.r && selectedPosition.c === pos.c;
         const isMoveable = moveableSet.has(k);
-        const isMandatory = mandatoryCapturePosition && mandatoryCapturePosition.r === pos.r && mandatoryCapturePosition.c === pos.c;
+        const isMandatory =
+          mandatoryCapturePosition &&
+          mandatoryCapturePosition.r === pos.r &&
+          mandatoryCapturePosition.c === pos.c;
 
         let dot = 'none';
         if (targetSet.has(k)) dot = 'walk';

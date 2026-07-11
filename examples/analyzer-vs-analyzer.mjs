@@ -34,7 +34,9 @@ const playPly = (driver, ply) => {
   driver.playMoveIndex(index);
 
   const captureNote = move.captured.length ? ` (captures ${move.captured.length})` : '';
-  console.log(`\r\x1b[KPly ${ply + 1}: ${moverLabel} plays ${move.from} -> ${move.to}${captureNote}  ${note}`);
+  console.log(
+    `\r\x1b[KPly ${ply + 1}: ${moverLabel} plays ${move.from} -> ${move.to}${captureNote}  ${note}`,
+  );
   if (SHOW_BOARD) console.log(renderBoard(driver.game.board()));
 
   return playPly(driver, ply + 1);
@@ -55,9 +57,9 @@ const runGame = (gameNumber) => {
 
   const state = driver.getState();
   const resultMessage = state.isGameOver
-    ? (state.isDraw
-        ? `Draw by ${state.drawReason} in ${ply} plies`
-        : `${PLAYER_NAMES[state.winner]} wins in ${ply} plies`)
+    ? state.isDraw
+      ? `Draw by ${state.drawReason} in ${ply} plies`
+      : `${PLAYER_NAMES[state.winner]} wins in ${ply} plies`
     : `Stopped after reaching the ${MAX_PLIES}-ply safety cap with no result.`;
 
   console.log(`${resultMessage}`);

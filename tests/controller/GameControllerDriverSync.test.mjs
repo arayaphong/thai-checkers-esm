@@ -60,12 +60,13 @@ const assertControllerAndDriverEquivalent = (controller) => {
           }
         : null;
       const modelValue = controller.state.board[r][c];
-      const modelPiece = modelValue === 0
-        ? null
-        : {
-            color: modelValue > 0 ? PieceColor.WHITE : PieceColor.BLACK,
-            type: Math.abs(modelValue) === 2 ? PieceType.DAME : PieceType.PION,
-          };
+      const modelPiece =
+        modelValue === 0
+          ? null
+          : {
+              color: modelValue > 0 ? PieceColor.WHITE : PieceColor.BLACK,
+              type: Math.abs(modelValue) === 2 ? PieceType.DAME : PieceType.PION,
+            };
       assert.deepEqual(corePiece, modelPiece, `piece differs at ${position.toString()}`);
     }
   }
@@ -90,10 +91,12 @@ describe('GameController and GameDriver synchronization', () => {
   });
 
   test('black AI automatically replies and leaves both engines synchronized', async () => {
-    const controller = createGameController(await demo1Setup({
-      ...humanConfig,
-      blackIsAI: true,
-    }));
+    const controller = createGameController(
+      await demo1Setup({
+        ...humanConfig,
+        blackIsAI: true,
+      }),
+    );
     await playDemo1LeftRoute(controller);
 
     assert.equal(controller.state.turn, 1);
@@ -118,10 +121,7 @@ describe('GameController and GameDriver synchronization', () => {
   });
 
   test('legacy ai directory and controller imports stay removed', async () => {
-    await assert.rejects(
-      access('ai', constants.F_OK),
-      (error) => error.code === 'ENOENT',
-    );
+    await assert.rejects(access('ai', constants.F_OK), (error) => error.code === 'ENOENT');
     const source = await readFile('controller/GameController.mjs', 'utf8');
     assert.doesNotMatch(source, /from ['"]\.\.\/ai\//);
   });

@@ -15,4 +15,3 @@ export const UiAction = {
   expandSetup: () => createUiAction('expandSetup'),
   collapseSetup: () => createUiAction('collapseSetup'),
 };
-

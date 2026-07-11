@@ -76,15 +76,16 @@ export const createGameState = (params = {}) => {
   const reset = () => createGameState({ config });
 
   /** Update configuration */
-  const withConfig = (newConfig) => createGameState({
-    board,
-    turn,
-    mustMovePiece,
-    status,
-    moveCount,
-    lastMove,
-    config: { ...config, ...newConfig },
-  });
+  const withConfig = (newConfig) =>
+    createGameState({
+      board,
+      turn,
+      mustMovePiece,
+      status,
+      moveCount,
+      lastMove,
+      config: { ...config, ...newConfig },
+    });
 
   const gameState = {
     board,
@@ -96,7 +97,9 @@ export const createGameState = (params = {}) => {
     lastMove,
 
     /** Get all valid moves for current player */
-    get validMoves() { return getValidMoves(); },
+    get validMoves() {
+      return getValidMoves();
+    },
 
     getMovesForPiece,
     canSelectPiece,
@@ -105,13 +108,15 @@ export const createGameState = (params = {}) => {
     withConfig,
 
     /** Check if current turn is AI */
-    get currentPlayerIsAI() { return turn === 1 ? config.whiteIsAI : config.blackIsAI; },
+    get currentPlayerIsAI() {
+      return turn === 1 ? config.whiteIsAI : config.blackIsAI;
+    },
 
     /** Get piece counts for display */
     get pieceCounts() {
       return {
         white: MoveEngine.countPieces(board, 1),
-        black: MoveEngine.countPieces(board, -1)
+        black: MoveEngine.countPieces(board, -1),
       };
     },
   };

@@ -50,10 +50,10 @@ const assertValidBitboards = (occBits, blackBits, dameBits) => {
     assertUInt32('blackBits', blackBits);
     assertUInt32('dameBits', dameBits);
     assertValidPieceCount(popCount32(occBits));
-    if (((blackBits & ~occBits) >>> 0) !== 0) {
+    if ((blackBits & ~occBits) >>> 0 !== 0) {
         throw new RangeError('blackBits cannot mark empty squares');
     }
-    if (((dameBits & ~occBits) >>> 0) !== 0) {
+    if ((dameBits & ~occBits) >>> 0 !== 0) {
         throw new RangeError('dameBits cannot mark empty squares');
     }
 };
@@ -97,8 +97,7 @@ export class Board {
             for (let i = 0; i < 4; i++) {
                 const mask = bit(Position.fromCoords(startCol + i * 2, row).hash());
                 occBits = setBit(occBits, mask);
-                if (row >= 6)
-                    blackBits = setBit(blackBits, mask);
+                if (row >= 6) blackBits = setBit(blackBits, mask);
             }
         }
         return new Board(occBits, blackBits, 0);
@@ -142,12 +141,9 @@ export class Board {
         let count = 0;
         for (let i = 0; i < BOARD_SQUARES && count < MAX_PIECES; i++) {
             const mask = bit(i);
-            if ((occBits & mask) === 0)
-                continue;
-            if ((low32 & bit(count)) !== 0)
-                dameBits = setBit(dameBits, mask);
-            if ((low32 & bit(count + MAX_PIECES)) !== 0)
-                blackBits = setBit(blackBits, mask);
+            if ((occBits & mask) === 0) continue;
+            if ((low32 & bit(count)) !== 0) dameBits = setBit(dameBits, mask);
+            if ((low32 & bit(count + MAX_PIECES)) !== 0) blackBits = setBit(blackBits, mask);
             count++;
         }
         const board = new Board(occBits, blackBits, dameBits);
@@ -161,8 +157,7 @@ export class Board {
         return Position.isValid(pos.x, pos.y);
     }
     isOccupied(pos) {
-        if (!Board.isValidPosition(pos))
-            return false;
+        if (!Board.isValidPosition(pos)) return false;
         return (this.#occBits & bit(pos.hash())) !== 0;
     }
     isBlackPiece(pos) {
@@ -184,11 +179,14 @@ export class Board {
                     const mask = bit(pos.hash());
                     const isBlack = (this.#blackBits & mask) !== 0;
                     const isDame = (this.#dameBits & mask) !== 0;
-                    return [pos, {
-                        color: isBlack ? PieceColor.BLACK : PieceColor.WHITE,
-                        type: isDame ? PieceType.DAME : PieceType.PION,
-                    }];
-                })
+                    return [
+                        pos,
+                        {
+                            color: isBlack ? PieceColor.BLACK : PieceColor.WHITE,
+                            type: isDame ? PieceType.DAME : PieceType.PION,
+                        },
+                    ];
+                }),
         );
     }
     // ─── Transformations ───
@@ -216,10 +214,8 @@ export class Board {
         const occBits = setBit(clearBit(this.#occBits, fm), tm);
         let blackBits = clearBit(this.#blackBits, fm);
         let dameBits = clearBit(this.#dameBits, fm);
-        if (wasBlack)
-            blackBits = setBit(blackBits, tm);
-        if (wasDame)
-            dameBits = setBit(dameBits, tm);
+        if (wasBlack) blackBits = setBit(blackBits, tm);
+        if (wasDame) dameBits = setBit(dameBits, tm);
         return Board.#unchecked(occBits, blackBits, dameBits);
     }
     removePiece(pos) {
@@ -240,27 +236,34 @@ export class Board {
         let count = 0;
         for (let i = 0; i < BOARD_SQUARES; i++) {
             const mask = bit(i);
-            if ((this.#occBits & mask) === 0)
-                continue;
-            if ((this.#dameBits & mask) !== 0)
-                damePacked |= bit(count);
-            if ((this.#blackBits & mask) !== 0)
-                blackPacked |= bit(count);
+            if ((this.#occBits & mask) === 0) continue;
+            if ((this.#dameBits & mask) !== 0) damePacked |= bit(count);
+            if ((this.#blackBits & mask) !== 0) blackPacked |= bit(count);
             count++;
         }
-        return (BigInt(this.#occBits >>> 0) << 32n)
-            | (BigInt(blackPacked & LOW_16_BITS) << 16n)
-            | BigInt(damePacked & LOW_16_BITS);
+        return (
+            (BigInt(this.#occBits >>> 0) << 32n) |
+            (BigInt(blackPacked & LOW_16_BITS) << 16n) |
+            BigInt(damePacked & LOW_16_BITS)
+        );
     }
     // ─── Accessors ───
-    get occBits() { return this.#occBits >>> 0; }
-    get blackBits() { return this.#blackBits >>> 0; }
-    get dameBits() { return this.#dameBits >>> 0; }
+    get occBits() {
+        return this.#occBits >>> 0;
+    }
+    get blackBits() {
+        return this.#blackBits >>> 0;
+    }
+    get dameBits() {
+        return this.#dameBits >>> 0;
+    }
     // ─── Equality ───
     equals(other) {
-        return this.#occBits === other.#occBits &&
+        return (
+            this.#occBits === other.#occBits &&
             this.#blackBits === other.#blackBits &&
-            this.#dameBits === other.#dameBits;
+            this.#dameBits === other.#dameBits
+        );
     }
     hashCode() {
         return (this.#occBits ^ this.#blackBits ^ this.#dameBits) >>> 0;

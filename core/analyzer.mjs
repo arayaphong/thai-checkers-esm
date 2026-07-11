@@ -1,7 +1,12 @@
 // Deep-first search analysis for Thai Checkers
 import { PieceColor } from './piece.mjs';
 import { Game } from './game.mjs';
-import { evaluatePosition, isImmediateDraw, MATE_SCORE, MATE_SCORE_THRESHOLD } from './evaluation.mjs';
+import {
+    evaluatePosition,
+    isImmediateDraw,
+    MATE_SCORE,
+    MATE_SCORE_THRESHOLD,
+} from './evaluation.mjs';
 import { orderMoveIndices } from './moves/move-order.mjs';
 
 export const MAX_ANALYSIS_DEPTH = 16;
@@ -67,18 +72,21 @@ export class Analyzer {
         const board = game.board();
         const player = game.player();
 
-        const { bestMoveIndex, bestScore } = orderMoveIndices(moves, board, player)
-            .reduce((acc, index) => {
+        const { bestMoveIndex, bestScore } = orderMoveIndices(moves, board, player).reduce(
+            (acc, index) => {
                 game.selectMove(index);
                 const score = -this.#negamax(game, depth - 1, -Infinity, Infinity, -playerColor, 1);
                 game.undoMove();
 
                 // Strict improvement wins; ties keep the lowest move index, matching the
                 // ascending-order tie-break of the original unordered scan.
-                return score > acc.bestScore || (score === acc.bestScore && index < acc.bestMoveIndex)
+                return score > acc.bestScore ||
+                    (score === acc.bestScore && index < acc.bestMoveIndex)
                     ? { bestMoveIndex: index, bestScore: score }
                     : acc;
-            }, { bestMoveIndex: 0, bestScore: -Infinity });
+            },
+            { bestMoveIndex: 0, bestScore: -Infinity },
+        );
 
         return { move: moves[bestMoveIndex], score: bestScore };
     }
@@ -122,7 +130,10 @@ export class Analyzer {
         let value = -Infinity;
         for (const index of orderMoveIndices(moves, board, player)) {
             game.selectMove(index);
-            value = Math.max(value, -this.#negamax(game, depth - 1, -beta, -alpha, -color, plyFromRoot + 1));
+            value = Math.max(
+                value,
+                -this.#negamax(game, depth - 1, -beta, -alpha, -color, plyFromRoot + 1),
+            );
             game.undoMove();
             alpha = Math.max(alpha, value);
             if (alpha >= beta) break;
@@ -166,7 +177,10 @@ export class Analyzer {
         let value = -Infinity;
         for (const index of orderMoveIndices(moves, board, player)) {
             game.selectMove(index);
-            value = Math.max(value, -this.#quiescence(game, -beta, -alpha, -color, plyFromRoot + 1));
+            value = Math.max(
+                value,
+                -this.#quiescence(game, -beta, -alpha, -color, plyFromRoot + 1),
+            );
             game.undoMove();
             alpha = Math.max(alpha, value);
             if (alpha >= beta) break;

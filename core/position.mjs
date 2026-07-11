@@ -26,7 +26,7 @@ export class Position {
         if (!Position.isValid(x, y)) {
             throw new Error(`Invalid coordinates: (${x}, ${y})`);
         }
-        const index = Math.floor(x / 2) + (BOARD_HALF_SIZE * y);
+        const index = Math.floor(x / 2) + BOARD_HALF_SIZE * y;
         return new Position(index);
     }
     /** Factory from 0-based index (0..31). */
@@ -36,8 +36,7 @@ export class Position {
     /** Factory from algebraic notation, e.g. "C4". */
     static fromString(s) {
         const match = POSITION_PATTERN.exec(s);
-        if (!match)
-            throw new Error(`Invalid position string: "${s}"`);
+        if (!match) throw new Error(`Invalid position string: "${s}"`);
         const { col, row } = match.groups;
         const x = col.charCodeAt(0) - FIRST_COLUMN_CODE;
         const y = Number(row) - 1;
@@ -45,11 +44,15 @@ export class Position {
     }
     /** True if (x,y) is a valid black square on the board. */
     static isValid(x, y) {
-        return (Number.isInteger(x) &&
+        return (
+            Number.isInteger(x) &&
             Number.isInteger(y) &&
-            x >= 0 && x < BOARD_SIZE &&
-            y >= 0 && y < BOARD_SIZE &&
-            (x + y) % 2 === 1);
+            x >= 0 &&
+            x < BOARD_SIZE &&
+            y >= 0 &&
+            y < BOARD_SIZE &&
+            (x + y) % 2 === 1
+        );
     }
     get x() {
         const y = Math.floor(this.#index / BOARD_HALF_SIZE);

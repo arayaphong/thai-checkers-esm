@@ -58,7 +58,13 @@ export const createHtmlGameView = (controller, rootId) => {
 
   const layoutSurface = createLayoutSurface(registry);
 
-  const gameView = createGameView({ boardView, animationView, statusView, controlPanelView, layoutSurface });
+  const gameView = createGameView({
+    boardView,
+    animationView,
+    statusView,
+    controlPanelView,
+    layoutSurface,
+  });
   const binder = createGameViewBinder(controller, stateFactory, gameView);
 
   const dispatchIntent = createUiIntentDispatcher(controller, controlPanelView.modeOptions);
@@ -68,7 +74,10 @@ export const createHtmlGameView = (controller, rootId) => {
     const intent = resolveUiIntent(rawEvent);
     if (!intent) return;
 
-    if ((intent.isSelectPiece() || intent.isChooseMoveTarget()) && (!binder.isGameStarted || binder.isAIThinking)) {
+    if (
+      (intent.isSelectPiece() || intent.isChooseMoveTarget()) &&
+      (!binder.isGameStarted || binder.isAIThinking)
+    ) {
       return;
     }
 
@@ -85,7 +94,6 @@ export const createHtmlGameView = (controller, rootId) => {
     } else if (intent.isCollapseSetup()) {
       binder.markSetupCollapsed();
     }
-
 
     dispatchIntent(intent);
   });

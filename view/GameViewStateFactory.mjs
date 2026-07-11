@@ -6,20 +6,41 @@
 // mustMovePiece, status).
 // ============================================
 
+/**
+ * Coordinate position in the MVC model and view layers.
+ * - r: row index (0..7, where 0 is rank 8/top and 7 is rank 1/bottom)
+ * - c: column index (0..7, where 0 is file A/left and 7 is file H/right)
+ * @typedef {Object} ModelPos
+ * @property {number} r
+ * @property {number} c
+ */
+
+/**
+ * Translates a raw board cell integer value to a piece display descriptor.
+ * @param {number} boardValue >0 for white, <0 for black, 0 for empty, absolute value 2 for king/dame
+ * @returns {{color: string|null, rank: string}}
+ */
 export const toPieceDisplay = (boardValue) => ({
-  color: boardValue === 0 ? null : (boardValue > 0 ? 'white' : 'black'),
+  color: boardValue === 0 ? null : boardValue > 0 ? 'white' : 'black',
   rank: Math.abs(boardValue) === 2 ? 'king' : 'man',
 });
 
+/**
+ * Translates a 2D raw board array into an array of piece display descriptors.
+ * @param {number[][]} board
+ * @returns {Array<{position: ModelPos, color: string, rank: string}>}
+ */
 export const toPieceDisplays = (board) =>
   board.flatMap((row, r) =>
     row.flatMap((v, c) => {
       if (v === 0) return [];
-      return [{
-        position: { r, c },
-        ...toPieceDisplay(v),
-      }];
-    })
+      return [
+        {
+          position: { r, c },
+          ...toPieceDisplay(v),
+        },
+      ];
+    }),
   );
 
 const createScreenState = (controller, { gameStarted, isAnimating }) => {
@@ -30,36 +51,83 @@ const createScreenState = (controller, { gameStarted, isAnimating }) => {
   return 'setup';
 };
 
+/**
+ * Find all positions containing pieces that are allowed to make a valid move.
+ * @param {Array<Object>} validMoves
+ * @param {ModelPos|null} selectedPiece
+ * @param {ModelPos|null} mustMovePiece
+ * @returns {ModelPos[]}
+ */
 const getMoveablePositions = (validMoves, selectedPiece, mustMovePiece) => {
   if (mustMovePiece) return [];
-  const uniqueFromPositions = [...new Set(validMoves.map((m) => `${m.fromR},${m.fromC}`))]
-    .map((k) => {
+  const uniqueFromPositions = [...new Set(validMoves.map((m) => `${m.fromR},${m.fromC}`))].map(
+    (k) => {
       const [r, c] = k.split(',').map(Number);
       return { r, c };
-    });
+    },
+  );
 
-  return uniqueFromPositions.filter(p => !(selectedPiece && selectedPiece.r === p.r && selectedPiece.c === p.c));
+  return uniqueFromPositions.filter(
+    (p) => !(selectedPiece && selectedPiece.r === p.r && selectedPiece.c === p.c),
+  );
 };
 
+/**
+ * Returns the position of a piece that is forced to continue capturing, or null.
+ * @param {ModelPos|null} selectedPiece
+ * @param {ModelPos|null} mustMovePiece
+ * @returns {ModelPos|null}
+ */
 const getMandatoryCapturePosition = (selectedPiece, mustMovePiece) => {
-  if (mustMovePiece && !(selectedPiece && selectedPiece.r === mustMovePiece.r && selectedPiece.c === mustMovePiece.c)) {
+  if (
+    mustMovePiece &&
+    !(selectedPiece && selectedPiece.r === mustMovePiece.r && selectedPiece.c === mustMovePiece.c)
+  ) {
     return mustMovePiece;
   }
   return null;
 };
 
+/**
+ * Find non-capture target squares for the selected piece.
+ * @param {Array<Object>} validMoves
+ * @param {ModelPos|null} selectedPiece
+ * @returns {ModelPos[]}
+ */
 const getTargetSquares = (validMoves, selectedPiece) => {
   if (!selectedPiece) return [];
-  const movesForSel = validMoves.filter((m) => m.fromR === selectedPiece.r && m.fromC === selectedPiece.c);
+  const movesForSel = validMoves.filter(
+    (m) => m.fromR === selectedPiece.r && m.fromC === selectedPiece.c,
+  );
   return movesForSel.filter((m) => !m.isCapture).map((m) => ({ r: m.toR, c: m.toC }));
 };
 
+/**
+ * Find capture target squares for the selected piece.
+ * @param {Array<Object>} validMoves
+ * @param {ModelPos|null} selectedPiece
+ * @returns {ModelPos[]}
+ */
 const getCaptureTargets = (validMoves, selectedPiece) => {
   if (!selectedPiece) return [];
-  const movesForSel = validMoves.filter((m) => m.fromR === selectedPiece.r && m.fromC === selectedPiece.c);
+  const movesForSel = validMoves.filter(
+    (m) => m.fromR === selectedPiece.r && m.fromC === selectedPiece.c,
+  );
   return movesForSel.filter((m) => m.isCapture).map((m) => ({ r: m.toR, c: m.toC }));
 };
 
+/**
+ * Translates controller/model state into a display board state representation.
+ * @param {Object} controller
+ * @returns {{
+ *   pieces: Array<{position: ModelPos, color: string, rank: string}>,
+ *   selectedPosition: ModelPos|null,
+ *   mandatoryCapturePosition: ModelPos|null,
+ *   moveablePositions: ModelPos[],
+ *   targetSquares: ModelPos[],
+ *   captureTargets: ModelPos[]
+ * }}
+ */
 export const createBoardState = (controller) => {
   const { state, selectedPiece } = controller;
   const { validMoves, mustMovePiece } = state;
@@ -102,9 +170,18 @@ export const createFromController = (controller, flags) => ({
   controlPanel: createControlPanelState(controller, flags),
 });
 
-// Not in the standard method list, but showMoveMade() needs the
-// moved/captured piece descriptors -- this mirrors the computation that
-// used to live inline in the old move handler.
+/**
+ * Translates a move object from the controller/model into a display representation for animations.
+ * @param {Object} controller
+ * @param {Object} move
+ * @returns {{
+ *   from: ModelPos,
+ *   to: ModelPos,
+ *   piece: {color: string, rank: string},
+ *   victimPosition: ModelPos|null,
+ *   victimDisplay: {color: string, rank: string}|null
+ * }}
+ */
 export const createMoveDisplay = (controller, move) => {
   const { state } = controller;
   // Read the board AFTER the move was applied: executeMove() mutates
@@ -114,12 +191,13 @@ export const createMoveDisplay = (controller, move) => {
   const piece = toPieceDisplay(rawPiece);
   const from = { r: move.fromR, c: move.fromC };
   const to = { r: move.toR, c: move.toC };
-  const victimPosition = move.isCapture && move.jumpedR !== undefined
-    ? { r: move.jumpedR, c: move.jumpedC }
-    : null;
+  const victimPosition =
+    move.isCapture && move.jumpedR !== undefined ? { r: move.jumpedR, c: move.jumpedC } : null;
   // The captured piece's own rank is discarded here (always rendered as a
   // plain man), matching the pre-existing baseline behavior preserved
   // since Phase 3.
-  const victimDisplay = victimPosition ? { color: piece.color === 'white' ? 'black' : 'white', rank: 'man' } : null;
+  const victimDisplay = victimPosition
+    ? { color: piece.color === 'white' ? 'black' : 'white', rank: 'man' }
+    : null;
   return { from, to, piece, victimPosition, victimDisplay };
 };

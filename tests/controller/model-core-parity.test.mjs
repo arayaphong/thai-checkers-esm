@@ -54,13 +54,18 @@ const assertEquivalent = (state, driver, label) => {
             type: driverState.board.isDamePiece(position) ? PieceType.DAME : PieceType.PION,
           }
         : null;
-      const expectedPiece = modelPiece === 0
-        ? null
-        : {
-            color: modelPiece > 0 ? PieceColor.WHITE : PieceColor.BLACK,
-            type: Math.abs(modelPiece) === 2 ? PieceType.DAME : PieceType.PION,
-          };
-      assert.deepEqual(corePiece, expectedPiece, `${label}: piece differs at ${position.toString()}`);
+      const expectedPiece =
+        modelPiece === 0
+          ? null
+          : {
+              color: modelPiece > 0 ? PieceColor.WHITE : PieceColor.BLACK,
+              type: Math.abs(modelPiece) === 2 ? PieceType.DAME : PieceType.PION,
+            };
+      assert.deepEqual(
+        corePiece,
+        expectedPiece,
+        `${label}: piece differs at ${position.toString()}`,
+      );
     }
   }
 };

@@ -24,7 +24,8 @@ export const UiIntent = {
   selectPiece: ({ position }) => createUiIntent(UiActor.piece(position), UiAction.selectPiece()),
   chooseMoveTarget: ({ position }) =>
     createUiIntent(UiActor.boardSquare(position), UiAction.chooseMoveTarget()),
-  chooseGameMode: ({ mode }) => createUiIntent(UiActor.gameModeOption(mode), UiAction.chooseGameMode()),
+  chooseGameMode: ({ mode }) =>
+    createUiIntent(UiActor.gameModeOption(mode), UiAction.chooseGameMode()),
   chooseDifficulty: ({ difficulty }) =>
     createUiIntent(UiActor.difficultyOption(difficulty), UiAction.chooseDifficulty()),
   startGame: () => createUiIntent(UiActor.startGameAction(), UiAction.startGame()),
@@ -32,4 +33,3 @@ export const UiIntent = {
   expandSetup: () => createUiIntent(UiActor.setupPanel(), UiAction.expandSetup()),
   collapseSetup: () => createUiIntent(UiActor.setupPanel(), UiAction.collapseSetup()),
 };
-

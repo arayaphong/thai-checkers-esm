@@ -35,14 +35,19 @@ const createUpdaters = ({
 
   const updateModeButtons = ({ selectedMode }) => {
     modeButtons.forEach((btn, key) => {
-      btn.className = key === selectedMode ? controlPanelClassMap.modeButtonSelected : controlPanelClassMap.modeButtonUnselected;
+      btn.className =
+        key === selectedMode
+          ? controlPanelClassMap.modeButtonSelected
+          : controlPanelClassMap.modeButtonUnselected;
     });
   };
 
   const updateDifficultyButtons = ({ selectedDifficulty }) => {
     difficultyButtons.forEach((btn, key) => {
       btn.className =
-        key === selectedDifficulty ? controlPanelClassMap.difficultyButtonSelected : controlPanelClassMap.difficultyButtonUnselected;
+        key === selectedDifficulty
+          ? controlPanelClassMap.difficultyButtonSelected
+          : controlPanelClassMap.difficultyButtonUnselected;
     });
   };
 
@@ -91,7 +96,13 @@ const buildCollapsed = () => {
   const collapsedEl = h('div', controlPanelClassMap.hidden);
   collapsedEl.append(collapsedToggleBtnEl);
 
-  return { collapsedEl, collapsedToggleBtnEl, collapsedModeTextEl, collapsedDifficultyWrapperEl, collapsedDifficultyTextEl };
+  return {
+    collapsedEl,
+    collapsedToggleBtnEl,
+    collapsedModeTextEl,
+    collapsedDifficultyWrapperEl,
+    collapsedDifficultyTextEl,
+  };
 };
 
 const buildExpanded = () => {
@@ -116,9 +127,25 @@ const buildExpanded = () => {
   startBtnEl.id = 'startBtn';
   startBtnEl.textContent = 'เริ่มเกม!';
 
-  expandedEl.append(titleRowEl, modeLabel, modeGridEl, difficultyLabelEl, difficultyRowEl, startBtnEl);
+  expandedEl.append(
+    titleRowEl,
+    modeLabel,
+    modeGridEl,
+    difficultyLabelEl,
+    difficultyRowEl,
+    startBtnEl,
+  );
 
-  return { expandedEl, modeGridEl, modeButtons, difficultyLabelEl, difficultyRowEl, difficultyButtons, startBtnEl, cancelBtnEl };
+  return {
+    expandedEl,
+    modeGridEl,
+    modeButtons,
+    difficultyLabelEl,
+    difficultyRowEl,
+    difficultyButtons,
+    startBtnEl,
+    cancelBtnEl,
+  };
 };
 
 const buildPanel = (panel) => {

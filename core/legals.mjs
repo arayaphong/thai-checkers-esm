@@ -36,8 +36,14 @@ const assertValidCaptureSequence = (seq, context = 'Capture sequence') => {
 const processCaptureSequence = (seq) => {
     assertValidCaptureSequence(seq);
     // Even indices = captured pieces, odd indices = landing positions
-    const captured = seq.values().filter((_, index) => index % 2 === 0).toArray();
-    const path = seq.values().filter((_, index) => index % 2 === 1).toArray();
+    const captured = seq
+        .values()
+        .filter((_, index) => index % 2 === 0)
+        .toArray();
+    const path = seq
+        .values()
+        .filter((_, index) => index % 2 === 1)
+        .toArray();
     return {
         targetPosition: seq.at(-1), // last element = final landing
         capturedPositions: captured,
@@ -69,12 +75,18 @@ export class CaptureTrace {
         return this.#sequence.length / 2;
     }
     get captured() {
-        return this.#sequence.values().filter((_, index) => index % 2 === 0).toArray();
+        return this.#sequence
+            .values()
+            .filter((_, index) => index % 2 === 0)
+            .toArray();
     }
     path(from) {
         return [
             from,
-            ...this.#sequence.values().filter((_, index) => index % 2 === 1).toArray(),
+            ...this.#sequence
+                .values()
+                .filter((_, index) => index % 2 === 1)
+                .toArray(),
         ];
     }
     get finalLanding() {
@@ -84,7 +96,10 @@ export class CaptureTrace {
         return this.#sequence
             .values()
             .filter((_, index) => index % 2 === 0)
-            .map((captured, index) => `×${captured.toString()} →${this.#sequence[(index * 2) + 1].toString()}`)
+            .map(
+                (captured, index) =>
+                    `×${captured.toString()} →${this.#sequence[index * 2 + 1].toString()}`,
+            )
             .toArray()
             .join(' ');
     }
@@ -100,11 +115,7 @@ export class Legals {
         this.#hasCaptures = hasCaptures;
     }
     static fromRegularMoves(positions) {
-        return new Legals(
-            LEGALS_CONSTRUCTOR_TOKEN,
-            positions.map(processRegularMove),
-            false,
-        );
+        return new Legals(LEGALS_CONSTRUCTOR_TOKEN, positions.map(processRegularMove), false);
     }
     static fromCaptures(captureSequences) {
         const moves = captureSequences.map((sequence, index) => {

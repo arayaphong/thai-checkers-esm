@@ -3,8 +3,12 @@
 import { PieceColor, PieceType } from './piece.mjs';
 import { Position } from './position.mjs';
 import {
-    WHITE_PION_DIRS, BLACK_PION_DIRS, DAME_DIRS,
-    pionForwardDirs, promotionRow, isOpponentPiece,
+    WHITE_PION_DIRS,
+    BLACK_PION_DIRS,
+    DAME_DIRS,
+    pionForwardDirs,
+    promotionRow,
+    isOpponentPiece,
 } from './directions.mjs';
 
 export const PIECE_VALUES = Object.freeze({
@@ -45,10 +49,10 @@ const PION_COL_BONUS = [-8, -3, 3, 7, 7, 3, -3, -8]; // index: x = 0 (A-file) ..
 const DAME_LINE_BONUS = [-3, -1, 2, 4, 4, 2, -1, -3]; // index: rank/file position 0..7
 
 const buildPst = (rowBonus, colBonus) =>
-    Position.allValid().reduce(
-        (table, pos) => { table[pos.hash()] = rowBonus[pos.y] + colBonus[pos.x]; return table; },
-        new Array(Position.MAX_POSITIONS).fill(0),
-    );
+    Position.allValid().reduce((table, pos) => {
+        table[pos.hash()] = rowBonus[pos.y] + colBonus[pos.x];
+        return table;
+    }, new Array(Position.MAX_POSITIONS).fill(0));
 
 // Only dark squares are valid positions (x+y odd — see core/position.js), so
 // flipping just the row would land on a light square. The parity-preserving
@@ -58,10 +62,10 @@ const buildPst = (rowBonus, colBonus) =>
 // bonus arrays above are themselves left-right symmetric, so the x-flip is a
 // value no-op in practice; it's still needed to land on a valid square.
 const mirrorPst = (whiteTable) =>
-    Position.allValid().reduce(
-        (table, pos) => { table[pos.hash()] = whiteTable[Position.fromCoords(7 - pos.x, 7 - pos.y).hash()]; return table; },
-        new Array(Position.MAX_POSITIONS).fill(0),
-    );
+    Position.allValid().reduce((table, pos) => {
+        table[pos.hash()] = whiteTable[Position.fromCoords(7 - pos.x, 7 - pos.y).hash()];
+        return table;
+    }, new Array(Position.MAX_POSITIONS).fill(0));
 
 const PION_PST_WHITE = buildPst(PION_ROW_BONUS, PION_COL_BONUS);
 const PION_PST_BLACK = mirrorPst(PION_PST_WHITE);
@@ -69,9 +73,14 @@ const DAME_PST_WHITE = buildPst(DAME_LINE_BONUS, DAME_LINE_BONUS);
 const DAME_PST_BLACK = mirrorPst(DAME_PST_WHITE);
 
 const pstValue = (type, color, pos) => {
-    const table = type === PieceType.DAME
-        ? (color === PieceColor.BLACK ? DAME_PST_BLACK : DAME_PST_WHITE)
-        : (color === PieceColor.BLACK ? PION_PST_BLACK : PION_PST_WHITE);
+    const table =
+        type === PieceType.DAME
+            ? color === PieceColor.BLACK
+                ? DAME_PST_BLACK
+                : DAME_PST_WHITE
+            : color === PieceColor.BLACK
+              ? PION_PST_BLACK
+              : PION_PST_WHITE;
     return table[pos.hash()];
 };
 
@@ -97,8 +106,9 @@ export const pstMoveDelta = (board, from, to) => {
 };
 
 const sideScore = (pieces, color) =>
-    pieces.entries().reduce((acc, [pos, { type }]) =>
-        acc + pieceValue(type) + pstValue(type, color, pos), 0);
+    pieces
+        .entries()
+        .reduce((acc, [pos, { type }]) => acc + pieceValue(type) + pstValue(type, color, pos), 0);
 
 // ─── Mobility (Phase 5) ───
 // Direct coordinate scans only — never Explorer/game.getMoves() — so mobility
@@ -115,9 +125,11 @@ const DAME_MOBILITY_CAP = 6;
 // hitting a piece. Used by dameMobility, pieceHasCapture, isCapturableByDame,
 // and findCaptureAttacker.
 const firstOccupiedAlongRay = (board, x, y, stepX, stepY) =>
-    !Position.isValid(x, y) ? null
-    : board.isOccupied(Position.fromCoords(x, y)) ? Position.fromCoords(x, y)
-    : firstOccupiedAlongRay(board, x + stepX, y + stepY, stepX, stepY);
+    !Position.isValid(x, y)
+        ? null
+        : board.isOccupied(Position.fromCoords(x, y))
+          ? Position.fromCoords(x, y)
+          : firstOccupiedAlongRay(board, x + stepX, y + stepY, stepX, stepY);
 
 const pionMobility = (board, pos, color) =>
     pionForwardDirs(color).filter(({ dx, dy }) => {
@@ -133,7 +145,10 @@ const dameRayCount = (board, x, y, dx, dy) =>
 
 const dameMobility = (board, pos) =>
     Math.min(
-        DAME_DIRS.reduce((acc, { dx, dy }) => acc + dameRayCount(board, pos.x + dx, pos.y + dy, dx, dy), 0),
+        DAME_DIRS.reduce(
+            (acc, { dx, dy }) => acc + dameRayCount(board, pos.x + dx, pos.y + dy, dx, dy),
+            0,
+        ),
         DAME_MOBILITY_CAP,
     ) * DAME_MOBILITY_PER_SQUARE;
 
@@ -145,10 +160,12 @@ const dameMobility = (board, pos) =>
 const dameHasCapture = (board, pos, color) =>
     DAME_DIRS.some(({ dx, dy }) => {
         const blocker = firstOccupiedAlongRay(board, pos.x + dx, pos.y + dy, dx, dy);
-        return blocker !== null
-            && isOpponentPiece(board, blocker, color)
-            && Position.isValid(blocker.x + dx, blocker.y + dy)
-            && !board.isOccupied(Position.fromCoords(blocker.x + dx, blocker.y + dy));
+        return (
+            blocker !== null &&
+            isOpponentPiece(board, blocker, color) &&
+            Position.isValid(blocker.x + dx, blocker.y + dy) &&
+            !board.isOccupied(Position.fromCoords(blocker.x + dx, blocker.y + dy))
+        );
     });
 
 const pionHasCapture = (board, pos, color) =>
@@ -157,22 +174,34 @@ const pionHasCapture = (board, pos, color) =>
         const midY = pos.y + dy;
         const landX = pos.x + 2 * dx;
         const landY = pos.y + 2 * dy;
-        return Position.isValid(midX, midY)
-            && Position.isValid(landX, landY)
-            && isOpponentPiece(board, Position.fromCoords(midX, midY), color)
-            && !board.isOccupied(Position.fromCoords(landX, landY));
+        return (
+            Position.isValid(midX, midY) &&
+            Position.isValid(landX, landY) &&
+            isOpponentPiece(board, Position.fromCoords(midX, midY), color) &&
+            !board.isOccupied(Position.fromCoords(landX, landY))
+        );
     });
 
 const pieceHasCapture = (board, pos, color, isDame) =>
     isDame ? dameHasCapture(board, pos, color) : pionHasCapture(board, pos, color);
 
 const hasMandatoryCapture = (board, color) =>
-    board.getPieces(color).entries().some(([pos, { type }]) =>
-        pieceHasCapture(board, pos, color, type === PieceType.DAME));
+    board
+        .getPieces(color)
+        .entries()
+        .some(([pos, { type }]) => pieceHasCapture(board, pos, color, type === PieceType.DAME));
 
 const sideMobility = (pieces, board, color) =>
-    pieces.entries().reduce((acc, [pos, { type }]) =>
-        acc + (type === PieceType.DAME ? dameMobility(board, pos) : pionMobility(board, pos, color)), 0);
+    pieces
+        .entries()
+        .reduce(
+            (acc, [pos, { type }]) =>
+                acc +
+                (type === PieceType.DAME
+                    ? dameMobility(board, pos)
+                    : pionMobility(board, pos, color)),
+            0,
+        );
 
 // Mobility only means something in a quiet position: mandatory capture rules
 // mean the side to move can't act on ordinary mobility this turn anyway (see
@@ -180,10 +209,10 @@ const sideMobility = (pieces, board, color) =>
 // `sideToMove` is only known when a caller supplies it (evaluatePosition()
 // always does); without it mobility is skipped rather than guessed at.
 const mobilityScore = (board, sideToMove) =>
-    (sideToMove === undefined || hasMandatoryCapture(board, sideToMove))
+    sideToMove === undefined || hasMandatoryCapture(board, sideToMove)
         ? 0
-        : sideMobility(board.getPieces(PieceColor.WHITE), board, PieceColor.WHITE)
-            - sideMobility(board.getPieces(PieceColor.BLACK), board, PieceColor.BLACK);
+        : sideMobility(board.getPieces(PieceColor.WHITE), board, PieceColor.WHITE) -
+          sideMobility(board.getPieces(PieceColor.BLACK), board, PieceColor.BLACK);
 
 // ─── Breakthrough (Phase 6) ───
 // Pions only. A "candidate" is a pion that has passed every enemy pion's row
@@ -209,9 +238,8 @@ const oppositeColor = (color) => (color === PieceColor.WHITE ? PieceColor.BLACK 
 // which start/mid-game positions have plenty of).
 const findEnemyPionRowLimit = (board, color) => {
     const enemyColor = oppositeColor(color);
-    const reducer = color === PieceColor.WHITE
-        ? (acc, y) => Math.max(acc, y)
-        : (acc, y) => Math.min(acc, y);
+    const reducer =
+        color === PieceColor.WHITE ? (acc, y) => Math.max(acc, y) : (acc, y) => Math.min(acc, y);
     const initial = color === PieceColor.WHITE ? -Infinity : Infinity;
     return [...board.getPieces(enemyColor)]
         .filter(([, { type }]) => type === PieceType.PION)
@@ -229,22 +257,24 @@ const hasOpenPathToPromotion = (board, pos, color) => {
     const target = promotionRow(color);
     const dirs = pionForwardDirs(color);
     const bfs = (queue, visited) =>
-        queue.length === 0 ? false
-        : queue[0].y === target ? true
-        : (() => {
-            const current = queue[0];
-            const rest = queue.slice(1);
-            const neighbors = dirs.reduce((acc, { dx, dy }) => {
-                const x = current.x + dx;
-                const y = current.y + dy;
-                const next = Position.isValid(x, y) ? Position.fromCoords(x, y) : null;
-                return next !== null && !visited.has(next.hash()) && !board.isOccupied(next)
-                    ? acc.concat([next])
-                    : acc;
-            }, []);
-            const newVisited = new Set([...visited, ...neighbors.map((n) => n.hash())]);
-            return bfs([...rest, ...neighbors], newVisited);
-        })();
+        queue.length === 0
+            ? false
+            : queue[0].y === target
+              ? true
+              : (() => {
+                    const current = queue[0];
+                    const rest = queue.slice(1);
+                    const neighbors = dirs.reduce((acc, { dx, dy }) => {
+                        const x = current.x + dx;
+                        const y = current.y + dy;
+                        const next = Position.isValid(x, y) ? Position.fromCoords(x, y) : null;
+                        return next !== null && !visited.has(next.hash()) && !board.isOccupied(next)
+                            ? acc.concat([next])
+                            : acc;
+                    }, []);
+                    const newVisited = new Set([...visited, ...neighbors.map((n) => n.hash())]);
+                    return bfs([...rest, ...neighbors], newVisited);
+                })();
     return bfs([pos], new Set([pos.hash()]));
 };
 
@@ -270,34 +300,54 @@ const isCapturableByDame = (board, pos, color) =>
     DAME_DIRS.some(({ dx, dy }) => {
         const landX = pos.x + dx;
         const landY = pos.y + dy;
-        return Position.isValid(landX, landY)
-            && !board.isOccupied(Position.fromCoords(landX, landY))
-            && (() => {
+        return (
+            Position.isValid(landX, landY) &&
+            !board.isOccupied(Position.fromCoords(landX, landY)) &&
+            (() => {
                 const attacker = firstOccupiedAlongRay(board, pos.x - dx, pos.y - dy, -dx, -dy);
-                return attacker !== null
-                    && isOpponentPiece(board, attacker, color)
-                    && board.isDamePiece(attacker);
-            })();
+                return (
+                    attacker !== null &&
+                    isOpponentPiece(board, attacker, color) &&
+                    board.isDamePiece(attacker)
+                );
+            })()
+        );
     });
 
 // Breakthrough needs sideToMove for the same reason Mobility does (see
 // mobilityScore) — condition 3 only applies "if opponent to move" — so it's
 // skipped entirely without one, for the same backward-compatibility reason.
 const breakthroughScore = (board, sideToMove) =>
-    sideToMove === undefined ? 0
-    : [PieceColor.WHITE, PieceColor.BLACK].reduce((score, color) => {
-        const sign = color === PieceColor.WHITE ? 1 : -1;
-        const enemyPionRowLimit = findEnemyPionRowLimit(board, color);
-        return score + [...board.getPieces(color)]
-            .filter(([pos, { type }]) => type === PieceType.PION && isPassedPion(pos, color, enemyPionRowLimit))
-            .filter(([pos]) => !(sideToMove === oppositeColor(color) && isCapturableByDame(board, pos, color)))
-            .reduce((acc, [pos]) => {
-                const bonus = BREAKTHROUGH_BASE + (hasOpenPathToPromotion(board, pos, color)
-                    ? BREAKTHROUGH_OPEN_PATH + proximityBonus(pos, color)
-                    : 0);
-                return acc + sign * bonus;
-            }, 0);
-    }, 0);
+    sideToMove === undefined
+        ? 0
+        : [PieceColor.WHITE, PieceColor.BLACK].reduce((score, color) => {
+              const sign = color === PieceColor.WHITE ? 1 : -1;
+              const enemyPionRowLimit = findEnemyPionRowLimit(board, color);
+              return (
+                  score +
+                  [...board.getPieces(color)]
+                      .filter(
+                          ([pos, { type }]) =>
+                              type === PieceType.PION &&
+                              isPassedPion(pos, color, enemyPionRowLimit),
+                      )
+                      .filter(
+                          ([pos]) =>
+                              !(
+                                  sideToMove === oppositeColor(color) &&
+                                  isCapturableByDame(board, pos, color)
+                              ),
+                      )
+                      .reduce((acc, [pos]) => {
+                          const bonus =
+                              BREAKTHROUGH_BASE +
+                              (hasOpenPathToPromotion(board, pos, color)
+                                  ? BREAKTHROUGH_OPEN_PATH + proximityBonus(pos, color)
+                                  : 0);
+                          return acc + sign * bonus;
+                      }, 0)
+              );
+          }, 0);
 
 // ─── Structure (Phase 7) ───
 // Pions only. Unlike Mobility and Breakthrough, nothing here depends on whose
@@ -321,12 +371,19 @@ const BLOCKED_CAPTURE_CAP = 8;
 // blocked-capture support is common precisely *because* of pion attackers).
 const findCaptureAttacker = (board, pos, dx, dy, color) => {
     const attacker = firstOccupiedAlongRay(board, pos.x - dx, pos.y - dy, -dx, -dy);
-    return attacker === null ? null
-        : !isOpponentPiece(board, attacker, color) ? null
-        : board.isDamePiece(attacker) ? attacker
-        : attacker.x !== pos.x - dx || attacker.y !== pos.y - dy ? null
-        : pionForwardDirs(oppositeColor(color)).some(({ dx: fdx, dy: fdy }) => fdx === dx && fdy === dy) ? attacker
-        : null;
+    return attacker === null
+        ? null
+        : !isOpponentPiece(board, attacker, color)
+          ? null
+          : board.isDamePiece(attacker)
+            ? attacker
+            : attacker.x !== pos.x - dx || attacker.y !== pos.y - dy
+              ? null
+              : pionForwardDirs(oppositeColor(color)).some(
+                      ({ dx: fdx, dy: fdy }) => fdx === dx && fdy === dy,
+                  )
+                ? attacker
+                : null;
 };
 
 // A friendly piece occupying the landing square an actual opponent attacker
@@ -340,12 +397,14 @@ const blockedCaptureBonus = (board, pos, color) =>
         DAME_DIRS.reduce((bonus, { dx, dy }) => {
             const landX = pos.x + dx;
             const landY = pos.y + dy;
-            return Position.isValid(landX, landY)
-                && (() => {
+            return Position.isValid(landX, landY) &&
+                (() => {
                     const land = Position.fromCoords(landX, landY);
-                    return board.isOccupied(land)
-                        && !isOpponentPiece(board, land, color)
-                        && findCaptureAttacker(board, pos, dx, dy, color) !== null;
+                    return (
+                        board.isOccupied(land) &&
+                        !isOpponentPiece(board, land, color) &&
+                        findCaptureAttacker(board, pos, dx, dy, color) !== null
+                    );
                 })()
                 ? bonus + BLOCKED_CAPTURE_PER_SIDE
                 : bonus;
@@ -362,9 +421,11 @@ const hasFriendlyDiagonalNeighbor = (board, pos, color) =>
     DAME_DIRS.some(({ dx, dy }) => {
         const x = pos.x + dx;
         const y = pos.y + dy;
-        return Position.isValid(x, y)
-            && board.isOccupied(Position.fromCoords(x, y))
-            && !isOpponentPiece(board, Position.fromCoords(x, y), color);
+        return (
+            Position.isValid(x, y) &&
+            board.isOccupied(Position.fromCoords(x, y)) &&
+            !isOpponentPiece(board, Position.fromCoords(x, y), color)
+        );
     });
 
 const isIsolated = (board, pos, color, enemyPionRowLimit) =>
@@ -374,12 +435,20 @@ const structureScore = (board) =>
     [PieceColor.WHITE, PieceColor.BLACK].reduce((score, color) => {
         const sign = color === PieceColor.WHITE ? 1 : -1;
         const enemyPionRowLimit = findEnemyPionRowLimit(board, color);
-        return score + [...board.getPieces(color)]
-            .filter(([, { type }]) => type === PieceType.PION)
-            .reduce((acc, [pos]) =>
-                acc + sign * blockedCaptureBonus(board, pos, color)
-                    - (isIsolated(board, pos, color, enemyPionRowLimit) ? sign * ISOLATED_PENALTY : 0),
-            0);
+        return (
+            score +
+            [...board.getPieces(color)]
+                .filter(([, { type }]) => type === PieceType.PION)
+                .reduce(
+                    (acc, [pos]) =>
+                        acc +
+                        sign * blockedCaptureBonus(board, pos, color) -
+                        (isIsolated(board, pos, color, enemyPionRowLimit)
+                            ? sign * ISOLATED_PENALTY
+                            : 0),
+                    0,
+                )
+        );
     }, 0);
 
 // ─── Immediate Draw (per docs/กฎการเสมอในเกมหมากฮอส.md) ───
@@ -393,9 +462,10 @@ const IMMEDIATE_DRAW_MAX_PIECE_DIFF = 1;
 
 const countPionsAndDames = (board, color) =>
     [...board.getPieces(color)].reduce(
-        (acc, [, { type }]) => type === PieceType.DAME
-            ? { pions: acc.pions, dames: acc.dames + 1 }
-            : { pions: acc.pions + 1, dames: acc.dames },
+        (acc, [, { type }]) =>
+            type === PieceType.DAME
+                ? { pions: acc.pions, dames: acc.dames + 1 }
+                : { pions: acc.pions + 1, dames: acc.dames },
         { pions: 0, dames: 0 },
     );
 
@@ -413,18 +483,20 @@ const countPionsAndDames = (board, color) =>
  * @returns {boolean}
  */
 export const isImmediateDraw = (board, sideToMove) =>
-    !hasMandatoryCapture(board, sideToMove)
-    && (() => {
+    !hasMandatoryCapture(board, sideToMove) &&
+    (() => {
         const white = countPionsAndDames(board, PieceColor.WHITE);
         const black = countPionsAndDames(board, PieceColor.BLACK);
         const whiteTotal = white.pions + white.dames;
         const blackTotal = black.pions + black.dames;
-        return white.dames >= 1
-            && black.dames >= 1
-            && white.pions <= IMMEDIATE_DRAW_MAX_PIONS
-            && black.pions <= IMMEDIATE_DRAW_MAX_PIONS
-            && whiteTotal + blackTotal <= IMMEDIATE_DRAW_MAX_TOTAL_PIECES
-            && Math.abs(whiteTotal - blackTotal) <= IMMEDIATE_DRAW_MAX_PIECE_DIFF;
+        return (
+            white.dames >= 1 &&
+            black.dames >= 1 &&
+            white.pions <= IMMEDIATE_DRAW_MAX_PIONS &&
+            black.pions <= IMMEDIATE_DRAW_MAX_PIONS &&
+            whiteTotal + blackTotal <= IMMEDIATE_DRAW_MAX_TOTAL_PIECES &&
+            Math.abs(whiteTotal - blackTotal) <= IMMEDIATE_DRAW_MAX_PIECE_DIFF
+        );
     })();
 
 /**
@@ -439,11 +511,11 @@ export const isImmediateDraw = (board, sideToMove) =>
  * @returns {number}
  */
 export const evaluateBoard = (board, context = {}) =>
-    sideScore(board.getPieces(PieceColor.WHITE), PieceColor.WHITE)
-        - sideScore(board.getPieces(PieceColor.BLACK), PieceColor.BLACK)
-        + mobilityScore(board, context.sideToMove)
-        + breakthroughScore(board, context.sideToMove)
-        + structureScore(board);
+    sideScore(board.getPieces(PieceColor.WHITE), PieceColor.WHITE) -
+    sideScore(board.getPieces(PieceColor.BLACK), PieceColor.BLACK) +
+    mobilityScore(board, context.sideToMove) +
+    breakthroughScore(board, context.sideToMove) +
+    structureScore(board);
 
 /**
  * Statically evaluate a game's current position. Positive is good for WHITE.

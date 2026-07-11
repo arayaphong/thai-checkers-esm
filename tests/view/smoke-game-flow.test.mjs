@@ -12,7 +12,7 @@ import {
   createBoardState,
   createStatusState,
   createControlPanelState,
-  createMoveDisplay
+  createMoveDisplay,
 } from '../../view/GameViewStateFactory.mjs';
 
 const fullHumanConfig = Object.freeze({
@@ -183,7 +183,9 @@ const createGameFlowSmokeSteps = () => {
         const next = state.applyMove(promotionMove);
         const controller = fakeController(next);
         const boardState = createBoardState(controller);
-        const promoted = boardState.pieces.find((piece) => samePos(piece.position, { r: promotionMove.toR, c: promotionMove.toC }));
+        const promoted = boardState.pieces.find((piece) =>
+          samePos(piece.position, { r: promotionMove.toR, c: promotionMove.toC }),
+        );
 
         assert.equal(next.board[promotionMove.toR][promotionMove.toC], 2);
         assert.equal(promoted.rank, 'king');
@@ -254,7 +256,10 @@ const createGameFlowSmokeSteps = () => {
         const controller = createGameController(fullHumanConfig);
         assert.equal(MoveEngine.countPieces(controller.state.board, 1).total, 8);
         assert.equal(MoveEngine.countPieces(controller.state.board, -1).total, 8);
-        assert.equal(controller.state.validMoves.every((move) => !move.isCapture), true);
+        assert.equal(
+          controller.state.validMoves.every((move) => !move.isCapture),
+          true,
+        );
       },
     },
     {
@@ -301,11 +306,15 @@ const createGameFlowSmokeSteps = () => {
           showGameOverScreen: () => {},
         };
 
-        const binder = createGameViewBinder(controller, {
-          createFromController: (c, f) => ({
-            controlPanel: createControlPanelState(c, f),
-          }),
-        }, mockGameView);
+        const binder = createGameViewBinder(
+          controller,
+          {
+            createFromController: (c, f) => ({
+              controlPanel: createControlPanelState(c, f),
+            }),
+          },
+          mockGameView,
+        );
 
         binder.markGameStarted();
         assert.equal(binder.isGameStarted, true);
@@ -345,13 +354,17 @@ const createGameFlowSmokeSteps = () => {
           showMoveMade: () => Promise.resolve(),
         };
 
-        const binder = createGameViewBinder(controller, {
-          createFromController,
-          createBoardState,
-          createStatusState,
-          createControlPanelState,
-          createMoveDisplay,
-        }, mockGameView);
+        const binder = createGameViewBinder(
+          controller,
+          {
+            createFromController,
+            createBoardState,
+            createStatusState,
+            createControlPanelState,
+            createMoveDisplay,
+          },
+          mockGameView,
+        );
 
         binder.markGameStarted();
 
@@ -370,11 +383,13 @@ const createGameFlowSmokeSteps = () => {
     {
       label: 'demo initialization loads board layout and preserves it on reset',
       run: async () => {
-        const demo1 = JSON.parse(await readFile(path.join(process.cwd(), 'examples/demos/demo1.json'), 'utf8'));
+        const demo1 = JSON.parse(
+          await readFile(path.join(process.cwd(), 'examples/demos/demo1.json'), 'utf8'),
+        );
         const board = Array.from({ length: 8 }, () => Array(8).fill(0));
         const COLOR_MAP = { WHITE: 1, BLACK: -1 };
         const TYPE_MAP = { PION: 1, DAME: 2 };
-        
+
         for (const [square, info] of demo1.pieces) {
           const col = square.toUpperCase().charCodeAt(0) - 65;
           const row = 8 - parseInt(square.substring(1), 10);
@@ -403,7 +418,7 @@ const createGameFlowSmokeSteps = () => {
           isAIThinking: false,
           isAnimating: false,
         });
-        
+
         const whitePiece = boardState.pieces.find((p) => samePos(p.position, { r: 4, c: 4 }));
         assert.ok(whitePiece);
         assert.equal(whitePiece.color, 'white');
@@ -415,11 +430,13 @@ const createGameFlowSmokeSteps = () => {
 
         controller.selectPiece({ r: 4, c: 4 });
         await controller.attemptMove({ r: 2, c: 2 });
-        
+
         await controller.reset();
-        
+
         const resetBoardState = createBoardState(controller);
-        const whitePieceAfterReset = resetBoardState.pieces.find((p) => samePos(p.position, { r: 4, c: 4 }));
+        const whitePieceAfterReset = resetBoardState.pieces.find((p) =>
+          samePos(p.position, { r: 4, c: 4 }),
+        );
         assert.ok(whitePieceAfterReset);
         assert.equal(whitePieceAfterReset.color, 'white');
       },
@@ -427,11 +444,13 @@ const createGameFlowSmokeSteps = () => {
     {
       label: 'demo play turn finalized logging with captures',
       run: async () => {
-        const demo1 = JSON.parse(await readFile(path.join(process.cwd(), 'examples/demos/demo1.json'), 'utf8'));
+        const demo1 = JSON.parse(
+          await readFile(path.join(process.cwd(), 'examples/demos/demo1.json'), 'utf8'),
+        );
         const board = Array.from({ length: 8 }, () => Array(8).fill(0));
         const COLOR_MAP = { WHITE: 1, BLACK: -1 };
         const TYPE_MAP = { PION: 1, DAME: 2 };
-        
+
         for (const [square, info] of demo1.pieces) {
           const col = square.toUpperCase().charCodeAt(0) - 65;
           const row = 8 - parseInt(square.substring(1), 10);
@@ -462,13 +481,17 @@ const createGameFlowSmokeSteps = () => {
           showMoveMade: () => Promise.resolve(),
         };
 
-        const binder = createGameViewBinder(controller, {
-          createFromController,
-          createBoardState,
-          createStatusState,
-          createControlPanelState,
-          createMoveDisplay,
-        }, mockGameView);
+        const binder = createGameViewBinder(
+          controller,
+          {
+            createFromController,
+            createBoardState,
+            createStatusState,
+            createControlPanelState,
+            createMoveDisplay,
+          },
+          mockGameView,
+        );
 
         binder.markGameStarted();
 

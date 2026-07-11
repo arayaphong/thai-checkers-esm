@@ -66,17 +66,20 @@ export const createGameViewBinder = (controller, stateFactory, gameView) => {
     gameView.refresh(currentViewState());
 
     if (!controller.state.mustMovePiece) {
-      const formattedPath = currentTurnPath.map((pos, idx) => {
-        const sq = formatSquare(pos);
-        if (idx === currentTurnPath.length - 1 && currentTurnPromoted) {
-          return '*' + sq;
-        }
-        return sq;
-      }).join('->');
+      const formattedPath = currentTurnPath
+        .map((pos, idx) => {
+          const sq = formatSquare(pos);
+          if (idx === currentTurnPath.length - 1 && currentTurnPromoted) {
+            return '*' + sq;
+          }
+          return sq;
+        })
+        .join('->');
 
-      const formattedCaptures = currentTurnCaptures.length > 0
-        ? ' [' + currentTurnCaptures.map((pos) => 'x' + formatSquare(pos)).join(' ') + ']'
-        : '';
+      const formattedCaptures =
+        currentTurnCaptures.length > 0
+          ? ' [' + currentTurnCaptures.map((pos) => 'x' + formatSquare(pos)).join(' ') + ']'
+          : '';
       const playerColor = moveDisplay.piece.color.toUpperCase();
 
       console.log(`[${playerColor}] ${formattedPath}${formattedCaptures}`);

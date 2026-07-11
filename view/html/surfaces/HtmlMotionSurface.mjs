@@ -20,10 +20,14 @@ const abortableTimeout = (ms, signal, onSettle) => {
     resolve();
   };
   const timer = setTimeout(finish, ms);
-  signal?.addEventListener('abort', () => {
-    clearTimeout(timer);
-    finish();
-  }, { once: true });
+  signal?.addEventListener(
+    'abort',
+    () => {
+      clearTimeout(timer);
+      finish();
+    },
+    { once: true },
+  );
   return promise;
 };
 
@@ -60,10 +64,12 @@ export const createMotionSurface = (registry) => {
       slide.style.cssText = `position:absolute;width:${SQUARE_PERCENT}%;height:${SQUARE_PERCENT}%;top:${from.r * SQUARE_PERCENT}%;left:${from.c * SQUARE_PERCENT}%;padding:2.5%;z-index:30;${motionClassMap.slideTransitionCss}`;
       animLayer.append(slide);
 
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        slide.style.top = `${to.r * SQUARE_PERCENT}%`;
-        slide.style.left = `${to.c * SQUARE_PERCENT}%`;
-      }));
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          slide.style.top = `${to.r * SQUARE_PERCENT}%`;
+          slide.style.left = `${to.c * SQUARE_PERCENT}%`;
+        }),
+      );
 
       return abortableTimeout(motionClassMap.slideDurationMs, signal);
     },
@@ -85,13 +91,18 @@ export const createMotionSurface = (registry) => {
       victimEl.style.opacity = '0';
       victimEl.style.transform = 'scale(0.3)';
 
-      await abortableTimeout(motionClassMap.captureVictimFadeDelayMs, signal, () => victimEl.remove());
+      await abortableTimeout(motionClassMap.captureVictimFadeDelayMs, signal, () =>
+        victimEl.remove(),
+      );
     },
     showPieceLanding: (position) => {
       const pieceEl = registry.getSquare(position)?.querySelector('.piece');
       if (!pieceEl) return;
       pieceEl.classList.add(motionClassMap.landAnimation);
-      setTimeout(() => pieceEl.classList.remove(motionClassMap.landAnimation), motionClassMap.landAnimationDurationMs);
+      setTimeout(
+        () => pieceEl.classList.remove(motionClassMap.landAnimation),
+        motionClassMap.landAnimationDurationMs,
+      );
     },
     showMoveRipple: (position, signal) => {
       const el = registry.getSquare(position);

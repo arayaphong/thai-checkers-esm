@@ -24,5 +24,9 @@ export const orderMoveIndices = (moves, board, player) => {
     return moves
         .keys()
         .toArray()
-        .toSorted((a, b) => moveOrderScore(moves[b], board, promoRow) - moveOrderScore(moves[a], board, promoRow));
+        .toSorted(
+            (a, b) =>
+                moveOrderScore(moves[b], board, promoRow) -
+                moveOrderScore(moves[a], board, promoRow),
+        );
 };

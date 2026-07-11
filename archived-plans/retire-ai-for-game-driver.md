@@ -24,14 +24,14 @@ lockstep by `controller/`:
 2. **AI-driven play** is decided by `GameDriver` (`cli/GameDriver.mjs` after
    the split in §2), which wraps `core/game.mjs`'s `Game` and
    `core/analyzer.mjs`'s `Analyzer`. `GameDriver` moves are atomic — one
-   *entire* turn (including a whole multi-capture chain) is a single
+   _entire_ turn (including a whole multi-capture chain) is a single
    `getMoves()` entry and a single `selectMove()`/`playMoveIndex()` call.
 
 `controller/GameController.mjs` is the seam: it keeps a `model/GameState`
 instance (`state`, unchanged shape, drives the view) and a `GameDriver`
 instance (`driver`, new) that mirrors the same position turn-by-turn. Every
 completed turn — whether played by a human through `model/` or decided by
-`GameDriver`'s `Analyzer` — gets applied to *both* representations.
+`GameDriver`'s `Analyzer` — gets applied to _both_ representations.
 
 **Non-goals (explicitly out of scope, do not implement):**
 
@@ -42,7 +42,7 @@ completed turn — whether played by a human through `model/` or decided by
 - `GameDriver.getState()`'s `ONE_DAME_EACH` forced-draw and `drawWarning`
   advisory are **not** surfaced to the view. `model/`'s own `status` field
   stays the sole source of truth for game-over/winner in the UI, unchanged.
-  (They already agree on *when* the game ends — see §1.3 — this is just about
+  (They already agree on _when_ the game ends — see §1.3 — this is just about
   not adding new UI surface for draw detection, which nobody asked for.)
 - Apart from the one-line promotion-row correction in `core/game.mjs`
   (§1.3.1), `core/` is not changed. In particular, no move-generation or
@@ -78,15 +78,15 @@ turn boundary — not fuse them into one.
 
 ### 1.2 Coordinate and enum mapping (canonical — do not re-derive)
 
-| Concept | `model/` | `core/` |
-|---|---|---|
-| Row/rank | `r` (0 = rank 8 / black home, 7 = rank 1 / white home) | `y` (0 = rank 1 / white home, 7 = rank 8 / black home) |
-| Column/file | `c` (0 = 'A' … 7 = 'H') | `x` (0 = 'A' … 7 = 'H') |
-| Relation | — | **`y = 7 - r`, `x = c`** (and inverse `r = 7 - y`, `c = x`) |
-| White | `turn === 1`, piece value `> 0` | `PieceColor.WHITE === 0` |
-| Black | `turn === -1`, piece value `< 0` | `PieceColor.BLACK === 1` |
-| Pion | `abs(piece) === 1` | `PieceType.PION === 0` |
-| Dame | `abs(piece) === 2` | `PieceType.DAME === 1` |
+| Concept     | `model/`                                               | `core/`                                                     |
+| ----------- | ------------------------------------------------------ | ----------------------------------------------------------- |
+| Row/rank    | `r` (0 = rank 8 / black home, 7 = rank 1 / white home) | `y` (0 = rank 1 / white home, 7 = rank 8 / black home)      |
+| Column/file | `c` (0 = 'A' … 7 = 'H')                                | `x` (0 = 'A' … 7 = 'H')                                     |
+| Relation    | —                                                      | **`y = 7 - r`, `x = c`** (and inverse `r = 7 - y`, `c = x`) |
+| White       | `turn === 1`, piece value `> 0`                        | `PieceColor.WHITE === 0`                                    |
+| Black       | `turn === -1`, piece value `< 0`                       | `PieceColor.BLACK === 1`                                    |
+| Pion        | `abs(piece) === 1`                                     | `PieceType.PION === 0`                                      |
+| Dame        | `abs(piece) === 2`                                     | `PieceType.DAME === 1`                                      |
 
 Derivation: `core/board.mjs` `Board.setup()` puts White on rows 0–1 (bottom)
 and Black on rows 6–7 (top) — i.e. White's home is low `y`. `model/Types.mjs`
@@ -99,7 +99,7 @@ directions, giving `y = 7 - r`.
 
 This was checked, not assumed, since the whole design depends on it:
 
-- **Forced capture rule.** Both apply it board-wide: if *any* piece has a
+- **Forced capture rule.** Both apply it board-wide: if _any_ piece has a
   capture, only captures are legal, across the whole side to move (not
   "must take the biggest capture"). `model/MoveEngine.getAllValidMoves`
   groups all moves by `isCapture` and returns only captures if any exist.
@@ -128,7 +128,7 @@ This was checked, not assumed, since the whole design depends on it:
     `played.path.map(toString) === ['E4','C6','E8']` and
     `played.captured === ['D5','D7']`.
   - `tests/view/smoke-game-flow.test.mjs` ("demo play turn finalized logging
-    with captures") loads the *same* `demo1.json`, converts it to a `model/`
+    with captures") loads the _same_ `demo1.json`, converts it to a `model/`
     board with the same `COLOR_MAP`/`TYPE_MAP`/coordinate transform
     `main.mjs` uses, then plays it through `controller.attemptMove` as two
     human clicks: `{r:4,c:4}→{r:2,c:2}` then `{r:2,c:2}→{r:0,c:4}`, and
@@ -199,9 +199,9 @@ the new evidence rather than broadening the fixes speculatively.
 Two directions, both owned by `controller/`:
 
 **AI turn (driver → model):** `controller` asks `driver.playAiMove(depth)`
-*first*. `driver` is already authoritative and already advanced. `controller`
+_first_. `driver` is already authoritative and already advanced. `controller`
 expands the returned atomic move into a sequence of `model/`-shaped hops
-(§3) and replays them one at a time through the *same* per-hop primitive the
+(§3) and replays them one at a time through the _same_ per-hop primitive the
 human path uses (`applyHop`, §4.2), so `moveMade`/`multiCapture`/`promotion`
 events and animation pacing are emitted exactly as they are today. No
 model→driver sync needed afterward — driver was the source of truth.
@@ -226,13 +226,13 @@ always resolvable).
    deterministically because the human's own clicks already pinned down
    exactly which squares got captured — `controller`'s accumulated
    captured-square set will match exactly one candidate's `captured` set
-   (order-independent comparison), never zero, never more than one, *as
-   long as* `model/` and `core/` agree on rules (validated in §1.3).
+   (order-independent comparison), never zero, never more than one, _as
+   long as_ `model/` and `core/` agree on rules (validated in §1.3).
 2. **Capture loop returning to the start square, multiple routes, same net
    result** (e.g. `demo2`, `demo3`): `core/game.mjs`'s `uniqueMoves()` /
    `moveIdentityKey()` dedupes by `` `${from}:${to}:${sortedCapturedSet}` ``
    — order-independent on the captured set. Two routes that capture the
-   *same set* of pieces and land on the same square collapse into a single
+   _same set_ of pieces and land on the same square collapse into a single
    `getMoves()` entry before `GameDriver` ever sees them. No ambiguity ever
    reaches `playMovePosition` for this case — confirmed by
    `tests/cli/GameDriver.test.mjs`'s demo2/demo3 cases ("reduced to one
@@ -278,8 +278,8 @@ Cut verbatim from the current `cli/cli.mjs` (no edits to the moved code):
 - The "Draw helpers" section: `isOneDameEachDraw`.
 - The `GameDriver` class itself, in full.
 - `moveKey` (currently in the "Display helpers" section, but it's used
-  *inside* `GameDriver.playAiMove` — line `const targetKey =
-  moveKey(result.move);` — so it must travel with the class, not stay
+  _inside_ `GameDriver.playAiMove` — line `const targetKey =
+moveKey(result.move);` — so it must travel with the class, not stay
   behind).
 
 Imports the new file needs at its top (carry over verbatim from the current
@@ -292,12 +292,7 @@ cleanup):
 import { Game } from '../core/game.mjs';
 import { Board } from '../core/board.mjs';
 import { Position } from '../core/position.mjs';
-import {
-    PieceColor,
-    PieceType,
-    toStringPieceColor,
-    toStringPieceType,
-} from '../core/piece.mjs';
+import { PieceColor, PieceType, toStringPieceColor, toStringPieceType } from '../core/piece.mjs';
 import { Analyzer, MAX_ANALYSIS_DEPTH } from '../core/analyzer.mjs';
 import { isImmediateDraw } from '../core/evaluation.mjs';
 ```
@@ -326,25 +321,25 @@ import process from 'node:process';
 import { Position } from '../core/position.mjs';
 import { PieceColor, pieceSymbol } from '../core/piece.mjs';
 import {
-    GameDriver,
-    moveKey,
-    isOneDameEachDraw,
-    moveRecordMatches,
-    parsePieces,
-    parseSideToMove,
-    SaveIncompatibilityError,
-    AmbiguousMoveError,
+  GameDriver,
+  moveKey,
+  isOneDameEachDraw,
+  moveRecordMatches,
+  parsePieces,
+  parseSideToMove,
+  SaveIncompatibilityError,
+  AmbiguousMoveError,
 } from './GameDriver.mjs';
 
 export {
-    GameDriver,
-    moveKey,
-    isOneDameEachDraw,
-    moveRecordMatches,
-    parsePieces,
-    parseSideToMove,
-    SaveIncompatibilityError,
-    AmbiguousMoveError,
+  GameDriver,
+  moveKey,
+  isOneDameEachDraw,
+  moveRecordMatches,
+  parsePieces,
+  parseSideToMove,
+  SaveIncompatibilityError,
+  AmbiguousMoveError,
 };
 ```
 
@@ -392,7 +387,7 @@ export const positionOfModelPos = ({ r, c }) => Position.fromCoords(c, 7 - r);
 
 export const squareOfModelPos = (rc) => positionOfModelPos(rc).toString();
 export const modelPosOfSquare = (square) =>
-    modelPosOfPosition(Position.fromString(square.toUpperCase()));
+  modelPosOfPosition(Position.fromString(square.toUpperCase()));
 
 // ─── Color/type mapping ───
 export const pieceColorOfTurn = (turn) => (turn === 1 ? PieceColor.WHITE : PieceColor.BLACK);
@@ -401,21 +396,21 @@ export const turnOfPieceColor = (color) => (color === PieceColor.WHITE ? 1 : -1)
 // ─── Driver construction from a model board/turn (used at reset/init time
 //     to build a GameDriver over a demo/custom starting position) ───
 export const demoJsonFromModelBoard = (board, turn) => {
-    const pieces = [];
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            const value = board[r][c];
-            if (value === 0) continue;
-            const color = value > 0 ? 'WHITE' : 'BLACK';
-            const type = Math.abs(value) === 2 ? 'DAME' : 'PION';
-            pieces.push([squareOfModelPos({ r, c }), { color, type }]);
-        }
+  const pieces = [];
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const value = board[r][c];
+      if (value === 0) continue;
+      const color = value > 0 ? 'WHITE' : 'BLACK';
+      const type = Math.abs(value) === 2 ? 'DAME' : 'PION';
+      pieces.push([squareOfModelPos({ r, c }), { color, type }]);
     }
-    return { pieces, sideToMove: turn === 1 ? 'WHITE' : 'BLACK' };
+  }
+  return { pieces, sideToMove: turn === 1 ? 'WHITE' : 'BLACK' };
 };
 
 export const createDriverForModelBoard = (board, turn) =>
-    new GameDriver(demoJsonFromModelBoard(board, turn));
+  new GameDriver(demoJsonFromModelBoard(board, turn));
 
 export const createStandardDriver = () => new GameDriver();
 
@@ -425,21 +420,21 @@ export const createStandardDriver = () => new GameDriver();
 // hop i captures move.captured[i] — see retire-ai-for-game-driver.md §1.3/core/legals.mjs). Never
 // mixed within one move, so `isCapture` applies uniformly to every hop.
 export const expandDriverMoveToModelHops = (move) => {
-    const path = move.path && move.path.length > 0 ? move.path : [move.from, move.to];
-    const isCaptureChain = move.captured.length > 0;
-    const hops = [];
-    for (let i = 0; i < path.length - 1; i++) {
-        const from = modelPosOfPosition(path[i]);
-        const to = modelPosOfPosition(path[i + 1]);
-        const hop = { fromR: from.r, fromC: from.c, toR: to.r, toC: to.c, isCapture: isCaptureChain };
-        if (isCaptureChain) {
-            const jumped = modelPosOfPosition(move.captured[i]);
-            hop.jumpedR = jumped.r;
-            hop.jumpedC = jumped.c;
-        }
-        hops.push(hop);
+  const path = move.path && move.path.length > 0 ? move.path : [move.from, move.to];
+  const isCaptureChain = move.captured.length > 0;
+  const hops = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    const from = modelPosOfPosition(path[i]);
+    const to = modelPosOfPosition(path[i + 1]);
+    const hop = { fromR: from.r, fromC: from.c, toR: to.r, toC: to.c, isCapture: isCaptureChain };
+    if (isCaptureChain) {
+      const jumped = modelPosOfPosition(move.captured[i]);
+      hop.jumpedR = jumped.r;
+      hop.jumpedC = jumped.c;
     }
-    return hops;
+    hops.push(hop);
+  }
+  return hops;
 };
 
 // ─── Completed human turn (model hops) → driver move (atomic) ───
@@ -449,22 +444,26 @@ export const expandDriverMoveToModelHops = (move) => {
 // (retire-ai-for-game-driver.md §1.3). If it isn't resolvable, that indicates the two engines
 // have diverged; fail loudly rather than silently desyncing the driver.
 export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSquares }) => {
-    try {
-        return driver.playMovePosition(fromSquare, toSquare);
-    } catch (error) {
-        if (error.code !== 'AMBIGUOUS_MOVE') throw error;
-        const wanted = [...capturedSquares].toSorted().join(',');
-        const match = error.candidates.find(({ move }) =>
-            move.captured.map((p) => p.toString()).toSorted().join(',') === wanted
-        );
-        if (!match) {
-            throw new Error(
-                `GameDriverBridge: no candidate route for ${fromSquare}->${toSquare} matches ` +
-                `captured set [${wanted}]. model/ and core/ move generation have diverged.`
-            );
-        }
-        return driver.playMovePosition(fromSquare, toSquare, match.choice);
+  try {
+    return driver.playMovePosition(fromSquare, toSquare);
+  } catch (error) {
+    if (error.code !== 'AMBIGUOUS_MOVE') throw error;
+    const wanted = [...capturedSquares].toSorted().join(',');
+    const match = error.candidates.find(
+      ({ move }) =>
+        move.captured
+          .map((p) => p.toString())
+          .toSorted()
+          .join(',') === wanted,
+    );
+    if (!match) {
+      throw new Error(
+        `GameDriverBridge: no candidate route for ${fromSquare}->${toSquare} matches ` +
+          `captured set [${wanted}]. model/ and core/ move generation have diverged.`,
+      );
     }
+    return driver.playMovePosition(fromSquare, toSquare, match.choice);
+  }
 };
 ```
 
@@ -484,7 +483,7 @@ export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSq
 - `driver` — a `GameDriver` instance, constructed alongside `state` (same
   demo-vs-standard branch condition as `state`'s own construction) and
   rebuilt alongside `state` in `reset()`/`startGame()`.
-- `turnPath` / `turnCaptured` — a turn accumulator *owned by controller*,
+- `turnPath` / `turnCaptured` — a turn accumulator _owned by controller_,
   populated per-hop, read once at turn completion to sync `driver`, then
   reset. (Note: `view/GameViewBinder.mjs` already has its own
   `currentTurnPath`/`currentTurnCaptures` for its turn-summary log — that one
@@ -496,7 +495,7 @@ export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSq
   `tests/view/check-view-boundaries.test.mjs`.)
 - `applyHop(move)` — the shared per-hop primitive (state mutation + event
   emission only). Used by both the human path and the AI-replay path. Does
-  *not* decide driver-sync or "trigger next AI turn" — callers own that,
+  _not_ decide driver-sync or "trigger next AI turn" — callers own that,
   since the two turn sources resolve "what happens after the last hop"
   differently (human path needs a driver sync that the AI path doesn't,
   because the AI path's driver is already ahead).
@@ -504,7 +503,7 @@ export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSq
   `{ easy: 'random', medium: 'greedy', hard: 'minimax' }` name map.
   `state.config.aiDifficulty` keeps the same string keys
   (`model/Types.mjs`'s `DEFAULT_CONFIG.aiDifficulty` is untouched); only the
-  thing that key maps *to* changes, and only inside `controller/`.
+  thing that key maps _to_ changes, and only inside `controller/`.
 - `get driver()` on the returned controller object — read-only observability
   for tests/debugging, mirroring the existing `get state()` /
   `get selectedPiece()` pattern. Not consumed by `view/`.
@@ -543,10 +542,14 @@ const DIFFICULTY_DEPTH = { easy: 1, medium: 4, hard: 8 };
 const delay = (ms, signal) => {
   const { promise, resolve } = Promise.withResolvers();
   const timer = setTimeout(resolve, ms);
-  signal?.addEventListener('abort', () => {
-    clearTimeout(timer);
-    resolve();
-  }, { once: true });
+  signal?.addEventListener(
+    'abort',
+    () => {
+      clearTimeout(timer);
+      resolve();
+    },
+    { once: true },
+  );
   return promise;
 };
 
@@ -760,8 +763,11 @@ export const createGameController = (configOrParams) => {
 
     if (selectedPiece) {
       const move = state.validMoves.find(
-        (m) => m.fromR === selectedPiece.r && m.fromC === selectedPiece.c &&
-               m.toR === pos.r && m.toC === pos.c
+        (m) =>
+          m.fromR === selectedPiece.r &&
+          m.fromC === selectedPiece.c &&
+          m.toR === pos.r &&
+          m.toC === pos.c,
       );
       if (move) {
         await executeHumanHop(move);
@@ -829,10 +835,18 @@ export const createGameController = (configOrParams) => {
 
   return {
     // ---- State Access ----
-    get state() { return state; },
-    get selectedPiece() { return selectedPiece; },
-    get isAIProcessing() { return isAIProcessing; },
-    get driver() { return driver; },
+    get state() {
+      return state;
+    },
+    get selectedPiece() {
+      return selectedPiece;
+    },
+    get isAIProcessing() {
+      return isAIProcessing;
+    },
+    get driver() {
+      return driver;
+    },
 
     // ---- Event System ----
     on,
@@ -855,12 +869,12 @@ export const createGameController = (configOrParams) => {
 
 - **Between-hop pacing (320ms).** Today, every hop (human or AI) that
   doesn't end the turn falls through to `if (state.currentPlayerIsAI) await
-  startAiTurn(320)`, which is how an *AI's own* multi-capture chain gets a
+startAiTurn(320)`, which is how an _AI's own_ multi-capture chain gets a
   320ms pause between hops (same player stays "current" so the check keeps
   firing). The new `playAiTurn` computes the whole chain upfront and no
   longer needs that recursive re-trigger — it inserts the same 320ms
   `delay` directly between hops in its own loop (skipped before the first
-  hop, since the *lead-in* delay before this turn started already came from
+  hop, since the _lead-in_ delay before this turn started already came from
   whichever `startAiTurn(delayMs)` call invoked it — 320ms after a human
   move, 400ms after `reset()`, 0ms after `startGame()`, exactly as today).
 - **Human's own multi-capture chain.** `executeHumanHop` returns immediately
@@ -873,21 +887,21 @@ export const createGameController = (configOrParams) => {
   `analyzer`-free `ai.makeMove()`) is a synchronous, non-cancelable
   computation once started — same limitation as before, not a regression.
   Because JS is single-threaded, `reset()`/`startGame()` can only ever run
-  either *before* `playAiTurn` starts (caught by the existing
-  `signal.aborted` check before the lead-in delay elapses) or *after*
+  either _before_ `playAiTurn` starts (caught by the existing
+  `signal.aborted` check before the lead-in delay elapses) or _after_
   `driver.playAiMove()` fully returns (there's no `await` point during the
   synchronous search for a concurrent `reset()` to interleave into) — so
   `driver` can never be left half-updated by a race. If a `reset()` happens
-  *during* the hop-replay loop (between two `await delay(320, signal)`
+  _during_ the hop-replay loop (between two `await delay(320, signal)`
   calls), `state` may be left mid-chain, but `reset()` unconditionally
   reassigns both `state` and `driver` wholesale immediately afterward, so
   the partial progress is simply discarded, not repaired — same as today's
   behavior when `reset()` interrupts a human or AI mid-chain.
 - **Depth-8 search latency.** `core/analyzer.mjs`'s `Analyzer` (negamax +
   alpha-beta + a forced-capture quiescence extension) at depth 8 counts 8
-  plies at *atomic-turn* granularity (a whole capture chain is one ply),
+  plies at _atomic-turn_ granularity (a whole capture chain is one ply),
   which is a meaningfully deeper/more expensive search than the old
-  `MinimaxAI`'s depth-4 *per-step* search with a simpler heuristic. This is
+  `MinimaxAI`'s depth-4 _per-step_ search with a simpler heuristic. This is
   not being silently substituted — it's what the user specified — but budget
   time in §7 to benchmark it on a representative mid-game position and
   confirm the search completes in an acceptable window before calling this
@@ -933,7 +947,7 @@ human-facing difficulty strings).
 Delete the entire `ai/` directory (`AIInterface.mjs`, `RandomAI.mjs`,
 `GreedyAI.mjs`, `MinimaxAI.mjs`, `Heuristic.mjs`). Confirmed via
 `grep -rln "from '.*ai/"` across the whole repo that
-`controller/GameController.mjs` is the *only* file that imports from `ai/`
+`controller/GameController.mjs` is the _only_ file that imports from `ai/`
 — once §4's rewrite removes those imports, nothing references the folder
 and it can be deleted outright with no dangling references, no compatibility
 shim needed. Update `README.md` in the same phase: replace the legacy
@@ -970,7 +984,7 @@ file that phase 3 had not created yet.
   (e.g. always the lowest-index legal move on each side) for several turns
   (or to game end for the shorter demo fixtures), applying each turn to
   `model/` hop-by-hop (via `expandDriverMoveToModelHops` fed from the
-  *driver's* chosen move, so both engines are told to play "the same" move)
+  _driver's_ chosen move, so both engines are told to play "the same" move)
   and to `driver` via `playMoveIndex`.
 - After each turn, assert the two boards describe the same position: for
   every square, `model` board value's color/type must match the piece (if
@@ -1001,7 +1015,7 @@ New file: `tests/controller/GameDriverBridge.test.mjs`.
   `jumpedR/jumpedC`, and `fromR/fromC/toR/toC` values are exactly right.
 - `playHumanTurnOnDriver`, using `examples/demos/demo1.json` (same fixture
   as §1.3): calling it with `{fromSquare:'E4', toSquare:'E8',
-  capturedSquares:['D7','D5']}` (deliberately unsorted, to test the
+capturedSquares:['D7','D5']}` (deliberately unsorted, to test the
   sort-before-compare) must resolve to route 1 (path `E4→C6→E8`); calling it
   with route 2's captured set must resolve to route 2. A captured-square set
   matching neither candidate must throw the "diverged" error from §3.
@@ -1015,10 +1029,10 @@ New file: `tests/controller/GameControllerDriverSync.test.mjs`.
   config), play `{r:4,c:4}→{r:2,c:2}` then `{r:2,c:2}→{r:0,c:4}` via
   `selectPiece`/`attemptMove`, then assert `controller.driver.history()`
   recorded exactly one move with `path.map(toString) ===
-  ['E4','C6','E8']` and `captured.map(toString) === ['D5','D7']` — i.e. the
+['E4','C6','E8']` and `captured.map(toString) === ['D5','D7']` — i.e. the
   human's clicked route was correctly disambiguated and applied to `driver`.
 - A PvE smoke case: same demo1 setup but with `blackIsAI: true,
-  aiDifficulty: 'easy'` (depth 1); after White's human turn completes,
+aiDifficulty: 'easy'` (depth 1); after White's human turn completes,
   assert Black's AI turn is played automatically (turn returns to White,
   no exception thrown, `controller.driver`'s position matches
   `controller.state`'s position via the same per-square comparison as

@@ -24,12 +24,16 @@ export const createControlPanelView = (controlPanelSurface) => {
       const { whiteIsAI, blackIsAI, aiDifficulty } = gameConfig;
 
       const anyAI = whiteIsAI || blackIsAI;
-      const difficultyLabel = anyAI ? (DIFFICULTY_OPTIONS.find((d) => d.key === aiDifficulty)?.label ?? aiDifficulty) : null;
+      const difficultyLabel = anyAI
+        ? (DIFFICULTY_OPTIONS.find((d) => d.key === aiDifficulty)?.label ?? aiDifficulty)
+        : null;
 
       const whiteText = whiteIsAI ? '🤖 AI' : '👤 คน';
       const blackText = blackIsAI ? '🤖 AI' : '👤 คน';
 
-      const selectedMode = MODE_OPTIONS.find((m) => m.whiteIsAI === whiteIsAI && m.blackIsAI === blackIsAI)?.key ?? 'pvp';
+      const selectedMode =
+        MODE_OPTIONS.find((m) => m.whiteIsAI === whiteIsAI && m.blackIsAI === blackIsAI)?.key ??
+        'pvp';
 
       controlPanelSurface.render({
         isCollapsed: collapsed,
