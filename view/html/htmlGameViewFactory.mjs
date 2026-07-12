@@ -9,7 +9,7 @@ import { createUiEventSource } from './htmlUiEventSource.mjs';
 import {
   createControlPanelView,
   MODE_OPTIONS,
-} from '../components/control-panel/controlPanelView.mjs';
+} from '../../components/controlPanelView.mjs';
 import { createGameView } from '../gameView.mjs';
 import { createGameViewBinder } from '../gameViewBinder.mjs';
 import * as stateFactory from '../gameViewStateFactory.mjs';
