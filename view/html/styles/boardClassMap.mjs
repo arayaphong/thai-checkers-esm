@@ -5,8 +5,7 @@
 // ============================================
 
 export const boardClassMap = Object.freeze({
-  squareDark:
-    'w-full h-full flex items-center justify-center relative bg-stone-800/60',
+  squareDark: 'w-full h-full flex items-center justify-center relative bg-stone-800/60',
   squareLight: 'w-full h-full flex items-center justify-center relative bg-slate-700',
 
   coordLabelOnDark: 'abs-coord text-white',

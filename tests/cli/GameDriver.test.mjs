@@ -7,6 +7,7 @@ import {
   parsePieces,
   parseSideToMove,
 } from '../../cli/cli.mjs';
+import { WorkerGameDriver } from '../../controller/WorkerGameDriver.mjs';
 import { Board } from '../../core/board.mjs';
 import { Position } from '../../core/position.mjs';
 import { PieceColor, PieceType } from '../../core/piece.mjs';
@@ -371,17 +372,18 @@ describe('Demo scenarios (demo1-demo4)', () => {
     }
   });
 
-  test('playAiMove returns AI statistics: choice, score, nodes, and time', () => {
-    const driver = new GameDriver();
-    const result = driver.playAiMove(2);
-    expect(result.played).toBe(true);
-    expect(result.choice).toBeDefined();
-    expect(typeof result.choice).toBe('number');
-    expect(result.score).toBeDefined();
-    expect(typeof result.score).toBe('number');
-    expect(result.nodes).toBeDefined();
-    expect(typeof result.nodes).toBe('number');
-    expect(result.time).toBeDefined();
-    expect(typeof result.time).toBe('number');
+  test('WorkerGameDriver playAiMove returns a structured-clone-safe choice DTO', async () => {
+    const driver = new WorkerGameDriver({ session: new GameDriver().toJSON() });
+    try {
+      const result = await driver.playAiMove(2);
+      expect(result.played).toBe(true);
+      expect(typeof result.matchIndex).toBe('number');
+      expect(typeof result.moveKey).toBe('string');
+      expect(typeof result.score).toBe('number');
+      expect(typeof result.nodes).toBe('number');
+      expect(typeof result.elapsedMs).toBe('number');
+    } finally {
+      driver.terminate();
+    }
   });
 });

@@ -26,7 +26,7 @@ pieces out of the orchestrator (`GameViewStateFactory.mjs`, `BoardMoveAnimationV
 It holds **one** nullable record instead of two variables:
 
 ```js
-current = null | { generation, phase: 'in-flight' | 'settling', abortController, donePromise }
+current = null | { generation, phase: 'in-flight' | 'settling', abortController, donePromise };
 ```
 
 `phase` replaces the implicit "which variable is null" encoding. A monotonic

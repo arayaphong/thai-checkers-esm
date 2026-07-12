@@ -9,14 +9,16 @@ const createFakeAnimationView = () => {
   const calls = [];
   const pending = new Map();
 
-  const makeEffect = (name) => (...args) => {
-    const signal = args[args.length - 1];
-    const { promise, resolve, reject } = Promise.withResolvers();
-    pending.set(name, { resolve, reject, promise });
-    calls.push({ name, args });
-    signal?.addEventListener('abort', () => resolve(), { once: true });
-    return promise;
-  };
+  const makeEffect =
+    (name) =>
+    (...args) => {
+      const signal = args[args.length - 1];
+      const { promise, resolve, reject } = Promise.withResolvers();
+      pending.set(name, { resolve, reject, promise });
+      calls.push({ name, args });
+      signal?.addEventListener('abort', () => resolve(), { once: true });
+      return promise;
+    };
 
   return {
     calls,
@@ -99,7 +101,11 @@ describe('createGameView animation lifecycle', () => {
     );
     assert.equal(gameView.isAnimating(), true);
 
-    gameView.refresh({ board: { label: 'ignored' }, status: {}, controlPanel: { collapsed: true } });
+    gameView.refresh({
+      board: { label: 'ignored' },
+      status: {},
+      controlPanel: { collapsed: true },
+    });
     gameView.refreshBoard({ label: 'ignored-too' });
     assert.equal(boardRenders.length, 1, 'guarded renders are skipped while in-flight');
 
@@ -132,7 +138,10 @@ describe('createGameView animation lifecycle', () => {
   test('landing must resolve before showMoveMade() settles', async () => {
     const { gameView, animationView, boardRenders } = createFakeGameView();
 
-    const done = gameView.showMoveMade(moveDisplay('A'), settledViewState('A', { moveablePositions: [{ r: 2, c: 2 }] }));
+    const done = gameView.showMoveMade(
+      moveDisplay('A'),
+      settledViewState('A', { moveablePositions: [{ r: 2, c: 2 }] }),
+    );
     assert.equal(gameView.isAnimating(), true);
 
     animationView.resolve('showMoveRipple');
@@ -147,14 +156,22 @@ describe('createGameView animation lifecycle', () => {
     await flush();
     assert.equal(settled, false, 'showMoveMade is still pending while landing is unresolved');
     assert.equal(gameView.isAnimating(), true);
-    assert.equal(boardRenders.at(-1).moveablePositions.length, 0, 'next-turn hints have not rendered');
+    assert.equal(
+      boardRenders.at(-1).moveablePositions.length,
+      0,
+      'next-turn hints have not rendered',
+    );
 
     animationView.resolve('showPieceLanding');
     await done;
     await flush();
 
     assert.equal(gameView.isAnimating(), false);
-    assert.equal(boardRenders.at(-1).moveablePositions.length, 1, 'settled hints render only after landing');
+    assert.equal(
+      boardRenders.at(-1).moveablePositions.length,
+      1,
+      'settled hints render only after landing',
+    );
   });
 
   test('isAnimating/waitForAnimation go true then false around a full showMoveMade() call', async () => {
@@ -214,7 +231,10 @@ describe('createGameView animation lifecycle', () => {
     const effects = ['showMoveRipple', 'showPieceMoving', 'showPieceLanding'];
     for (const failingEffect of effects) {
       const { gameView, animationView, boardRenders } = createFakeGameView();
-      const done = gameView.showMoveMade(moveDisplay(failingEffect), settledViewState(failingEffect, { targetSquares: [{ r: 2, c: 2 }] }));
+      const done = gameView.showMoveMade(
+        moveDisplay(failingEffect),
+        settledViewState(failingEffect, { targetSquares: [{ r: 2, c: 2 }] }),
+      );
 
       // Resolve the effects that come before the failing one in the normal flow.
       if (failingEffect !== 'showMoveRipple') {
@@ -235,7 +255,11 @@ describe('createGameView animation lifecycle', () => {
         animationView.calls.some((c) => c.name === 'clearAnimationLayer'),
         `${failingEffect}: layer is cleared on rejection`,
       );
-      assert.equal(boardRenders.at(-1).label, failingEffect, `${failingEffect}: settled board is restored`);
+      assert.equal(
+        boardRenders.at(-1).label,
+        failingEffect,
+        `${failingEffect}: settled board is restored`,
+      );
       assert.equal(gameView.isAnimating(), false);
     }
   });
@@ -254,7 +278,11 @@ describe('createGameView animation lifecycle', () => {
     await done;
     await flush();
 
-    assert.equal(boardRenders.length, boardCountBeforeAbort, 'aborted run did not add more board renders');
+    assert.equal(
+      boardRenders.length,
+      boardCountBeforeAbort,
+      'aborted run did not add more board renders',
+    );
   });
 
   test('strict lift → slide → land → fade sequence for a capture', async () => {
@@ -291,12 +319,19 @@ describe('createGameView animation lifecycle', () => {
       ],
       'land board shows destination and victim',
     );
-    assert.ok(animationView.calls.some((c) => c.name === 'clearAnimationLayer'), 'layer cleared before landing');
+    assert.ok(
+      animationView.calls.some((c) => c.name === 'clearAnimationLayer'),
+      'layer cleared before landing',
+    );
     assert.equal(animationView.pending.has('showPieceLanding'), true, 'landing starts after slide');
 
     animationView.resolve('showPieceLanding');
     await flush();
-    assert.equal(animationView.pending.has('showCapturedPieceFading'), true, 'fade starts after landing');
+    assert.equal(
+      animationView.pending.has('showCapturedPieceFading'),
+      true,
+      'fade starts after landing',
+    );
     const fadeCall = animationView.calls.find((call) => call.name === 'showCapturedPieceFading');
     assert.equal(fadeCall.args.length, 2, 'fade receives only position and signal');
     assert.deepEqual(fadeCall.args[0], { r: 0, c: 1 });
@@ -313,12 +348,19 @@ describe('createGameView animation lifecycle', () => {
 
     assert.equal(gameView.isAnimating(), false);
     assert.equal(boardRenders.length, countBeforeRefresh + 1, 'settled board renders after fade');
-    assert.equal(boardRenders.at(-1).pieces.length, 1, 'settled board has only the destination piece');
+    assert.equal(
+      boardRenders.at(-1).pieces.length,
+      1,
+      'settled board has only the destination piece',
+    );
   });
 
   test('capture fade rejection restores the settled board and skips fade completion', async () => {
     const { gameView, animationView, boardRenders } = createFakeGameView();
-    const done = gameView.showMoveMade(moveDisplay('cap-fade-reject', true), settledViewState('cap-fade-reject'));
+    const done = gameView.showMoveMade(
+      moveDisplay('cap-fade-reject', true),
+      settledViewState('cap-fade-reject'),
+    );
 
     animationView.resolve('showMoveRipple');
     await flush();
@@ -332,7 +374,11 @@ describe('createGameView animation lifecycle', () => {
     await flush();
 
     assert.ok(animationView.calls.some((c) => c.name === 'clearAnimationLayer'));
-    assert.equal(boardRenders.at(-1).label, 'cap-fade-reject', 'settled board restored after fade rejection');
+    assert.equal(
+      boardRenders.at(-1).label,
+      'cap-fade-reject',
+      'settled board restored after fade rejection',
+    );
     assert.equal(gameView.isAnimating(), false);
   });
 });

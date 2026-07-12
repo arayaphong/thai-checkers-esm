@@ -282,7 +282,7 @@ export const createGameController = (configOrParams) => {
 
     const requestDriver = driver;
     const requestGeneration = generation;
-    const session = requestDriver.toJSON();
+    const session = await requestDriver.toJSON();
 
     // Give the view an explicit, awaited boundary at the start of every AI
     // turn. In a browser the binder uses this to render the new player's
@@ -314,17 +314,21 @@ export const createGameController = (configOrParams) => {
 
     if (!choice.played) return;
 
-    const moves = requestDriver.getMoves();
+    const moves = await requestDriver.getMoves();
     const authoritativeMove = moves[choice.matchIndex];
     if (!authoritativeMove || moveKey(authoritativeMove) !== choice.moveKey) {
       console.error('GameController: AI choice validation failed');
       return;
     }
 
-    requestDriver.playMoveIndex(choice.matchIndex);
+    await requestDriver.playMoveIndex(choice.matchIndex);
     if (!ownsOperation(token)) return;
 
-    await emit('aiMoved', { move: authoritativeMove, difficulty: state.config.aiDifficulty, depth });
+    await emit('aiMoved', {
+      move: authoritativeMove,
+      difficulty: state.config.aiDifficulty,
+      depth,
+    });
     if (!ownsOperation(token)) return;
 
     const hops = expandDriverMoveToModelHops(authoritativeMove);

@@ -158,24 +158,42 @@ describe('GameViewBinder move rendering', () => {
   });
 
   test('post-move status is deferred until showMoveMade() resolves', async () => {
-    const controller = createFakeController({ board: { label: 'start' }, status: { turn: 'white' } });
+    const controller = createFakeController({
+      board: { label: 'start' },
+      status: { turn: 'white' },
+    });
     const gameView = createFakeGameView();
     createGameViewBinder(controller, createFakeStateFactory(), gameView);
 
     controller.emit('moveMade', { move: { label: 'm1' } });
 
     assert.equal(gameView.calls.filter((c) => c.name === 'showMoveMade').length, 1);
-    assert.equal(gameView.calls.some((c) => c.name === 'refreshStatus'), false, 'status not refreshed immediately');
-    assert.equal(gameView.calls.some((c) => c.name === 'refresh'), false, 'full refresh not run yet');
+    assert.equal(
+      gameView.calls.some((c) => c.name === 'refreshStatus'),
+      false,
+      'status not refreshed immediately',
+    );
+    assert.equal(
+      gameView.calls.some((c) => c.name === 'refresh'),
+      false,
+      'full refresh not run yet',
+    );
 
     gameView.resolveMove();
     await flush();
 
-    assert.equal(gameView.calls.at(-1).name, 'refresh', 'final refresh runs after animation resolves');
+    assert.equal(
+      gameView.calls.at(-1).name,
+      'refresh',
+      'final refresh runs after animation resolves',
+    );
   });
 
   test('final refresh still runs when the view promise rejects', async () => {
-    const controller = createFakeController({ board: { label: 'start' }, status: { turn: 'white' } });
+    const controller = createFakeController({
+      board: { label: 'start' },
+      status: { turn: 'white' },
+    });
     const gameView = createFakeGameView();
     createGameViewBinder(controller, createFakeStateFactory(), gameView);
 
@@ -184,7 +202,11 @@ describe('GameViewBinder move rendering', () => {
 
     await flush();
 
-    assert.equal(gameView.calls.at(-1).name, 'refresh', 'refresh still runs after a rejected animation');
+    assert.equal(
+      gameView.calls.at(-1).name,
+      'refresh',
+      'refresh still runs after a rejected animation',
+    );
   });
 
   test('stale moveMade event after synchronous reset is ignored', async () => {
@@ -203,11 +225,18 @@ describe('GameViewBinder move rendering', () => {
 
     await flush();
 
-    assert.equal(gameView.calls.some((c) => c.name === 'showMoveMade'), false, 'stale event did not start an animation');
+    assert.equal(
+      gameView.calls.some((c) => c.name === 'showMoveMade'),
+      false,
+      'stale event did not start an animation',
+    );
   });
 
-  test('cancel-A/start-B/late-A completion does not let A render B\'s status', async () => {
-    const controller = createFakeController({ board: { label: 'start' }, status: { turn: 'white' } });
+  test("cancel-A/start-B/late-A completion does not let A render B's status", async () => {
+    const controller = createFakeController({
+      board: { label: 'start' },
+      status: { turn: 'white' },
+    });
     const gameView = createFakeGameView();
     createGameViewBinder(controller, createFakeStateFactory(), gameView);
 

@@ -1,9 +1,10 @@
-import { describe, test } from '@jest/globals';
+import { describe, test, afterEach } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { createGameController } from '../../controller/GameController.mjs';
 import { Position } from '../../core/position.mjs';
 import { PieceColor } from '../../core/piece.mjs';
 import { positionOfModelPos } from '../../controller/GameDriverBridge.mjs';
+import { WorkerGameDriver } from '../../controller/WorkerGameDriver.mjs';
 
 const humanConfig = Object.freeze({
   whiteIsAI: false,
@@ -31,8 +32,8 @@ const bothAiConfig = Object.freeze({
 
 const emptyBoard = () => Array.from({ length: 8 }, () => Array(8).fill(0));
 
-const assertControllerAndDriverEquivalent = (controller) => {
-  const driverState = controller.driver.getState();
+const assertControllerAndDriverEquivalent = async (controller) => {
+  const driverState = await controller.driver.getState();
   const expectedTurn = driverState.player === PieceColor.WHITE ? 1 : -1;
   assert.equal(controller.state.turn, expectedTurn, 'side to move differs');
 
@@ -58,6 +59,14 @@ const Barrier = () => {
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
+const waitFor = async (predicate, maxWaits = 50, waitMs = 10) => {
+  let waits = 0;
+  while (!predicate() && waits < maxWaits) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    waits += 1;
+  }
+};
+
 const makeCountingBarrier = () => {
   const firstBarrier = Barrier();
   let callCount = 0;
@@ -72,6 +81,10 @@ const makeCountingBarrier = () => {
     release: () => firstBarrier.resolve(),
   };
 };
+
+afterEach(() => {
+  WorkerGameDriver.terminate();
+});
 
 describe('GameController turn pacing and synchronization', () => {
   test('listener failures are logged and do not strand the operation', async () => {
@@ -152,7 +165,10 @@ describe('GameController turn pacing and synchronization', () => {
     assert.equal(events.length, 1, 'turnReady is the first AI-turn boundary');
     assert.equal(events[0].type, 'turnReady');
     assert.equal(events[0].turn, -1, 'hints describe the incoming AI player');
-    assert.ok(events[0].validMoves.length > 0, 'incoming AI legal pieces are available to highlight');
+    assert.ok(
+      events[0].validMoves.length > 0,
+      'incoming AI legal pieces are available to highlight',
+    );
 
     turnReadyBarrier.resolve();
     await moveDone;
@@ -174,11 +190,23 @@ describe('GameController turn pacing and synchronization', () => {
     assert.equal(calls(), 1);
 
     // Next player is black; try to preselect and deselect.
-    assert.equal(controller.selectPiece({ r: 2, c: 1 }), false, 'selectPiece blocked during animation');
-    assert.equal(await controller.attemptMove({ r: 3, c: 0 }), false, 'attemptMove blocked during animation');
+    assert.equal(
+      controller.selectPiece({ r: 2, c: 1 }),
+      false,
+      'selectPiece blocked during animation',
+    );
+    assert.equal(
+      await controller.attemptMove({ r: 3, c: 0 }),
+      false,
+      'attemptMove blocked during animation',
+    );
     const selectedBefore = controller.selectedPiece;
     controller.deselect();
-    assert.equal(controller.selectedPiece, selectedBefore, 'deselect did not mutate state while blocked');
+    assert.equal(
+      controller.selectedPiece,
+      selectedBefore,
+      'deselect did not mutate state while blocked',
+    );
 
     release(0);
     await moveDone;
@@ -202,13 +230,21 @@ describe('GameController turn pacing and synchronization', () => {
     assert.equal(calls(), 1);
 
     // The same piece is locked at (2,2); a premature continuation click is rejected.
-    assert.equal(await controller.attemptMove({ r: 0, c: 4 }), false, 'interior hop blocked during animation');
+    assert.equal(
+      await controller.attemptMove({ r: 0, c: 4 }),
+      false,
+      'interior hop blocked during animation',
+    );
 
     release(0);
     await hop1;
 
     assert.deepEqual(controller.state.mustMovePiece, { r: 2, c: 2 });
-    assert.equal(await controller.attemptMove({ r: 0, c: 4 }), true, 'continuation accepted after animation');
+    assert.equal(
+      await controller.attemptMove({ r: 0, c: 4 }),
+      true,
+      'continuation accepted after animation',
+    );
     assert.equal(controller.state.turn, -1);
   });
 
@@ -228,18 +264,26 @@ describe('GameController turn pacing and synchronization', () => {
     });
 
     const aiDone = controller.resume();
-    await tick();
+    await waitFor(() => calls() > 0);
     assert.equal(calls(), 1, 'AI hop 1 emitted moveMade');
 
-    assert.equal(controller.selectPiece({ r: 0, c: 0 }), false, 'human input blocked during AI replay');
+    assert.equal(
+      controller.selectPiece({ r: 0, c: 0 }),
+      false,
+      'human input blocked during AI replay',
+    );
 
     release(0);
     await aiDone;
 
     assert.equal(calls(), 2, 'AI hop 2 also emitted moveMade');
     assert.equal(controller.state.turn, 1, 'black AI turn finished');
-    assertControllerAndDriverEquivalent(controller);
-    assert.equal(controller.driver.history().length, 1, 'exactly one atomic AI turn committed');
+    await assertControllerAndDriverEquivalent(controller);
+    assert.equal(
+      (await controller.driver.history()).length,
+      1,
+      'exactly one atomic AI turn committed',
+    );
 
     // Paused means no follow-up AI started automatically.
     await controller.waitForQuiescence();
@@ -341,7 +385,11 @@ describe('GameController turn pacing and synchronization', () => {
     // Release the stale barrier; the new operation must still own the lock.
     oldBarrier.resolve();
     await oldMove;
-    assert.equal(controller.selectPiece({ r: 2, c: 1 }), false, 'new lock still held after stale release');
+    assert.equal(
+      controller.selectPiece({ r: 2, c: 1 }),
+      false,
+      'new lock still held after stale release',
+    );
 
     newBarrier.resolve();
     await newMove;
@@ -369,7 +417,7 @@ describe('GameController turn pacing and synchronization', () => {
     });
 
     const staleAi = controller.resume();
-    await tick();
+    await waitFor(() => aiMovedCalls > 0);
     assert.equal(aiMovedCalls, 1, 'old AI committed before its first hop animation');
     assert.equal(moveMadeCalls, 1, 'old AI is waiting at its first hop animation');
 
@@ -383,10 +431,14 @@ describe('GameController turn pacing and synchronization', () => {
 
     assert.equal(aiMovedCalls, 2, 'replacement AI committed its own turn');
     assert.equal(moveMadeCalls, 3, 'replacement AI replayed both capture hops');
-    assert.equal(controller.driver.history().length, 1, 'fresh driver advanced exactly once');
+    assert.equal(
+      (await controller.driver.history()).length,
+      1,
+      'fresh driver advanced exactly once',
+    );
     assert.equal(controller.state.turn, 1, 'replacement AI completed and passed turn to white');
     assert.equal(controller.isAIProcessing, false);
-    assertControllerAndDriverEquivalent(controller);
+    await assertControllerAndDriverEquivalent(controller);
   });
 
   test('reset waits for stateChanged listeners before starting the opening AI', async () => {
@@ -422,10 +474,10 @@ describe('GameController turn pacing and synchronization', () => {
     await controller.reset({ paused: false });
 
     assert.equal(aiMovedCalls.length, 2, 'white AI and black AI each committed one turn');
-    assert.equal(controller.driver.history().length, 2);
+    assert.equal((await controller.driver.history()).length, 2);
     assert.equal(controller.state.status, 'black_wins');
     assert.equal(controller.isAIProcessing, false);
-    assertControllerAndDriverEquivalent(controller);
+    await assertControllerAndDriverEquivalent(controller);
   });
 
   test('pause during a completed human animation defers AI until resume', async () => {
@@ -443,14 +495,18 @@ describe('GameController turn pacing and synchronization', () => {
     barrier.resolve();
     await humanMove;
 
-    assert.equal(controller.driver.history().length, 1, 'human turn synchronized to driver');
+    assert.equal(
+      (await controller.driver.history()).length,
+      1,
+      'human turn synchronized to driver',
+    );
     assert.equal(controller.state.turn, -1, 'turn passed to black');
     assert.equal(controller.isAIProcessing, false, 'AI did not start while paused');
 
     await controller.resume();
 
     assert.equal(controller.state.turn, 1, 'AI played after resume');
-    assert.equal(controller.driver.history().length, 2, 'AI turn committed to driver');
+    assert.equal((await controller.driver.history()).length, 2, 'AI turn committed to driver');
   });
 
   test('Restart with White AI starts no hidden move; Start clears pause and starts it once', async () => {
@@ -469,6 +525,6 @@ describe('GameController turn pacing and synchronization', () => {
     await controller.reset({ paused: false });
     assert.equal(aiThinkingCalls.length, 1, 'Start triggered exactly one AI turn');
     assert.equal(aiMovedCalls.length, 1, 'AI move committed exactly once');
-    assert.equal(controller.driver.history().length, 1, 'driver advanced once');
+    assert.equal((await controller.driver.history()).length, 1, 'driver advanced once');
   });
 });

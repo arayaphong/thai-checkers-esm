@@ -58,8 +58,12 @@ controller/
   GameController.mjs       Keeps model state and GameDriver in sync
   GameDriverBridge.mjs     Translates model positions/hops and atomic core moves
   AiMoveChannel.mjs        Serializable, non-mutating AI analysis boundary
+  WorkerGameDriver.mjs     Main-thread proxy for the AI worker
 
 core/                       Atomic-move rules and Analyzer search engine
+
+worker/
+  GameDriverWorker.mjs     Web Worker / worker_threads script that runs AI analysis
 
 cli/
   GameDriver.mjs           Browser-safe adapter over core game and Analyzer
@@ -112,7 +116,9 @@ jest.config.mjs                   Jest config for ESM .mjs tests
 - **Model** — pure functions, immutable state, no DOM dependencies
 - **Controller** — keeps view-facing model state synchronized with the atomic
   `GameDriver` used for AI decisions, and emits typed events (`moveMade`,
-  `gameOver`, `aiThinking`, …)
+  `gameOver`, `aiThinking`, …). AI analysis is offloaded to a Web Worker via
+  `WorkerGameDriver` / `AiMoveChannel` so the UI remains responsive during
+  search.
 - **Semantic view** — uses user-facing methods like `hintTargetSquares()` and `showAiThinking()`, with no DOM API, selectors, datasets, or CSS class names
 - **HTML adapter** — owns DOM operations, templates, event delegation, element lookup, and CSS class maps under `view/html/**`
 - **Intent flow** — converts UI events into actor/action/intent objects before dispatching controller commands

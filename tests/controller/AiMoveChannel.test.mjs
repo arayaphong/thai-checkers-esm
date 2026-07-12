@@ -1,10 +1,14 @@
-import { describe, test } from '@jest/globals';
+import { describe, test, afterEach } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { GameDriver, moveKey } from '../../cli/GameDriver.mjs';
 import { requestAiMove } from '../../controller/AiMoveChannel.mjs';
+import { WorkerGameDriver } from '../../controller/WorkerGameDriver.mjs';
 
 const isPlainObject = (value) =>
-  value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype;
+  value !== null &&
+  typeof value === 'object' &&
+  !Array.isArray(value) &&
+  Object.prototype.toString.call(value) === '[object Object]';
 
 const isCloneSafeDto = (value) => {
   if (value === null || ['string', 'number', 'boolean', 'undefined'].includes(typeof value)) {
@@ -16,6 +20,10 @@ const isCloneSafeDto = (value) => {
 };
 
 const standardDriver = () => new GameDriver();
+
+afterEach(() => {
+  WorkerGameDriver.terminate();
+});
 
 describe('AiMoveChannel', () => {
   test('returns a structured-clone-safe DTO and leaves the authoritative driver untouched', async () => {
@@ -43,7 +51,11 @@ describe('AiMoveChannel', () => {
     const abortController = new AbortController();
     abortController.abort();
 
-    const choice = await requestAiMove({ session: before, depth: 1, signal: abortController.signal });
+    const choice = await requestAiMove({
+      session: before,
+      depth: 1,
+      signal: abortController.signal,
+    });
 
     assert.deepEqual(choice, { played: false, aborted: true });
     assert.deepEqual(driver.toJSON(), before, 'driver is untouched after pre-abort');

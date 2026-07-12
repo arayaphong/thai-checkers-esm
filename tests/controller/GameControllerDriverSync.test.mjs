@@ -1,4 +1,4 @@
-import { describe, test } from '@jest/globals';
+import { describe, test, afterEach } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
@@ -6,6 +6,7 @@ import { Position } from '../../core/position.mjs';
 import { PieceColor, PieceType } from '../../core/piece.mjs';
 import { createGameController } from '../../controller/GameController.mjs';
 import { positionOfModelPos } from '../../controller/GameDriverBridge.mjs';
+import { WorkerGameDriver } from '../../controller/WorkerGameDriver.mjs';
 
 const humanConfig = Object.freeze({
   whiteIsAI: false,
@@ -40,8 +41,8 @@ const playDemo1LeftRoute = async (controller) => {
   assert.equal(await controller.attemptMove({ r: 0, c: 4 }), true);
 };
 
-const assertControllerAndDriverEquivalent = (controller) => {
-  const driverState = controller.driver.getState();
+const assertControllerAndDriverEquivalent = async (controller) => {
+  const driverState = await controller.driver.getState();
   const expectedTurn = driverState.player === PieceColor.WHITE ? 1 : -1;
   assert.equal(controller.state.turn, expectedTurn, 'side to move differs');
 
@@ -72,12 +73,16 @@ const assertControllerAndDriverEquivalent = (controller) => {
   }
 };
 
+afterEach(() => {
+  WorkerGameDriver.terminate();
+});
+
 describe('GameController and GameDriver synchronization', () => {
   test('completed ambiguous human route is replayed exactly once on the driver', async () => {
     const controller = createGameController(await demo1Setup());
     await playDemo1LeftRoute(controller);
 
-    const history = controller.driver.history();
+    const history = await controller.driver.history();
     assert.equal(history.length, 1);
     assert.deepEqual(
       history[0].path.map((position) => position.toString()),
@@ -87,7 +92,7 @@ describe('GameController and GameDriver synchronization', () => {
       history[0].captured.map((position) => position.toString()),
       ['D5', 'D7'],
     );
-    assertControllerAndDriverEquivalent(controller);
+    await assertControllerAndDriverEquivalent(controller);
   });
 
   test('black AI automatically replies and leaves both engines synchronized', async () => {
@@ -102,8 +107,8 @@ describe('GameController and GameDriver synchronization', () => {
     assert.equal(controller.state.turn, 1);
     assert.equal(controller.state.currentPlayerIsAI, false);
     assert.equal(controller.isAIProcessing, false);
-    assert.equal(controller.driver.history().length, 2);
-    assertControllerAndDriverEquivalent(controller);
+    assert.equal((await controller.driver.history()).length, 2);
+    await assertControllerAndDriverEquivalent(controller);
   });
 
   test('a game-ending human capture still synchronizes the driver', async () => {
@@ -116,8 +121,8 @@ describe('GameController and GameDriver synchronization', () => {
     assert.equal(await controller.attemptMove({ r: 0, c: 4 }), true);
 
     assert.equal(controller.state.status, 'white_wins');
-    assert.equal(controller.driver.history().length, 1);
-    assertControllerAndDriverEquivalent(controller);
+    assert.equal((await controller.driver.history()).length, 1);
+    await assertControllerAndDriverEquivalent(controller);
   });
 
   test('legacy ai directory and controller imports stay removed', async () => {
