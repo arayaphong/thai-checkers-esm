@@ -1,6 +1,6 @@
 import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
-import { Position } from '../../core/position.mjs';
+import { Position } from '../../core/Position.mjs';
 
 describe('core/position', () => {
   test('static constants', () => {

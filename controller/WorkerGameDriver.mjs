@@ -58,7 +58,7 @@ const terminateSharedWorker = () => {
 };
 
 const ensureSharedWorker = async () => {
-  const workerUrl = new URL('../worker/GameDriverWorker.mjs', import.meta.url);
+  const workerUrl = new URL('../worker/gameDriverWorker.mjs', import.meta.url);
   const workerUrlHref = workerUrl.href;
 
   if (sharedWorker && sharedWorkerUrl === workerUrlHref) {

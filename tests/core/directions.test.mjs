@@ -1,7 +1,7 @@
 import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { PieceColor } from '../../core/piece.mjs';
-import { Position } from '../../core/position.mjs';
+import { Position } from '../../core/Position.mjs';
 import {
   WHITE_PION_DIRS,
   BLACK_PION_DIRS,

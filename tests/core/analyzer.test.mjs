@@ -1,10 +1,10 @@
 import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { PieceColor, PieceType } from '../../core/piece.mjs';
-import { Position } from '../../core/position.mjs';
-import { Board } from '../../core/board.mjs';
-import { Game } from '../../core/game.mjs';
-import { Analyzer, MAX_ANALYSIS_DEPTH } from '../../core/analyzer.mjs';
+import { Position } from '../../core/Position.mjs';
+import { Board } from '../../core/Board.mjs';
+import { Game } from '../../core/Game.mjs';
+import { Analyzer, MAX_ANALYSIS_DEPTH } from '../../core/Analyzer.mjs';
 
 describe('core/analyzer', () => {
   test('MAX_ANALYSIS_DEPTH constant validation', () => {

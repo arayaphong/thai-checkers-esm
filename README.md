@@ -50,37 +50,37 @@ index.html                 Entry point — loads sprite, CSS, and main.mjs
 main.mjs                   Bootstrap — connects controller to view
 
 model/
-  Types.mjs                Constants: INITIAL_BOARD, DEFAULT_CONFIG
-  MoveEngine.mjs           Pure move generation & validation (no state)
-  GameState.mjs            Immutable game state — all updates return new instances
+  types.mjs                Constants: INITIAL_BOARD, DEFAULT_CONFIG
+  moveEngine.mjs           Pure move generation & validation (no state)
+  gameState.mjs            Immutable game state — all updates return new instances
 
 controller/
-  GameController.mjs       Keeps model state and GameDriver in sync
-  GameDriverBridge.mjs     Translates model positions/hops and atomic core moves
-  AiMoveChannel.mjs        Serializable, non-mutating AI analysis boundary
+  gameController.mjs       Keeps model state and GameDriver in sync
+  gameDriverBridge.mjs     Translates model positions/hops and atomic core moves
+  aiMoveChannel.mjs        Serializable, non-mutating AI analysis boundary
   WorkerGameDriver.mjs     Main-thread proxy for the AI worker
 
 core/                       Atomic-move rules and Analyzer search engine
 
 worker/
-  GameDriverWorker.mjs     Web Worker / worker_threads script that runs AI analysis
+  gameDriverWorker.mjs     Web Worker / worker_threads script that runs AI analysis
 
 cli/
   GameDriver.mjs           Browser-safe adapter over core game and Analyzer
   cli.mjs                  Node-only terminal REPL
 
 view/
-  GameView.mjs                   Semantic facade for the whole visible game UI
-  GameViewBinder.mjs             Subscribes to controller events and refreshes GameView
-  GameViewStateFactory.mjs       Translates controller/model state into display state
-  GameViewAnimationLifecycle.mjs Tracks active move animation (begin/wait/cancel)
+  gameView.mjs                   Semantic facade for the whole visible game UI
+  gameViewBinder.mjs             Subscribes to controller events and refreshes GameView
+  gameViewStateFactory.mjs       Translates controller/model state into display state
+  gameViewAnimationLifecycle.mjs Tracks active move animation (begin/wait/cancel)
   css/                           Stylesheets and Tailwind build input/output
     game.css               Animations and small project utility classes
     tailwind-input.css     Tailwind CLI input
     tailwind.css           Generated Tailwind stylesheet
   icons/                         SVG source files (crown, bot, restart, info)
   components/                    Control-panel presentation logic
-  UiCommandDispatcher.mjs       Plain UI-command dispatcher
+  uiCommandDispatcher.mjs       Plain UI-command dispatcher
   html/                          DOM surfaces, templates, element registry, CSS maps
     templates/             Main layout HTML fragment
     surfaces/              HTML implementations behind semantic view methods

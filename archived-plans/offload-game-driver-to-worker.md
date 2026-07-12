@@ -4,28 +4,28 @@
 
 **Steps**
 
-1. **Add worker script** – Create `worker/GameDriverWorker.mjs`.
+1. **Add worker script** – Create `worker/gameDriverWorker.mjs`.
    - Import `GameDriver` from `../cli/GameDriver.mjs`.
    - Listen for `message` events. For each message containing an `id`, a `type` of `playAiMove`, a `session` JSON and a `depth`, instantiate a fresh `GameDriver(session)`, call `playAiMove(depth)`, and `postMessage({id, result})`. Catch errors and `postMessage({id, error})`.
    - Listen for a `'terminate'` message and call `self.close()`.
 
 2. **Create proxy class** – Add `controller/WorkerGameDriver.mjs`.
-   - Export class `WorkerGameDriver` with a constructor that accepts `{session}` and creates a `new Worker(new URL('../worker/GameDriverWorker.mjs', import.meta.url), {type: 'module'})` if a worker does not already exist.
+   - Export class `WorkerGameDriver` with a constructor that accepts `{session}` and creates a `new Worker(new URL('../worker/gameDriverWorker.mjs', import.meta.url), {type: 'module'})` if a worker does not already exist.
    - Maintain a map `pending` keyed by request `id` to resolve or reject promises when the worker posts a response.
    - Implement `async playAiMove(depth, signal)` that sends a `{id, type: 'playAiMove', session, depth}` message and returns a promise resolved with the result DTO. If `signal?.aborted`, terminate the worker and resolve with `{played: false, aborted: true}`.
    - Provide `terminate()` that calls `worker.terminate()` and clears the pending map.
 
-3. **Refactor `AiMoveChannel`** – Update `controller/AiMoveChannel.mjs`.
+3. **Refactor `AiMoveChannel`** – Update `controller/aiMoveChannel.mjs`.
    - Replace the local `GameDriver` import with `WorkerGameDriver`.
    - In `requestAiMove`, instantiate `new WorkerGameDriver({session})` and call `await driver.playAiMove(depth, signal)`. Return the DTO directly (including `matchIndex`, `moveKey`, `score`, `nodes`, `elapsedMs`).
    - Ensure abort handling respects the new termination behavior.
 
-4. **Adapt `GameController` to async driver** – Modify `controller/GameController.mjs`.
+4. **Adapt `GameController` to async driver** – Modify `controller/gameController.mjs`.
    - Change all direct `driver` method calls (`getMoves`, `playMoveIndex`, `undo`, `redo`, `getState`, `toJSON`, `load`) to `await` the corresponding async proxy methods.
    - Update any synchronous logic that depends on driver state to handle promises (e.g., `await driver.getMoves()` before an AI turn, `await driver.playMoveIndex(...)`).
    - Preserve the existing operation‑token logic to guard against stale continuations.
 
-5. **Update bridge if needed** – Verify that functions in `controller/GameDriverBridge.mjs` operate on move objects only, so no changes are required. Ensure any direct `driver` property accesses are async‑compatible.
+5. **Update bridge if needed** – Verify that functions in `controller/gameDriverBridge.mjs` operate on move objects only, so no changes are required. Ensure any direct `driver` property accesses are async‑compatible.
 
 6. **Adjust tests** – Modify test files that instantiate `GameDriver` directly (`tests/cli/*.test.mjs`, `tests/controller/*.test.mjs`).
    - Import `WorkerGameDriver` where AI analysis is exercised.
@@ -44,10 +44,10 @@
 **Relevant files**
 
 - `cli/GameDriver.mjs` – core driver logic (unchanged, imported by the worker).
-- `controller/AiMoveChannel.mjs` – will be refactored to use the worker proxy.
-- `controller/GameController.mjs` – async driver integration.
+- `controller/aiMoveChannel.mjs` – will be refactored to use the worker proxy.
+- `controller/gameController.mjs` – async driver integration.
 - `controller/WorkerGameDriver.mjs` – new proxy class exposing async `playAiMove`.
-- `worker/GameDriverWorker.mjs` – new worker script handling AI analysis.
+- `worker/gameDriverWorker.mjs` – new worker script handling AI analysis.
 - Test files under `tests/cli/` and `tests/controller/` – need updates.
 
 **Verification**
@@ -64,7 +64,7 @@
 - **Worker lifecycle** – A single long‑lived worker is created on the first AI request and reused for subsequent requests. Abort signals terminate the worker, which will be recreated on the next request.
 - **Fallback** – No fallback implementation; the worker is required.
 - **Abort handling** – Abort terminates the worker immediately; pending promises are rejected.
-- **Worker script location** – `worker/GameDriverWorker.mjs` at the repository root.
+- **Worker script location** – `worker/gameDriverWorker.mjs` at the repository root.
 
 **Further Considerations**
 

@@ -1,7 +1,7 @@
 // Shared, WHITE-perspective static evaluator for the sequential negamax
-// (core/analyzer.mjs).
+// (core/Analyzer.mjs).
 import { PieceColor, PieceType } from './piece.mjs';
-import { Position } from './position.mjs';
+import { Position } from './Position.mjs';
 import { pionForwardDirs, promotionRow, isOpponentPiece, DAME_DIRS } from './directions.mjs';
 // All tunable heuristic weights (piece values, PST tables, mobility,
 // breakthrough, structure) live in the evaluation profile so they can be
@@ -26,7 +26,7 @@ export const MATE_SCORE = 100_000;
 /**
  * Distinguishes near-mate scores (which bake in root-relative ply distance
  * and are unsafe to cache across differing remaining-depth budgets) from
- * ordinary heuristic scores (safe to cache). See core/analyzer.mjs's #negamax.
+ * ordinary heuristic scores (safe to cache). See core/Analyzer.mjs's #negamax.
  * @type {number}
  */
 export const MATE_SCORE_THRESHOLD = 90_000;
@@ -41,7 +41,7 @@ const pieceValue = (type) => (type === PieceType.DAME ? PIECE_VALUES.DAME : PIEC
 // ─── Piece-Square Tables (Phase 4) ───
 // Light positional preference, not a promotion-proximity signal — that's
 // Breakthrough's job (Phase 6). Tables are defined once from WHITE's point of
-// view (y=0 is White's back rank per core/board.mjs HOME_ROWS, y=7 is White's
+// view (y=0 is White's back rank per core/Board.mjs HOME_ROWS, y=7 is White's
 // promotion row) and BLACK's table is the same values with the row mirrored
 // (y -> 7-y), using symmetry where Black's table is mirrored from White's.
 //
@@ -108,7 +108,7 @@ const pstValue = (type, color, pos) => {
 
 /**
  * PST change a quiet move would cause for the piece making it — used by
- * core/moves/move-order.mjs as a cheap (two table lookups, no board copy or
+ * core/moves/moveOrder.mjs as a cheap (two table lookups, no board copy or
  * full evaluateBoard() call) tiebreaker among quiet moves, which otherwise
  * all sort as equal and gave alpha-beta nothing to distinguish them by once
  * Phase 4 (PST) made most positions no longer tie on material alone (due to the
@@ -116,9 +116,9 @@ const pstValue = (type, color, pos) => {
  * Magnitude stays within ±31 (pion) / ±14 (dame) — safely below the capture
  * and promotion move-order tiers, so it only breaks ties within the quiet
  * bucket, never reorders across tiers.
- * @param {import('./board.mjs').Board} board The position before the move.
- * @param {import('./position.mjs').Position} from
- * @param {import('./position.mjs').Position} to
+ * @param {import('./Board.mjs').Board} board The position before the move.
+ * @param {import('./Position.mjs').Position} from
+ * @param {import('./Position.mjs').Position} to
  * @returns {number}
  */
 export const pstMoveDelta = (board, from, to) => {
@@ -141,7 +141,7 @@ const sideScore = (pieces, color) =>
 // ─── Mobility (Phase 5) ───
 // Direct coordinate scans only — never Explorer/game.getMoves() — so mobility
 // stays cheap enough to compute at every leaf. Mirrors the direction vectors
-// core/explorer.mjs uses for real move generation, but only counts squares
+// core/Explorer.mjs uses for real move generation, but only counts squares
 // instead of allocating move/Legals objects.
 
 const { PION_MOBILITY_PER_SQUARE, DAME_MOBILITY_PER_SQUARE, DAME_MOBILITY_CAP } = profile;
@@ -151,7 +151,7 @@ const { PION_MOBILITY_PER_SQUARE, DAME_MOBILITY_PER_SQUARE, DAME_MOBILITY_CAP } 
  * (x+stepX, y+stepY) → …, or null if the ray runs off the board without
  * hitting a piece. Used by dameMobility, pieceHasCapture, isCapturableByDame,
  * and findCaptureAttacker.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {number} x
  * @param {number} y
  * @param {number} stepX
@@ -167,7 +167,7 @@ const firstOccupiedAlongRay = (board, x, y, stepX, stepY) =>
 
 /**
  * Computes mobility score for a pion.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} color - PieceColor
  * @returns {number}
@@ -186,7 +186,7 @@ const pionMobility = (board, pos, color) => {
 
 /**
  * Counts empty squares along a ray for dame mobility.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {number} x
  * @param {number} y
  * @param {number} dx
@@ -200,7 +200,7 @@ const dameRayCount = (board, x, y, dx, dy) =>
 
 /**
  * Computes mobility score for a dame.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @returns {number}
  */
@@ -215,7 +215,7 @@ const dameMobility = (board, pos) =>
 
 /**
  * Checks if a dame has any available capture.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} color - PieceColor of the reference side
  * @returns {boolean}
@@ -233,7 +233,7 @@ const dameHasCapture = (board, pos, color) =>
 
 /**
  * Checks if a pion has any available capture.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} color - PieceColor of the reference side
  * @returns {boolean}
@@ -254,7 +254,7 @@ const pionHasCapture = (board, pos, color) =>
 
 /**
  * Checks if a piece has any available capture.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} color - PieceColor
  * @param {boolean} isDame
@@ -265,7 +265,7 @@ const pieceHasCapture = (board, pos, color, isDame) =>
 
 /**
  * Checks if a color has any mandatory captures.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {number} color - PieceColor
  * @returns {boolean}
  */
@@ -277,7 +277,7 @@ const hasMandatoryCapture = (board, color, pieces) =>
 /**
  * Computes mobility sum for a side.
  * @param {Map<Position, import('./piece.mjs').PieceInfo>} pieces
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {number} color - PieceColor
  * @returns {number}
  */
@@ -295,7 +295,7 @@ const sideMobility = (pieces, board, color) =>
 
 /**
  * Computes relative mobility score.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {number} [sideToMove] - PieceColor
  * @returns {number}
  */
@@ -327,7 +327,7 @@ const oppositeColor = (color) => (color === PieceColor.WHITE ? PieceColor.BLACK 
 
 /**
  * Scans the maximum/minimum enemy pion row limit.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {number} color - PieceColor
  * @returns {number}
  */
@@ -351,11 +351,11 @@ const isPassedPion = (pos, color, enemyPionRowLimit) =>
     color === PieceColor.WHITE ? pos.y > enemyPionRowLimit : pos.y < enemyPionRowLimit;
 
 /**
- * BFS over forward-diagonal empty squares (see core/board.mjs's promotion
+ * BFS over forward-diagonal empty squares (see core/Board.mjs's promotion
  * rows), using a BFS/flood-fill in the forward direction up to the
  * promotion row — a static reachability estimate over the current board
  * snapshot, not a real multi-ply move simulation.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} color - PieceColor
  * @returns {boolean}
@@ -402,7 +402,7 @@ const proximityBonus = (pos, color) => {
 
 /**
  * Checks if a pion is currently threatened with capture by a dame.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} color - PieceColor
  * @returns {boolean}
@@ -427,7 +427,7 @@ const isCapturableByDame = (board, pos, color) =>
 
 /**
  * Computes breakthrough promotion score.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {number} [sideToMove] - PieceColor
  * @returns {number}
  */
@@ -478,7 +478,7 @@ const { ISOLATED_PENALTY, BLOCKED_CAPTURE_PER_SIDE, BLOCKED_CAPTURE_CAP } = prof
  * The opponent piece that could capture the pion at `pos` by jumping in
  * direction (dx, dy) — i.e. from `pos - (dx,dy)`, landing at `pos + (dx,dy)`
  * — if that landing square were empty, or null if no such attacker exists.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} dx
  * @param {number} dy
@@ -504,7 +504,7 @@ const findCaptureAttacker = (board, pos, dx, dy, color) => {
 
 /**
  * Computes support bonus if a capture path is blocked by a friendly piece.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} color - PieceColor
  * @returns {number}
@@ -531,7 +531,7 @@ const blockedCaptureBonus = (board, pos, color) =>
 
 /**
  * Checks if a pion has a friendly diagonal neighbor.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} color - PieceColor
  * @returns {boolean}
@@ -549,7 +549,7 @@ const hasFriendlyDiagonalNeighbor = (board, pos, color) =>
 
 /**
  * Checks if a pion is isolated.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {Position} pos
  * @param {number} color - PieceColor
  * @param {number} enemyPionRowLimit
@@ -560,7 +560,7 @@ const isIsolated = (board, pos, color, enemyPionRowLimit) =>
 
 /**
  * Computes structural (isolated/support) score delta.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @returns {number}
  */
 const structureScore = (board, piecesByColor) =>
@@ -594,7 +594,7 @@ const IMMEDIATE_DRAW_MAX_PIECE_DIFF = 1;
 
 /**
  * Counts pions and dames for a side.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {number} color - PieceColor
  * @returns {{pions: number, dames: number}}
  */
@@ -612,12 +612,12 @@ const countPionsAndDames = (pieces) => {
  * True if `board` is an immediate draw per Thai checkers draw rules.
  * Reuses the same direct-scan hasMandatoryCapture Mobility/Breakthrough rely
  * on (not full move generation), so this stays cheap enough to call at every
- * search node — see core/analyzer.mjs's #negamax/#quiescence,
+ * search node — see core/Analyzer.mjs's #negamax/#quiescence,
  * which both score an immediate draw as a loss for
  * sideToMove (same -MATE_SCORE + plyFromRoot convention as having no legal
  * moves at all), rather than the neutral score a genuine mutual draw would
  * otherwise get.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {number} sideToMove PieceColor of the side to move.
  * @returns {boolean}
  */
@@ -644,7 +644,7 @@ export const isImmediateDraw = (board, sideToMove) => {
 /**
  * Statically evaluate a board position. Positive is good for WHITE, negative
  * is good for BLACK. Material + PST + Mobility + Breakthrough + Structure.
- * @param {import('./board.mjs').Board} board
+ * @param {import('./Board.mjs').Board} board
  * @param {object} [context] Reserved for heuristics added in later phases.
  * @param {number} [context.sideToMove] PieceColor of the side to move. Gates
  *   Mobility and Breakthrough (both skipped entirely if omitted) — see
@@ -668,7 +668,7 @@ export const evaluateBoard = (board, context = {}) => {
 
 /**
  * Statically evaluate a game's current position. Positive is good for WHITE.
- * @param {import('./game.mjs').Game} game
+ * @param {import('./Game.mjs').Game} game
  * @param {object} [options] Forwarded to evaluateBoard, with sideToMove filled
  *   in from the game unless the caller overrides it.
  * @returns {number}

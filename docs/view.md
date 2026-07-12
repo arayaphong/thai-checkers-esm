@@ -32,11 +32,11 @@ Controller event -> binder -> state mapper -> GameView -> renderers
 
 ## Core modules
 
-- `GameViewBinder.mjs` owns controller subscriptions, setup navigation state, AI-thinking state, and stale async-operation guards.
-- `GameViewStateFactory.mjs` converts controller/model data into DOM-free display state.
-- `GameView.mjs` coordinates rendering and the lift, slide, land, and captured-piece fade sequence.
-- `GameViewAnimationLifecycle.mjs` owns the active animation promise, cancellation signal, and generation guard.
-- `HtmlGameViewFactory.mjs` builds the HTML implementation and preserves the required ordering between view bookkeeping and synchronous controller events.
+- `gameViewBinder.mjs` owns controller subscriptions, setup navigation state, AI-thinking state, and stale async-operation guards.
+- `gameViewStateFactory.mjs` converts controller/model data into DOM-free display state.
+- `gameView.mjs` coordinates rendering and the lift, slide, land, and captured-piece fade sequence.
+- `gameViewAnimationLifecycle.mjs` owns the active animation promise, cancellation signal, and generation guard.
+- `htmlGameViewFactory.mjs` builds the HTML implementation and preserves the required ordering between view bookkeeping and synchronous controller events.
 
 The animation lifecycle remains separate because a boolean is insufficient: cancelling one animation must not allow its late completion to clear a newer animation.
 
@@ -44,12 +44,12 @@ The animation lifecycle remains separate because a boolean is insufficient: canc
 
 Only `view/html/**` accesses the DOM or CSS implementation details.
 
-- `HtmlBoardSurface.mjs` builds and incrementally updates squares, pieces, and move hints.
-- `HtmlMotionSurface.mjs` implements the semantic animation methods consumed by `GameView` and resolves them from browser animation completion.
-- `HtmlStatusSurface.mjs` builds and updates turn, count, thinking, and result displays.
-- `HtmlControlPanelSurface.mjs` builds the setup controls and owns game-area dimming while setup is expanded.
-- `HtmlElementRegistry.mjs` shares landmark and square elements between board and motion rendering.
-- `HtmlUiEventSource.mjs` uses one delegated click listener and emits model-coordinate commands.
+- `htmlBoardSurface.mjs` builds and incrementally updates squares, pieces, and move hints.
+- `htmlMotionSurface.mjs` implements the semantic animation methods consumed by `GameView` and resolves them from browser animation completion.
+- `htmlStatusSurface.mjs` builds and updates turn, count, thinking, and result displays.
+- `htmlControlPanelSurface.mjs` builds the setup controls and owns game-area dimming while setup is expanded.
+- `htmlElementRegistry.mjs` shares landmark and square elements between board and motion rendering.
+- `htmlUiEventSource.mjs` uses one delegated click listener and emits model-coordinate commands.
 
 Style maps and templates are data/helpers rather than architectural layers.
 
@@ -65,7 +65,7 @@ The event source emits plain objects; it does not build actor/action/intent wrap
 { type: 'startGame' }
 ```
 
-`UiCommandDispatcher.mjs` maps controller commands and view-only setup navigation.
+`uiCommandDispatcher.mjs` maps controller commands and view-only setup navigation.
 
 For start and restart commands, the binder must update its flags before dispatch. `GameController.reset()` emits `stateChanged` synchronously, so reversing that order renders stale setup state.
 

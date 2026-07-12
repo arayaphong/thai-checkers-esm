@@ -1,5 +1,5 @@
 // Shared direction vectors and small helpers used by both move generation
-// (core/explorer.mjs) and static evaluation (core/evaluation.mjs).
+// (core/Explorer.mjs) and static evaluation (core/evaluation.mjs).
 import { PieceColor } from './piece.mjs';
 
 /**
@@ -52,8 +52,8 @@ export const promotionRow = (color) => (color === PieceColor.WHITE ? 7 : 0);
 
 /**
  * True when `pos` is occupied by an opponent piece of `color`.
- * @param {import('./board.mjs').Board} board
- * @param {import('./position.mjs').Position} pos
+ * @param {import('./Board.mjs').Board} board
+ * @param {import('./Position.mjs').Position} pos
  * @param {number} color PieceColor of the reference side
  * @returns {boolean}
  */

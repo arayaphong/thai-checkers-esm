@@ -5,11 +5,11 @@ main thread stays responsive during search.
 
 ## Files
 
-- `worker/GameDriverWorker.mjs` — the worker script. Loaded as a module Web
+- `worker/gameDriverWorker.mjs` — the worker script. Loaded as a module Web
   Worker in the browser and as a `worker_threads` Worker in Node.
 - `controller/WorkerGameDriver.mjs` — the main-thread proxy that spawns the
   worker, posts requests, and resolves promises.
-- `controller/AiMoveChannel.mjs` — the boundary used by `GameController`; it
+- `controller/aiMoveChannel.mjs` — the boundary used by `GameController`; it
   builds a scratch driver session, asks `WorkerGameDriver` to analyze it, and
   returns a plain choice DTO.
 

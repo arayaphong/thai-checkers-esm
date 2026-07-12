@@ -1,5 +1,5 @@
-import { createGameController } from './controller/GameController.mjs';
-import { createHtmlGameView } from './view/html/HtmlGameViewFactory.mjs';
+import { createGameController } from './controller/gameController.mjs';
+import { createHtmlGameView } from './view/html/htmlGameViewFactory.mjs';
 
 // ============================================
 // Entry Point - Pure ESM, no React
