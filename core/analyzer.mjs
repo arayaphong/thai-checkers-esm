@@ -125,8 +125,11 @@ export class Analyzer {
         // analyze()'s doc comment on why the core engine is left alone), but
         // the search should never treat reaching this dead end as acceptable
         // as an actual win, so it's penalized identically to having no moves.
+        // An immediate draw is now scored as a neutral value (0) rather than a loss.
+        // This makes draws higher than losses (which are -MATE_SCORE) but lower than
+        // winning scores, satisfying win > draw > lose.
         if (isImmediateDraw(board, player)) {
-            return -MATE_SCORE + plyFromRoot;
+            return 0;
         }
 
         if (depth === 0) {
@@ -176,8 +179,9 @@ export class Analyzer {
         const player = game.player();
 
         if (!hasMandatoryCapture) {
+            // Immediate draws are neutral (0) rather than loss scores.
             if (isImmediateDraw(board, player)) {
-                return -MATE_SCORE + plyFromRoot; // Immediate draw scores as a loss; see #negamax.
+                return 0; // See comment above for draw scoring rationale.
             }
             return color * evaluatePosition(game);
         }

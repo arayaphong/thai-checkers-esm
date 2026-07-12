@@ -3,15 +3,18 @@
 import { PieceColor, PieceType } from './piece.mjs';
 import { Position } from './position.mjs';
 import { pionForwardDirs, promotionRow, isOpponentPiece, DAME_DIRS } from './directions.mjs';
+// All tunable heuristic weights (piece values, PST tables, mobility,
+// breakthrough, structure) live in the evaluation profile so they can be
+// tuned or swapped without touching evaluator logic. Search sentinels
+// (MATE_SCORE) and rule-derived immediate-draw constants are not weights and
+// stay in code.
+import profile from './profiles/eval-profile-v1.json' with { type: 'json' };
 
 /**
- * Base heuristic piece values.
+ * Base heuristic piece values, loaded from the active evaluation profile.
  * @type {readonly {PION: number, DAME: number}}
  */
-export const PIECE_VALUES = Object.freeze({
-    PION: 100,
-    DAME: 350,
-});
+export const PIECE_VALUES = Object.freeze({ ...profile.PIECE_VALUES });
 
 /**
  * MATE_SCORE must stay far above any possible heuristic score sum so a forced
@@ -42,19 +45,19 @@ const pieceValue = (type) => (type === PieceType.DAME ? PIECE_VALUES.DAME : PIEC
 // promotion row) and BLACK's table is the same values with the row mirrored
 // (y -> 7-y), using symmetry where Black's table is mirrored from White's.
 //
-// Pion: realized range here is -12 to +19 (the target was ≈ -15 to +20 as
-// starting values for tuning, not final).
+// Pion: realized range with the v1 profile is -12 to +19 (the target was
+// ≈ -15 to +20 as starting values for tuning, not final).
 // Note: Due to direct pos.y indexing, the values are mapped as
 // index: y = 0 (back rank) .. 7 (promotion side).
-const PION_ROW_BONUS = [12, 10, 8, 6, 4, 2, -4, 5];
-const PION_COL_BONUS = [-8, -3, 3, 7, 7, 3, -3, -8]; // index: x = 0 (A-file) .. 7 (H-file)
+const PION_ROW_BONUS = profile.PION_ROW_BONUS;
+const PION_COL_BONUS = profile.PION_COL_BONUS; // index: x = 0 (A-file) .. 7 (H-file)
 
 // Dame: quite flat — Thai dames are flying kings, equally strong from most
 // squares — with only a small, board-symmetric center bonus / edge-corner
 // penalty. The same array serves as both the row and column bonus since the
-// desired shape is symmetric in both dimensions. Realized range is exactly
-// -6 to +8.
-const DAME_LINE_BONUS = [-3, -1, 2, 4, 4, 2, -1, -3]; // index: rank/file position 0..7
+// desired shape is symmetric in both dimensions. Realized range with the v1
+// profile is exactly -6 to +8.
+const DAME_LINE_BONUS = profile.DAME_LINE_BONUS; // index: rank/file position 0..7
 
 /**
  * Builds Piece-Square Table (PST) array.
@@ -141,9 +144,7 @@ const sideScore = (pieces, color) =>
 // core/explorer.mjs uses for real move generation, but only counts squares
 // instead of allocating move/Legals objects.
 
-const PION_MOBILITY_PER_SQUARE = 2;
-const DAME_MOBILITY_PER_SQUARE = 1;
-const DAME_MOBILITY_CAP = 6;
+const { PION_MOBILITY_PER_SQUARE, DAME_MOBILITY_PER_SQUARE, DAME_MOBILITY_CAP } = profile;
 
 /**
  * Recursive ray-walker: returns the first occupied Position along (x,y) →
@@ -309,10 +310,13 @@ const mobilityScore = (board, sideToMove, piecesByColor) =>
 // AND (when it's actually the opponent's turn) isn't sitting in an immediate
 // capture. Passing those two gates always earns the base bonus; a genuinely
 // open (unblocked) path to promotion adds the path + proximity bonus on top.
-const BREAKTHROUGH_BASE = 40;
-const BREAKTHROUGH_OPEN_PATH = 20;
-const BREAKTHROUGH_PROXIMITY_MIN = 10;
-const BREAKTHROUGH_PROXIMITY_MAX = 30;
+const {
+    BREAKTHROUGH_BASE,
+    BREAKTHROUGH_OPEN_PATH,
+    BREAKTHROUGH_PROXIMITY_MIN,
+    BREAKTHROUGH_PROXIMITY_MAX,
+    BREAKTHROUGH_PROXIMITY_DECAY_PER_ROW,
+} = profile;
 
 /**
  * Helper to get the opposite color.
@@ -382,14 +386,18 @@ const hasOpenPathToPromotion = (board, pos, color) => {
 };
 
 /**
- * Distance-to-promotion proximity bonus, clamped to a +10..+30 target.
+ * Distance-to-promotion proximity bonus, clamped to a +10..+30 target with
+ * the v1 profile.
  * @param {Position} pos
  * @param {number} color - PieceColor
  * @returns {number}
  */
 const proximityBonus = (pos, color) => {
     const distance = color === PieceColor.WHITE ? 7 - pos.y : pos.y;
-    return Math.max(BREAKTHROUGH_PROXIMITY_MIN, BREAKTHROUGH_PROXIMITY_MAX - distance * 3);
+    return Math.max(
+        BREAKTHROUGH_PROXIMITY_MIN,
+        BREAKTHROUGH_PROXIMITY_MAX - distance * BREAKTHROUGH_PROXIMITY_DECAY_PER_ROW,
+    );
 };
 
 /**
@@ -464,9 +472,7 @@ const breakthroughScore = (board, sideToMove, piecesByColor) =>
 // landing square" and "does a friendly piece sit diagonally adjacent" are
 // both facts about the board alone, so structureScore is never gated on
 // context.sideToMove and is always added in evaluateBoard.
-const ISOLATED_PENALTY = 8;
-const BLOCKED_CAPTURE_PER_SIDE = 4;
-const BLOCKED_CAPTURE_CAP = 8;
+const { ISOLATED_PENALTY, BLOCKED_CAPTURE_PER_SIDE, BLOCKED_CAPTURE_CAP } = profile;
 
 /**
  * The opponent piece that could capture the pion at `pos` by jumping in
