@@ -45,12 +45,8 @@ const createFakeStateFactory = () => ({
     board: controller.state.board,
     status: controller.state.status,
     controlPanel: { collapsed: flags.gameStarted },
-    screen: flags.gameStarted ? 'playing' : 'setup',
   }),
-  createBoardState: (controller, flags) => ({
-    ...controller.state.board,
-    flags,
-  }),
+  createBoardState: (controller) => controller.state.board,
   createStatusState: (controller, flags) => ({
     ...controller.state.status,
     flags,
@@ -98,9 +94,6 @@ const createFakeGameView = () => {
       calls.push({ name: 'waitForPaint' });
       return Promise.resolve();
     },
-    showSetupScreen: () => calls.push({ name: 'showSetupScreen' }),
-    showPlayingScreen: () => calls.push({ name: 'showPlayingScreen' }),
-    showGameOverScreen: () => calls.push({ name: 'showGameOverScreen' }),
     resolveMove: () => {
       if (pendingResolve) pendingResolve();
     },
@@ -155,6 +148,7 @@ describe('GameViewBinder move rendering', () => {
       'thinking status is rendered before the paint boundary',
     );
     assert.equal(gameView.calls.at(-2).status.flags.isAIThinking, true);
+    assert.equal('isAnimating' in gameView.calls.at(-2).status.flags, false);
   });
 
   test('post-move status is deferred until showMoveMade() resolves', async () => {
@@ -291,12 +285,16 @@ describe('GameViewBinder move rendering', () => {
     // waiting for the animation/quiescence boundary.
     controller.state = { board: { label: 'reset' }, status: { turn: 'black' } };
     controller.emit('stateChanged', { action: 'newGame' });
+    const refreshCountBeforeCompletion = gameView.calls.filter((c) => c.name === 'refresh').length;
 
     animationResolve();
     await expansion;
 
-    const setupCalls = gameView.calls.filter((c) => c.name === 'showSetupScreen');
-    assert.equal(setupCalls.length, 0, 'stale expansion did not repaint setup');
+    assert.equal(
+      gameView.calls.filter((c) => c.name === 'refresh').length,
+      refreshCountBeforeCompletion,
+      'stale expansion did not repaint setup',
+    );
     assert.equal(binder.isGameStarted(), true, 'stale expansion did not flip gameStarted');
   });
 });

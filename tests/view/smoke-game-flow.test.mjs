@@ -7,6 +7,7 @@ import { createGameState } from '../../model/GameState.mjs';
 import { MoveEngine } from '../../model/MoveEngine.mjs';
 import { DEFAULT_CONFIG } from '../../model/Types.mjs';
 import { createGameViewBinder } from '../../view/GameViewBinder.mjs';
+import { createHtmlGameView } from '../../view/html/HtmlGameViewFactory.mjs';
 import {
   createFromController,
   createBoardState,
@@ -48,6 +49,7 @@ const createGameFlowSmokeSteps = () => {
         assert.ok(assetPaths.includes('view/css/tailwind.css'));
         assert.ok(assetPaths.includes('view/css/game.css'));
         assert.ok(assetPaths.includes('main.mjs'));
+        assert.equal(typeof createHtmlGameView, 'function');
 
         for (const assetPath of assetPaths) {
           await access(path.join(process.cwd(), assetPath));
@@ -61,13 +63,14 @@ const createGameFlowSmokeSteps = () => {
         const viewState = createFromController(controller, {
           gameStarted: false,
           isAIThinking: false,
-          isAnimating: false,
         });
 
-        assert.equal(viewState.screen, 'setup');
+        assert.equal('screen' in viewState, false);
         assert.equal(viewState.controlPanel.collapsed, false);
         assert.equal(viewState.status.status, 'playing');
         assert.equal(viewState.status.turn, 'white');
+        assert.equal(viewState.status.pieceCounts.white, 8);
+        assert.equal(viewState.status.isRestartVisible, false);
       },
     },
     {
@@ -85,8 +88,6 @@ const createGameFlowSmokeSteps = () => {
           controller.updateConfig(mode);
           const controlPanel = createControlPanelState(controller, {
             gameStarted: false,
-            isAIThinking: false,
-            isAnimating: false,
           });
           assert.equal(controlPanel.gameConfig.whiteIsAI, mode.whiteIsAI);
           assert.equal(controlPanel.gameConfig.blackIsAI, mode.blackIsAI);
@@ -102,11 +103,7 @@ const createGameFlowSmokeSteps = () => {
 
         assert.equal(controller.selectPiece({ r: move.fromR, c: move.fromC }), true);
 
-        const selectedBoard = createBoardState(controller, {
-          gameStarted: true,
-          isAIThinking: false,
-          isAnimating: false,
-        });
+        const selectedBoard = createBoardState(controller);
         assert.ok(includesPos(selectedBoard.targetSquares, { r: move.toR, c: move.toC }));
 
         await controller.attemptMove({ r: move.toR, c: move.toC });
@@ -162,9 +159,7 @@ const createGameFlowSmokeSteps = () => {
         assert.equal(next.turn, 1);
 
         const statusState = createStatusState(controller, {
-          gameStarted: true,
           isAIThinking: false,
-          isAnimating: false,
         });
         const boardState = createBoardState(controller);
 
@@ -201,34 +196,26 @@ const createGameFlowSmokeSteps = () => {
         const capture = state.validMoves.find((m) => m.isCapture);
         const next = state.applyMove(capture);
         const statusState = createStatusState(fakeController(next), {
-          gameStarted: true,
           isAIThinking: false,
-          isAnimating: false,
         });
 
         assert.equal(next.status, 'white_wins');
         assert.equal(statusState.status, 'white_wins');
-        assert.equal(statusState.pieceCounts.black.total, 0);
+        assert.equal(statusState.pieceCounts.black, 0);
+        assert.equal(statusState.isRestartVisible, true);
       },
     },
     {
-      label: 'ai-thinking and animation display flags map to view state',
+      label: 'ai-thinking and game-started flags map to view state',
       run: () => {
         const controller = createGameController({ ...fullHumanConfig, blackIsAI: true });
         const aiThinking = createFromController(controller, {
           gameStarted: true,
           isAIThinking: true,
-          isAnimating: false,
-        });
-        const animating = createFromController(controller, {
-          gameStarted: true,
-          isAIThinking: false,
-          isAnimating: true,
         });
 
         assert.equal(aiThinking.status.isAIThinking, true);
-        assert.equal(animating.screen, 'animating');
-        assert.equal(animating.controlPanel.collapsed, true);
+        assert.equal(aiThinking.controlPanel.collapsed, true);
       },
     },
     {
@@ -268,16 +255,12 @@ const createGameFlowSmokeSteps = () => {
         const controller = createGameController(fullHumanConfig);
         const initialControlState = createControlPanelState(controller, {
           gameStarted: false,
-          isAIThinking: false,
-          isAnimating: false,
           isCancelable: false,
         });
         assert.equal(initialControlState.isCancelable, false);
 
         const editingControlState = createControlPanelState(controller, {
           gameStarted: false,
-          isAIThinking: false,
-          isAnimating: false,
           isCancelable: true,
         });
         assert.equal(editingControlState.isCancelable, true);
@@ -301,9 +284,6 @@ const createGameFlowSmokeSteps = () => {
           refreshBoard: () => {},
           refreshStatus: () => {},
           stopAnimation: () => {},
-          showPlayingScreen: (s) => calls.push({ type: 'playing', state: s }),
-          showSetupScreen: (s) => calls.push({ type: 'setup', state: s }),
-          showGameOverScreen: () => {},
           isAnimating: () => false,
           waitForAnimation: () => Promise.resolve(),
           waitForPaint: () => Promise.resolve(),
@@ -326,7 +306,7 @@ const createGameFlowSmokeSteps = () => {
         assert.equal(binder.isGameStarted(), false);
         assert.equal(pauseCalled, 1);
         const lastCall = calls[calls.length - 1];
-        assert.equal(lastCall.type, 'setup');
+        assert.equal(lastCall.type, 'refresh');
         assert.equal(lastCall.state.controlPanel.isCancelable, true);
 
         controller.updateConfig({ whiteIsAI: false, blackIsAI: true });
@@ -367,16 +347,10 @@ const createGameFlowSmokeSteps = () => {
         const viewState = createFromController(controller, {
           gameStarted: true,
           isAIThinking: false,
-          isAnimating: false,
         });
-        assert.equal(viewState.screen, 'playing');
         assert.equal(viewState.controlPanel.collapsed, true);
 
-        const boardState = createBoardState(controller, {
-          gameStarted: true,
-          isAIThinking: false,
-          isAnimating: false,
-        });
+        const boardState = createBoardState(controller);
 
         const whitePiece = boardState.pieces.find((p) => samePos(p.position, { r: 4, c: 4 }));
         assert.ok(whitePiece);

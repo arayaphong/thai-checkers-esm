@@ -1,9 +1,9 @@
-import { rippleInner } from '../templates/board.template.mjs';
 import { motionClassMap } from '../styles/motionClassMap.mjs';
 import { layoutClassMap } from '../styles/layoutClassMap.mjs';
 import { createPieceElement } from '../pieceElement.mjs';
 
 const h = (tag, cls) => Object.assign(document.createElement(tag), { className: cls });
+const rippleInner = `<div class="${motionClassMap.rippleInner}"></div>`;
 const SQUARE_PERCENT = 12.5;
 
 // Wait for one requestAnimationFrame, but resolve immediately (with false)
@@ -81,7 +81,7 @@ export const createMotionSurface = (registry) => {
   boardEl.append(animLayer);
 
   return {
-    slidePiece: async ({ from, to, piece }, signal) => {
+    showPieceMoving: async ({ from, to, piece }, signal) => {
       const slide = createPieceElement(piece);
       slide.classList.add(...motionClassMap.slideOverlay.split(' '));
       slide.style.cssText = `position:absolute;width:${SQUARE_PERCENT}%;height:${SQUARE_PERCENT}%;top:${from.r * SQUARE_PERCENT}%;left:${from.c * SQUARE_PERCENT}%;padding:2.5%;z-index:30;${motionClassMap.slideTransitionCss}`;
@@ -95,7 +95,7 @@ export const createMotionSurface = (registry) => {
       await waitForElementMotion(slide, signal);
     },
 
-    fadeCapturedPiece: async (position, signal) => {
+    showCapturedPieceFading: async (position, signal) => {
       const el = registry.getSquare(position);
       if (!el) return;
 
@@ -155,7 +155,7 @@ export const createMotionSurface = (registry) => {
       }
     },
 
-    clearMotionLayer: () => {
+    clearAnimationLayer: () => {
       animLayer.innerHTML = '';
     },
   };

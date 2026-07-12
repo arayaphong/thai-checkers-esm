@@ -1,4 +1,5 @@
 import { controlPanelClassMap } from '../styles/controlPanelClassMap.mjs';
+import { layoutClassMap } from '../styles/layoutClassMap.mjs';
 
 const h = (tag, cls) => Object.assign(document.createElement(tag), { className: cls });
 
@@ -12,7 +13,6 @@ const createUpdaters = ({
   difficultyLabelEl,
   difficultyRowEl,
   difficultyButtons,
-  startBtnEl,
   cancelBtnEl,
 }) => {
   const updateVisibility = ({ isCollapsed }) => {
@@ -55,11 +55,6 @@ const createUpdaters = ({
     difficultyRowEl.classList.toggle(controlPanelClassMap.hidden, !isDifficultyVisible);
   };
 
-  const updateStartButton = ({ isStartButtonVisible, isStartButtonEnabled }) => {
-    startBtnEl.classList.toggle(controlPanelClassMap.hidden, !isStartButtonVisible);
-    startBtnEl.disabled = !isStartButtonEnabled;
-  };
-
   const updateCancelButton = ({ isCancelable }) => {
     cancelBtnEl.classList.toggle(controlPanelClassMap.hidden, !isCancelable);
   };
@@ -70,7 +65,6 @@ const createUpdaters = ({
     updateModeButtons,
     updateDifficultyButtons,
     updateDifficultyVisibility,
-    updateStartButton,
     updateCancelButton,
   ];
 };
@@ -97,7 +91,6 @@ const buildCollapsed = () => {
 
   return {
     collapsedEl,
-    collapsedToggleBtnEl,
     collapsedModeTextEl,
     collapsedDifficultyWrapperEl,
     collapsedDifficultyTextEl,
@@ -142,7 +135,6 @@ const buildExpanded = () => {
     difficultyLabelEl,
     difficultyRowEl,
     difficultyButtons,
-    startBtnEl,
     cancelBtnEl,
   };
 };
@@ -163,18 +155,20 @@ const buildPanel = (panel) => {
 // ============================================
 export const createControlPanelSurface = (registry) => {
   const panel = registry.getSetupPanel();
+  const gameArea = registry.getGameArea();
   const elements = buildPanel(panel);
   const updaters = createUpdaters(elements);
+  const inactiveGameAreaClasses = layoutClassMap.gameAreaInactiveModifier.split(' ');
 
   return {
     render: (state) => {
       updaters.forEach((updater) => updater(state));
+      if (state.isCollapsed) {
+        gameArea.classList.remove(...inactiveGameAreaClasses);
+      } else {
+        gameArea.classList.add(...inactiveGameAreaClasses);
+      }
     },
-    getCollapsedToggleButton: () => elements.collapsedToggleBtnEl,
-    getCancelButton: () => elements.cancelBtnEl,
-    getModeButton: (key) => elements.modeButtons.get(key),
-    getDifficultyButton: (key) => elements.difficultyButtons.get(key),
-    getStartButton: () => elements.startBtnEl,
     buildModeButtons: (modes) => {
       elements.modeGridEl.innerHTML = '';
       elements.modeButtons.clear();

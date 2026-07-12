@@ -2,12 +2,12 @@
 // GameViewBinder — subscribes to controller events, asks
 // GameViewStateFactory to translate the resulting state, and forwards
 // semantic display instructions to GameView. Also owns the small
-// view-only flags (gameStarted, isAIThinking, isAnimating) that used
+// view-only flags (gameStarted and isAIThinking) that used
 // to live directly in the old DOM view, since the controller/model do
 // not track them.
 //
 // markGameStarted()/markSetupExpanded()/markGameStopped() are called
-// by the UI intent wiring (view/html/HtmlUiEventSource.mjs's consumer)
+// by the UI command wiring (view/html/HtmlUiEventSource.mjs's consumer)
 // for the three interactions that change these flags without
 // necessarily going through a controller event.
 // ============================================
@@ -27,11 +27,10 @@ export const createGameViewBinder = (controller, stateFactory, gameView) => {
   const currentFlags = () => ({
     gameStarted,
     isAIThinking,
-    isAnimating: gameView.isAnimating(),
     isCancelable: backupConfig !== null,
   });
   const currentViewState = () => stateFactory.createFromController(controller, currentFlags());
-  const currentBoardState = () => stateFactory.createBoardState(controller, currentFlags());
+  const currentBoardState = () => stateFactory.createBoardState(controller);
   const currentStatusState = () => stateFactory.createStatusState(controller, currentFlags());
 
   const handleMoveMade = async (evt) => {
@@ -91,7 +90,7 @@ export const createGameViewBinder = (controller, stateFactory, gameView) => {
       await gameView.waitForAnimation();
     }
     gameView.stopAnimation();
-    gameView.showGameOverScreen(currentViewState());
+    gameView.refresh(currentViewState());
   });
   controller.on('multiCapture', () => {
     gameView.refreshBoard(currentBoardState());
@@ -111,7 +110,7 @@ export const createGameViewBinder = (controller, stateFactory, gameView) => {
       navigationGeneration += 1;
       gameStarted = true;
       backupConfig = null;
-      gameView.showPlayingScreen(currentViewState());
+      gameView.refresh(currentViewState());
     },
 
     markSetupExpanded: async () => {
@@ -127,7 +126,7 @@ export const createGameViewBinder = (controller, stateFactory, gameView) => {
       backupConfig = nextBackupConfig;
       gameStarted = false;
       isAIThinking = false;
-      gameView.showSetupScreen(currentViewState());
+      gameView.refresh(currentViewState());
     },
 
     markSetupCollapsed: () => {
@@ -149,7 +148,7 @@ export const createGameViewBinder = (controller, stateFactory, gameView) => {
       isAIThinking = false;
       invalidateMoveRender();
       controller.pause();
-      gameView.showSetupScreen(currentViewState());
+      gameView.refresh(currentViewState());
     },
   };
 };

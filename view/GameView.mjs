@@ -1,7 +1,6 @@
 // ============================================
 // GameView — public facade for the whole view. Composes the board,
-// status, and control-panel semantic components (plus the layout
-// surface for the one remaining layout concern) and exposes the
+// status, control-panel, and motion renderers and exposes the
 // high-level display API the rest of the app talks to. No DOM API of
 // its own; every method delegates to a semantic component.
 //
@@ -38,29 +37,14 @@ const withoutTurnHints = (board) => ({
   captureTargets: [],
 });
 
-export const createGameView = ({
-  boardView,
-  animationView,
-  statusView,
-  controlPanelView,
-  layoutSurface,
-}) => {
+export const createGameView = ({ boardView, animationView, statusView, controlPanelView }) => {
   const animationLifecycle = createGameViewAnimationLifecycle();
 
   const applyBoardState = (board) => boardView.render(board);
   const applyStatusState = (status) => statusView.render(status);
 
-  const applyControlPanelState = (controlPanel) => {
-    controlPanelView.render(controlPanel);
-    if (controlPanel.collapsed) {
-      layoutSurface.showGameAreaActive();
-    } else {
-      layoutSurface.showGameAreaDimmed();
-    }
-  };
-
   const refresh = (viewState) => {
-    applyControlPanelState(viewState.controlPanel);
+    controlPanelView.render(viewState.controlPanel);
     applyStatusState(viewState.status);
     // Guard against clobbering the board mid-animation; unguarded again
     // once animationLifecycle.isAnimating() becomes false.
@@ -115,6 +99,11 @@ export const createGameView = ({
     }
   };
 
+  const stopAnimation = () => {
+    animationLifecycle.cancelAnimation();
+    animationView.clearAnimationLayer();
+  };
+
   return {
     refresh,
 
@@ -128,18 +117,6 @@ export const createGameView = ({
       applyStatusState(statusState);
     },
 
-    showSetupScreen: (viewState) => {
-      refresh(viewState);
-    },
-
-    showPlayingScreen: (viewState) => {
-      refresh(viewState);
-    },
-
-    showGameOverScreen: (viewState) => {
-      refresh(viewState);
-    },
-
     isAnimating: () => animationLifecycle.isAnimating(),
 
     // Resolves once whatever animation is currently in flight settles.
@@ -150,14 +127,13 @@ export const createGameView = ({
 
     waitForPaint,
 
-    showMoveMade: (moveDisplay, settledViewState) =>
-      animationLifecycle.beginAnimation((signal) =>
+    showMoveMade: (moveDisplay, settledViewState) => {
+      if (animationLifecycle.isAnimating()) stopAnimation();
+      return animationLifecycle.beginAnimation((signal) =>
         runMoveAnimation(moveDisplay, settledViewState, signal),
-      ),
-
-    stopAnimation: () => {
-      animationLifecycle.cancelAnimation();
-      animationView.clearAnimationLayer();
+      );
     },
+
+    stopAnimation,
   };
 };

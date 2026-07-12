@@ -1,9 +1,13 @@
-import { coordLabel, moveDot } from '../templates/board.template.mjs';
 import { boardClassMap } from '../styles/boardClassMap.mjs';
 import { layoutClassMap } from '../styles/layoutClassMap.mjs';
 import { createPieceElement } from '../pieceElement.mjs';
 
 const h = (tag, cls) => Object.assign(document.createElement(tag), { className: cls });
+const coordLabel = (text, isDark) =>
+  `<span class="${isDark ? boardClassMap.coordLabelOnDark : boardClassMap.coordLabelOnLight}">${text}</span>`;
+const moveDot = (color) =>
+  `<div class="${boardClassMap.dotBase}"><div class="${boardClassMap.dotInnerBase} ${color}"></div></div>`;
+const BOARD_SIZE = 8;
 const key = (position) => `${position.r},${position.c}`;
 const fromKey = (k) => {
   const [r, c] = k.split(',').map(Number);
@@ -28,16 +32,14 @@ const createSquareState = () => ({
 // ============================================
 export const createBoardSurface = (registry) => {
   const state = new Map();
+  const boardEl = registry.getBoard();
+  if (!boardEl) {
+    throw new Error('HtmlBoardSurface: #board not found in DOM');
+  }
 
-  const stateFor = (position) => {
-    const k = key(position);
-    let s = state.get(k);
-    if (!s) {
-      s = createSquareState();
-      state.set(k, s);
-    }
-    return s;
-  };
+  [...boardEl.children].forEach((child) => {
+    if (child.dataset.uiRole !== layoutClassMap.animLayerUiRole) child.remove();
+  });
 
   const renderPiece = (position, pieceState) => {
     const signature = pieceState.piece
@@ -73,37 +75,26 @@ export const createBoardSurface = (registry) => {
     el.insertAdjacentHTML('beforeend', moveDot(color));
   };
 
-  return {
-    createBoard: () => {
-      const boardEl = registry.getBoard();
-      if (!boardEl) {
-        throw new Error('HtmlBoardSurface: #board not found in DOM');
-      }
-      [...boardEl.children].forEach((child) => {
-        if (child.dataset.uiRole !== layoutClassMap.animLayerUiRole) child.remove();
-      });
-      state.clear();
-    },
-    createSquare: (position, squareDisplay) => {
-      const boardEl = registry.getBoard();
-      const { r, c } = position;
-      const el = h(
-        'div',
-        squareDisplay.isDark ? boardClassMap.squareDark : boardClassMap.squareLight,
-      );
+  for (let r = 0; r < BOARD_SIZE; r += 1) {
+    for (let c = 0; c < BOARD_SIZE; c += 1) {
+      const position = { r, c };
+      // Model rows run top-to-bottom while core ranks run bottom-to-top.
+      // The 32 playable (dark) squares have even row+column parity.
+      const isDark = (r + c) % 2 === 0;
+      const el = h('div', isDark ? boardClassMap.squareDark : boardClassMap.squareLight);
       el.dataset.row = String(r);
       el.dataset.col = String(c);
-      if (c === 0) el.insertAdjacentHTML('beforeend', coordLabel(8 - r, squareDisplay.isDark));
-      if (r === 7)
-        el.insertAdjacentHTML(
-          'beforeend',
-          coordLabel(String.fromCharCode(65 + c), squareDisplay.isDark),
-        );
+      if (c === 0) el.insertAdjacentHTML('beforeend', coordLabel(8 - r, isDark));
+      if (r === 7) {
+        el.insertAdjacentHTML('beforeend', coordLabel(String.fromCharCode(65 + c), isDark));
+      }
       boardEl.append(el);
       registry.registerSquare(position, el);
       state.set(key(position), createSquareState());
-      return el;
-    },
+    }
+  }
+
+  return {
     render: (boardRenderState) => {
       const {
         pieces,
@@ -122,7 +113,7 @@ export const createBoardSurface = (registry) => {
       // Iterate all squares, calculate desired state, and render
       [...state.keys()].forEach((k) => {
         const pos = fromKey(k);
-        const squareCache = stateFor(pos);
+        const squareCache = state.get(k);
 
         const pieceOnSquare = pieceMap.get(k) || null;
         const isSelected =

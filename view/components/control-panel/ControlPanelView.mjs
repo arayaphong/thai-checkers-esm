@@ -1,4 +1,4 @@
-const MODE_OPTIONS = Object.freeze([
+export const MODE_OPTIONS = Object.freeze([
   { key: 'pvp', label: '⚪ ผู้เล่น vs ⚫ ผู้เล่น', whiteIsAI: false, blackIsAI: false },
   { key: 'pve', label: '⚪ ผู้เล่น vs ⚫ AI', whiteIsAI: false, blackIsAI: true },
   { key: 'evp', label: '⚪ AI vs ⚫ ผู้เล่น', whiteIsAI: true, blackIsAI: false },
@@ -16,9 +16,6 @@ export const createControlPanelView = (controlPanelSurface) => {
   controlPanelSurface.buildDifficultyButtons(DIFFICULTY_OPTIONS);
 
   return {
-    modeOptions: MODE_OPTIONS,
-    difficultyOptions: DIFFICULTY_OPTIONS,
-
     render: (state) => {
       const { collapsed, gameConfig, isCancelable } = state;
       const { whiteIsAI, blackIsAI, aiDifficulty } = gameConfig;
@@ -41,8 +38,6 @@ export const createControlPanelView = (controlPanelSurface) => {
         selectedMode,
         selectedDifficulty: aiDifficulty,
         isDifficultyVisible: anyAI,
-        isStartButtonVisible: !collapsed,
-        isStartButtonEnabled: true,
         isCancelable: !!isCancelable,
       });
     },

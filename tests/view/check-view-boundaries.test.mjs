@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const semanticTargets = [
   'view/components',
-  'view/intent',
+  'view/UiCommandDispatcher.mjs',
   'view/GameView.mjs',
   'view/GameViewBinder.mjs',
   'view/GameViewStateFactory.mjs',

@@ -156,9 +156,8 @@ const createUpdaters = ({
     blackCountEl.textContent = String(pieceCounts.black);
   };
 
-  const updateResetButton = ({ isRestartVisible, isRestartEnabled }) => {
+  const updateResetButton = ({ isRestartVisible }) => {
     resetBtnEl.classList.toggle(statusClassMap.hidden, !isRestartVisible);
-    resetBtnEl.disabled = !isRestartEnabled;
   };
 
   const updateMessageArea = ({ turn, status, isAIThinking }) => {
@@ -212,6 +211,5 @@ export const createStatusSurface = (registry) => {
     render: (state) => {
       updaters.forEach((update) => update(state));
     },
-    getResetButton: () => elements.resetBtnEl,
   };
 };

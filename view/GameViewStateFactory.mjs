@@ -1,7 +1,7 @@
 // ============================================
 // GameViewStateFactory — translates controller/model state (plus a
-// few view-only flags GameViewBinder owns: gameStarted, isAIThinking,
-// isAnimating) into plain display-state data. No DOM, no game rules
+// few view-only flags GameViewBinder owns: gameStarted and isAIThinking)
+// into plain display-state data. No DOM, no game rules
 // beyond reading what the model already computed (validMoves,
 // mustMovePiece, status).
 // ============================================
@@ -42,14 +42,6 @@ export const toPieceDisplays = (board) =>
       ];
     }),
   );
-
-const createScreenState = (controller, { gameStarted, isAnimating }) => {
-  const { status } = controller.state;
-  if (status !== 'playing') return 'gameover';
-  if (isAnimating) return 'animating';
-  if (gameStarted) return 'playing';
-  return 'setup';
-};
 
 /**
  * Find all positions containing pieces that are allowed to make a valid move.
@@ -150,7 +142,11 @@ export const createStatusState = (controller, flags) => {
     mustMovePiece: state.mustMovePiece,
     isAIThinking: flags.isAIThinking,
     gameConfig: { ...state.config },
-    pieceCounts: { ...state.pieceCounts },
+    pieceCounts: {
+      white: state.pieceCounts.white.total,
+      black: state.pieceCounts.black.total,
+    },
+    isRestartVisible: state.status !== 'playing',
   };
 };
 
@@ -158,13 +154,12 @@ export const createControlPanelState = (controller, flags) => {
   const { state } = controller;
   return {
     gameConfig: { ...state.config },
-    collapsed: flags.gameStarted && createScreenState(controller, flags) !== 'setup',
+    collapsed: flags.gameStarted,
     isCancelable: !!flags.isCancelable,
   };
 };
 
 export const createFromController = (controller, flags) => ({
-  screen: createScreenState(controller, flags),
   board: createBoardState(controller),
   status: createStatusState(controller, flags),
   controlPanel: createControlPanelState(controller, flags),

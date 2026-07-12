@@ -2,7 +2,7 @@
 
 A browser-based Thai Checkers game built with **pure ES2025 modules** — no framework, no bundler, no build step. Serve the project directory with any static HTTP server and play.
 
-**Version:** 0.0.1
+**App version:** 0.0.1 (`package.json` version: 1.0.0)
 
 ---
 
@@ -79,21 +79,23 @@ view/
     tailwind-input.css     Tailwind CLI input
     tailwind.css           Generated Tailwind stylesheet
   icons/                         SVG source files (crown, bot, restart, info)
-  components/                    Semantic board/status/control-panel views
-  intent/                        Actor/action/intent flow for user interaction
+  components/                    Control-panel presentation logic
+  UiCommandDispatcher.mjs       Plain UI-command dispatcher
   html/                          DOM surfaces, templates, element registry, CSS maps
-    templates/             Main layout and board HTML fragments
+    templates/             Main layout HTML fragment
     surfaces/              HTML implementations behind semantic view methods
     styles/                Real CSS class mappings owned by the HTML layer
 tests/
-  check-view-boundaries.test.mjs  Jest test for semantic view boundaries
-  smoke-game-flow.test.mjs        Jest tests for game-flow smoke coverage
+  view/check-view-boundaries.test.mjs  Semantic view boundary checks
+  view/smoke-game-flow.test.mjs        Game-flow smoke coverage
 jest.config.mjs                   Jest config for ESM .mjs tests
 ```
 
 ---
 
 ## Architecture
+
+See [the concise view architecture](docs/view.md) for the browser UI flow and boundaries.
 
 ```
 ┌────────────────────┐   events   ┌────────────────┐
@@ -119,20 +121,20 @@ jest.config.mjs                   Jest config for ESM .mjs tests
   `gameOver`, `aiThinking`, …). AI analysis is offloaded to a Web Worker via
   `WorkerGameDriver` / `AiMoveChannel` so the UI remains responsive during
   search.
-- **Semantic view** — uses user-facing methods like `hintTargetSquares()` and `showAiThinking()`, with no DOM API, selectors, datasets, or CSS class names
+- **Semantic view** — coordinates display state and move animations without DOM APIs, selectors, datasets, or CSS class names
 - **HTML adapter** — owns DOM operations, templates, event delegation, element lookup, and CSS class maps under `view/html/**`
-- **Intent flow** — converts UI events into actor/action/intent objects before dispatching controller commands
+- **UI command flow** — converts delegated clicks directly into plain `{ type, ...payload }` commands before controller dispatch
 
 Run the boundary check after view changes:
 
 ```bash
-npm run check:view-boundaries
+npm test -- --runTestsByPath tests/view/check-view-boundaries.test.mjs
 ```
 
 Run the game-flow smoke checks after behavior-affecting changes:
 
 ```bash
-npm run smoke:game-flow
+npm test -- --runTestsByPath tests/view/smoke-game-flow.test.mjs
 ```
 
 Run the full Jest suite:

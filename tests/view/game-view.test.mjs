@@ -52,7 +52,6 @@ const createFakeGameView = () => {
     animationView,
     statusView: { render: () => {} },
     controlPanelView: { render: () => {} },
-    layoutSurface: { showGameAreaActive: () => {}, showGameAreaDimmed: () => {} },
   });
   return { gameView, animationView, boardRenders };
 };
@@ -205,13 +204,13 @@ describe('createGameView animation lifecycle', () => {
   test('back-to-back moves: a stale animation resolving late does not clobber the newer one', async () => {
     const { gameView, animationView, boardRenders } = createFakeGameView();
 
-    gameView.showMoveMade(moveDisplay('A'), settledViewState('A'));
+    const doneA = gameView.showMoveMade(moveDisplay('A'), settledViewState('A'));
     assert.equal(boardRenders.at(-1).label, 'A');
 
-    // GameViewBinder always calls stopAnimation() before the next
-    // showMoveMade() -- this aborts A's in-flight effects.
-    gameView.stopAnimation();
+    // Starting B directly through the public facade aborts A and clears
+    // A's animation layer; callers do not need a separate stop first.
     const doneB = gameView.showMoveMade(moveDisplay('B'), settledViewState('B'));
+    await doneA;
     assert.equal(boardRenders.at(-1).label, 'B');
     assert.equal(gameView.isAnimating(), true, 'reflects B, not A');
 
