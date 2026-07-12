@@ -8,6 +8,7 @@ const semanticTargets = [
   'view/GameView.mjs',
   'view/GameViewBinder.mjs',
   'view/GameViewStateFactory.mjs',
+  'view/GameViewAnimationLifecycle.mjs',
 ];
 
 const forbiddenImplementationTokens = [

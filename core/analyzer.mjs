@@ -1,11 +1,7 @@
 // Deep-first search analysis for Thai Checkers
 import { PieceColor } from './piece.mjs';
 import { Game } from './game.mjs';
-import {
-    evaluatePosition,
-    isImmediateDraw,
-    MATE_SCORE,
-} from './evaluation.mjs';
+import { evaluatePosition, isImmediateDraw, MATE_SCORE } from './evaluation.mjs';
 import { orderMoveIndices } from './moves/move-order.mjs';
 
 /**
@@ -41,8 +37,8 @@ export class Analyzer {
         this.#game = game;
     }
 
-    /** 
-     * Number of #negamax and #quiescence invocations during the most recent analyze() call. 
+    /**
+     * Number of #negamax and #quiescence invocations during the most recent analyze() call.
      * @type {number}
      */
     get nodeCount() {

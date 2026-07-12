@@ -10,12 +10,33 @@
 // per effect) -- it just waits for whatever the animation view reports
 // as finished. See the design notes for the boundary this keeps.
 //
-// pendingAnimationDone is the single source of truth for "is an
-// animation currently playing." Callers (e.g. GameViewBinder) ask via
-// isAnimating/waitForAnimation() instead of keeping their own separate
-// copy of this fact -- a duplicated tracker is exactly what let a
-// stale continuation clobber a newer animation's state in practice.
+// All "is an animation currently playing" bookkeeping lives in
+// animationLifecycle (GameViewAnimationLifecycle.mjs) as a single
+// explicit record, not scattered closure variables here. Callers (e.g.
+// GameViewBinder) ask via isAnimating/waitForAnimation() instead of
+// keeping their own separate copy of this fact.
 // ============================================
+
+import { createGameViewAnimationLifecycle } from './GameViewAnimationLifecycle.mjs';
+
+// Two frames create a paint opportunity after rendering turn hints or the AI
+// thinking status and before synchronous AI work continues. The fallback
+// keeps non-browser consumers deterministic without inventing a timing delay.
+const waitForPaint = () => {
+  if (typeof globalThis.requestAnimationFrame !== 'function') return Promise.resolve();
+  return new Promise((resolve) => {
+    globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(resolve));
+  });
+};
+
+const withoutTurnHints = (board) => ({
+  ...board,
+  selectedPosition: null,
+  mandatoryCapturePosition: null,
+  moveablePositions: [],
+  targetSquares: [],
+  captureTargets: [],
+});
 
 export const createGameView = ({
   boardView,
@@ -24,8 +45,7 @@ export const createGameView = ({
   controlPanelView,
   layoutSurface,
 }) => {
-  let pendingAnimationAbort = null;
-  let pendingAnimationDone = null;
+  const animationLifecycle = createGameViewAnimationLifecycle();
 
   const applyBoardState = (board) => boardView.render(board);
   const applyStatusState = (status) => statusView.render(status);
@@ -42,118 +62,101 @@ export const createGameView = ({
   const refresh = (viewState) => {
     applyControlPanelState(viewState.controlPanel);
     applyStatusState(viewState.status);
-    // Guard against clearing a newer animation's abort controller
-    // when a new animation starts while one is still pending.
-    if (!pendingAnimationAbort) {
+    // Guard against clobbering the board mid-animation; unguarded again
+    // once animationLifecycle.isAnimating() becomes false.
+    if (!animationLifecycle.isAnimating()) {
       applyBoardState(viewState.board);
     }
   };
 
-  const performMoveAnimation = async (moveDisplay, settledViewState) => {
+  // Pure animation sequencing -- signal is supplied by
+  // animationLifecycle.beginAnimation(), which owns all "is an
+  // animation currently playing" bookkeeping.
+  const runMoveAnimation = async (moveDisplay, settledViewState, signal) => {
     const { from, to, piece, victimPosition, victimDisplay } = moveDisplay;
+    const victimEntry = victimPosition ? [{ position: victimPosition, ...victimDisplay }] : [];
+    const originEntry = [{ position: from, ...piece }];
+    const animationBoard = withoutTurnHints(settledViewState.board);
+    const basePieces = settledViewState.board.pieces.filter(
+      (p) => !(p.position.r === to.r && p.position.c === to.c),
+    );
+    const renderPieces = (pieces) => applyBoardState({ ...animationBoard, pieces });
 
-    // Render the board as it looks while the piece is in flight: the
-    // destination square is empty so the sliding clone is the only piece
-    // visible during the animation. The source and jumped squares are
-    // already empty in the settled state.
-    const preAnimationBoard = {
-      ...settledViewState.board,
-      pieces: settledViewState.board.pieces.filter(
-        (p) => !(p.position.r === to.r && p.position.c === to.c),
-      ),
-    };
-    applyBoardState(preAnimationBoard);
+    try {
+      // 1. Lift: keep the real origin piece visible under the ripple.
+      renderPieces(basePieces.concat(originEntry, victimEntry));
+      await animationView.showMoveRipple(from, signal);
+      if (signal.aborted) return;
 
-    // Ripple, slide, and capture-fade are independent effects, each with
-    // its own duration owned by the motion surface. Each one reacts to
-    // this abort signal by resolving (and cleaning up its own element)
-    // immediately once stopAnimation() calls abort(), so allSettled
-    // waiting for "all of them" and "cancelled" are the same wait --
-    // no separate race needed.
-    const abortController = new AbortController();
-    pendingAnimationAbort = abortController;
-    const { signal } = abortController;
+      // 2. Slide: remove the synthesized origin and hand off to the clone.
+      renderPieces(basePieces.concat(victimEntry));
+      await animationView.showPieceMoving({ from, to, piece }, signal);
+      if (signal.aborted) return;
 
-    const animations = [
-      animationView.showMoveRipple(from, signal),
-      animationView.showPieceMoving({ from, to, piece }, signal),
-    ];
-    if (victimPosition) {
-      animations.push(animationView.showCapturedPieceFading(victimPosition, victimDisplay, signal));
+      // 3. Land: replace the clone with the real destination piece.
+      animationView.clearAnimationLayer();
+      renderPieces(settledViewState.board.pieces.concat(victimEntry));
+      await animationView.showPieceLanding(to, signal);
+      if (signal.aborted) return;
+
+      // 4. Fade-captured: the victim remains real through landing.
+      if (victimPosition) {
+        await animationView.showCapturedPieceFading(victimPosition, signal);
+        if (signal.aborted) return;
+      }
+    } finally {
+      if (!signal.aborted) {
+        try {
+          animationView.clearAnimationLayer();
+        } finally {
+          applyBoardState(settledViewState.board);
+        }
+      }
     }
-
-    await Promise.allSettled(animations);
-
-    // Only clear our own abort handle. A newer animation (e.g. the next
-    // AI move arriving before this one finished) may have already taken
-    // over pendingAnimationAbort; clearing it here would let refresh()
-    // re-render the board mid-flight and make the slide look incomplete.
-    if (pendingAnimationAbort === abortController) {
-      pendingAnimationAbort = null;
-    }
-    if (signal.aborted) return;
-
-    animationView.clearAnimationLayer();
-    applyBoardState(settledViewState.board);
-    animationView.showPieceLanding(to);
   };
 
   return {
     refresh,
 
-    refreshBoard(boardState) {
-      if (!pendingAnimationAbort) {
+    refreshBoard: (boardState) => {
+      if (!animationLifecycle.isAnimating()) {
         applyBoardState(boardState);
       }
     },
 
-    refreshStatus(statusState) {
+    refreshStatus: (statusState) => {
       applyStatusState(statusState);
     },
 
-    showSetupScreen(viewState) {
+    showSetupScreen: (viewState) => {
       refresh(viewState);
     },
 
-    showPlayingScreen(viewState) {
+    showPlayingScreen: (viewState) => {
       refresh(viewState);
     },
 
-    showGameOverScreen(viewState) {
+    showGameOverScreen: (viewState) => {
       refresh(viewState);
     },
 
-    get isAnimating() {
-      return pendingAnimationDone !== null;
-    },
+    isAnimating: () => animationLifecycle.isAnimating(),
 
     // Resolves once whatever animation is currently in flight settles.
     // Never rejects: callers sequencing a screen transition after the
     // current move (gameOver, markSetupExpanded) care about "has it
     // finished," not about an animation-layer failure.
-    waitForAnimation() {
-      return pendingAnimationDone ? pendingAnimationDone.catch(() => {}) : Promise.resolve();
-    },
+    waitForAnimation: () => animationLifecycle.waitForAnimation(),
 
-    showMoveMade(moveDisplay, settledViewState) {
-      const donePromise = performMoveAnimation(moveDisplay, settledViewState);
-      pendingAnimationDone = donePromise;
-      donePromise.finally(() => {
-        // Only clear our own handle -- a newer showMoveMade() call may
-        // have already taken over pendingAnimationDone.
-        if (pendingAnimationDone === donePromise) {
-          pendingAnimationDone = null;
-        }
-      });
-      return donePromise;
-    },
+    waitForPaint,
 
-    stopAnimation() {
-      if (pendingAnimationAbort) {
-        pendingAnimationAbort.abort();
-        pendingAnimationAbort = null;
-      }
-      pendingAnimationDone = null;
+    showMoveMade: (moveDisplay, settledViewState) =>
+      animationLifecycle.beginAnimation((signal) =>
+        runMoveAnimation(moveDisplay, settledViewState, signal),
+      ),
+
+    stopAnimation: () => {
+      animationLifecycle.cancelAnimation();
       animationView.clearAnimationLayer();
     },
   };

@@ -10,9 +10,8 @@
 export const createBoardMoveAnimationView = (surface) => {
   return {
     showPieceMoving: (moveDisplay, signal) => surface.slidePiece(moveDisplay, signal),
-    showCapturedPieceFading: (position, pieceDisplay, signal) =>
-      surface.fadeCapturedPiece(position, pieceDisplay, signal),
-    showPieceLanding: (position) => surface.showPieceLanding(position),
+    showCapturedPieceFading: (position, signal) => surface.fadeCapturedPiece(position, signal),
+    showPieceLanding: (position, signal) => surface.showPieceLanding(position, signal),
     showMoveRipple: (position, signal) => surface.showMoveRipple(position, signal),
     clearAnimationLayer: () => surface.clearMotionLayer(),
   };

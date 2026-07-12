@@ -9,7 +9,7 @@ const LOW_16_BITS = 0xffff;
 const LOW_32_BITS = 0xffff_ffffn;
 const HOME_ROWS = Object.freeze([0, 1, 6, 7]);
 
-/** 
+/**
  * 1 << idx as unsigned 32-bit integer (idx must be an integer 0..31).
  * Guards explicitly because JS `<<` silently masks the shift count to 5 bits,
  * which would otherwise turn an out-of-range index into a wrong-bit result.
@@ -131,7 +131,7 @@ export class Board {
         Object.freeze(this);
     }
 
-    /** 
+    /**
      * Build from bitboards already known to satisfy the invariants (produced by
      * transforming an existing valid Board), bypassing revalidation.
      * @param {number} occBits
@@ -186,7 +186,9 @@ export class Board {
             (acc, [position, info]) => {
                 const key = toPieceKey(position);
                 if (seen.has(key)) {
-                    throw new Error(`Duplicate piece position: ${Position.fromIndex(key).toString()}`);
+                    throw new Error(
+                        `Duplicate piece position: ${Position.fromIndex(key).toString()}`,
+                    );
                 }
                 seen.add(key);
                 assertPieceInfo(info);
@@ -229,14 +231,19 @@ export class Board {
         assertValidPieceCount(popCount32(occBits));
         const low32 = Number(encoded & LOW_32_BITS) >>> 0;
 
-        const occupiedIndices = Array.from({ length: BOARD_SQUARES }, (_, i) => i)
-            .filter((i) => (occBits & bit(i)) !== 0);
+        const occupiedIndices = Array.from({ length: BOARD_SQUARES }, (_, i) => i).filter(
+            (i) => (occBits & bit(i)) !== 0,
+        );
 
         const { blackBits, dameBits } = occupiedIndices.reduce(
             (acc, index, count) => {
                 const mask = bit(index);
-                const nextDameBits = (low32 & bit(count)) !== 0 ? setBit(acc.dameBits, mask) : acc.dameBits;
-                const nextBlackBits = (low32 & bit(count + MAX_PIECES)) !== 0 ? setBit(acc.blackBits, mask) : acc.blackBits;
+                const nextDameBits =
+                    (low32 & bit(count)) !== 0 ? setBit(acc.dameBits, mask) : acc.dameBits;
+                const nextBlackBits =
+                    (low32 & bit(count + MAX_PIECES)) !== 0
+                        ? setBit(acc.blackBits, mask)
+                        : acc.blackBits;
                 return { dameBits: nextDameBits, blackBits: nextBlackBits };
             },
             { blackBits: 0, dameBits: 0 },
@@ -291,30 +298,41 @@ export class Board {
     }
 
     /**
+     * Returns the occupied-square bitboard for a player color.
+     * @param {number} color
+     * @returns {number}
+     */
+    getPieceBits(color) {
+        assertPieceColor(color);
+        return (
+            (color === PieceColor.BLACK
+                ? this.#occBits & this.#blackBits
+                : this.#occBits & ~this.#blackBits) >>> 0
+        );
+    }
+
+    /**
      * Returns a Map of active pieces for a player color.
      * @param {number} color
      * @returns {Map<Position, import('./piece.mjs').PieceInfo>}
      */
     getPieces(color) {
         assertPieceColor(color);
-        return new Map(
-            Position.allValid()
-                .values()
-                .filter((pos) => (this.#occBits & bit(pos.hash())) !== 0)
-                .filter((pos) => (color === PieceColor.BLACK) === this.isBlackPiece(pos))
-                .map((pos) => {
-                    const mask = bit(pos.hash());
-                    const isBlack = (this.#blackBits & mask) !== 0;
-                    const isDame = (this.#dameBits & mask) !== 0;
-                    return [
-                        pos,
-                        {
-                            color: isBlack ? PieceColor.BLACK : PieceColor.WHITE,
-                            type: isDame ? PieceType.DAME : PieceType.PION,
-                        },
-                    ];
-                }),
-        );
+        const map = new Map();
+        const allValid = Position.allValid();
+        const dameBits = this.#dameBits;
+
+        let pieces = this.getPieceBits(color);
+        while (pieces !== 0) {
+            const mask = pieces & -pieces;
+            const index = 31 - Math.clz32(mask);
+            map.set(allValid[index], {
+                color,
+                type: (dameBits & mask) !== 0 ? PieceType.DAME : PieceType.PION,
+            });
+            pieces = (pieces & (pieces - 1)) >>> 0;
+        }
+        return map;
     }
 
     // ─── Transformations ───
@@ -387,19 +405,18 @@ export class Board {
      * @returns {bigint}
      */
     encode() {
-        const occupiedIndices = Array.from({ length: BOARD_SQUARES }, (_, i) => i)
-            .filter((i) => (this.#occBits & bit(i)) !== 0);
+        let occupied = this.#occBits;
+        let packedMask = 1;
+        let damePacked = 0;
+        let blackPacked = 0;
 
-        const { damePacked, blackPacked } = occupiedIndices.reduce(
-            (acc, index, count) => {
-                const mask = bit(index);
-                return {
-                    damePacked: (this.#dameBits & mask) !== 0 ? acc.damePacked | bit(count) : acc.damePacked,
-                    blackPacked: (this.#blackBits & mask) !== 0 ? acc.blackPacked | bit(count) : acc.blackPacked,
-                };
-            },
-            { damePacked: 0, blackPacked: 0 },
-        );
+        while (occupied !== 0) {
+            const mask = occupied & -occupied;
+            if ((this.#dameBits & mask) !== 0) damePacked |= packedMask;
+            if ((this.#blackBits & mask) !== 0) blackPacked |= packedMask;
+            occupied = (occupied & (occupied - 1)) >>> 0;
+            packedMask <<= 1;
+        }
 
         return (
             (BigInt(this.#occBits >>> 0) << 32n) |

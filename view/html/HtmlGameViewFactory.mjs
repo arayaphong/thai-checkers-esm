@@ -76,7 +76,7 @@ export const createHtmlGameView = (controller, rootId) => {
 
     if (
       (intent.isSelectPiece() || intent.isChooseMoveTarget()) &&
-      (!binder.isGameStarted || binder.isAIThinking)
+      (!binder.isGameStarted() || binder.isAIThinking())
     ) {
       return;
     }

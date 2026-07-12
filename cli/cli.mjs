@@ -75,7 +75,6 @@ const isPromotion = (board, move) => {
 // Example: `D5 -> B3 -> D1* (x C4 x C2)`
 export const formatMove = (move, board) => {
   const path = move.path && move.path.length > 0 ? move.path : [move.from, move.to];
-  const last = path[path.length - 1];
   const promo = isPromotion(board, move) ? '*' : '';
   const route = path.map((pos) => pos.toString()).join(' -> ');
   const captures =

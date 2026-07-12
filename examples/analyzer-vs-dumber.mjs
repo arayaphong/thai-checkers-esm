@@ -8,11 +8,12 @@ import { Analyzer } from '../core/analyzer.mjs';
 import { PieceColor, toStringPieceColor } from '../core/piece.mjs';
 
 const SHOW_BOARD = !process.argv.includes('--no-board');
-const SEARCH_DEPTH = 8;
+const depthArg = process.argv.find((arg) => arg.startsWith('--depth='));
+const SEARCH_DEPTH = depthArg ? parseInt(depthArg.split('=')[1], 10) : 8;
 const ANALYZER_COLOR = PieceColor.BLACK;
 const PLAYER_NAMES = { [PieceColor.WHITE]: 'Dumber', [PieceColor.BLACK]: 'Analyzer' };
-// Safety net: cap plies to prevent infinite loops in drawish endgames
-const MAX_PLIES = 200;
+const playArg = process.argv.find((arg) => arg.startsWith('--max-plies='));
+const MAX_PLIES = playArg ? parseInt(playArg.split('=')[1], 10) : 200;
 const MAX_GAMES = 1;
 
 const playPly = (driver, ply) => {

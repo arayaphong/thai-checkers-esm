@@ -19,7 +19,7 @@ export const createControlPanelView = (controlPanelSurface) => {
     modeOptions: MODE_OPTIONS,
     difficultyOptions: DIFFICULTY_OPTIONS,
 
-    render(state) {
+    render: (state) => {
       const { collapsed, gameConfig, isCancelable } = state;
       const { whiteIsAI, blackIsAI, aiDifficulty } = gameConfig;
 

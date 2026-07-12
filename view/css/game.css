@@ -11,6 +11,16 @@
   animation: target-pulse 1s ease-in-out infinite;
 }
 
+/* Only the visible move hint reacts to the pointer. Its full-square wrapper
+   remains transparent to pointer events, so empty space does not highlight. */
+.move-hint {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.move-hint:hover {
+  animation-play-state: paused;
+}
+
 @keyframes piece-pulse {
   0%,
   100% {
@@ -37,7 +47,7 @@
   }
 }
 .animate-ripple {
-  animation: ripple 300ms ease-out forwards;
+  animation: ripple 130ms ease-out forwards;
 }
 
 @keyframes land-pop {
@@ -52,7 +62,7 @@
   }
 }
 .animate-land {
-  animation: land-pop 250ms ease-out;
+  animation: land-pop 150ms ease-out;
 }
 
 .abs-fill {

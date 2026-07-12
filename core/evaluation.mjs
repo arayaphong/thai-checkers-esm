@@ -2,12 +2,7 @@
 // (core/analyzer.mjs).
 import { PieceColor, PieceType } from './piece.mjs';
 import { Position } from './position.mjs';
-import {
-    pionForwardDirs,
-    promotionRow,
-    isOpponentPiece,
-    DAME_DIRS,
-} from './directions.mjs';
+import { pionForwardDirs, promotionRow, isOpponentPiece, DAME_DIRS } from './directions.mjs';
 
 /**
  * Base heuristic piece values.
@@ -176,12 +171,17 @@ const firstOccupiedAlongRay = (board, x, y, stepX, stepY) =>
  * @param {number} color - PieceColor
  * @returns {number}
  */
-const pionMobility = (board, pos, color) =>
-    pionForwardDirs(color).filter(({ dx, dy }) => {
+const pionMobility = (board, pos, color) => {
+    let openSquares = 0;
+    for (const { dx, dy } of pionForwardDirs(color)) {
         const x = pos.x + dx;
         const y = pos.y + dy;
-        return Position.isValid(x, y) && !board.isOccupied(Position.fromCoords(x, y));
-    }).length * PION_MOBILITY_PER_SQUARE;
+        if (Position.isValid(x, y) && !board.isOccupied(Position.fromCoords(x, y))) {
+            openSquares++;
+        }
+    }
+    return openSquares * PION_MOBILITY_PER_SQUARE;
+};
 
 /**
  * Counts empty squares along a ray for dame mobility.
@@ -268,9 +268,8 @@ const pieceHasCapture = (board, pos, color, isDame) =>
  * @param {number} color - PieceColor
  * @returns {boolean}
  */
-const hasMandatoryCapture = (board, color) =>
-    board
-        .getPieces(color)
+const hasMandatoryCapture = (board, color, pieces) =>
+    pieces
         .entries()
         .some(([pos, { type }]) => pieceHasCapture(board, pos, color, type === PieceType.DAME));
 
@@ -299,11 +298,11 @@ const sideMobility = (pieces, board, color) =>
  * @param {number} [sideToMove] - PieceColor
  * @returns {number}
  */
-const mobilityScore = (board, sideToMove) =>
-    sideToMove === undefined || hasMandatoryCapture(board, sideToMove)
+const mobilityScore = (board, sideToMove, piecesByColor) =>
+    sideToMove === undefined || hasMandatoryCapture(board, sideToMove, piecesByColor[sideToMove])
         ? 0
-        : sideMobility(board.getPieces(PieceColor.WHITE), board, PieceColor.WHITE) -
-          sideMobility(board.getPieces(PieceColor.BLACK), board, PieceColor.BLACK);
+        : sideMobility(piecesByColor[PieceColor.WHITE], board, PieceColor.WHITE) -
+          sideMobility(piecesByColor[PieceColor.BLACK], board, PieceColor.BLACK);
 
 // ─── Breakthrough (Phase 6) ───
 // Pions only. A "candidate" is a pion that has passed every enemy pion's row
@@ -328,12 +327,11 @@ const oppositeColor = (color) => (color === PieceColor.WHITE ? PieceColor.BLACK 
  * @param {number} color - PieceColor
  * @returns {number}
  */
-const findEnemyPionRowLimit = (board, color) => {
-    const enemyColor = oppositeColor(color);
+const findEnemyPionRowLimit = (enemyPieces, color) => {
     const reducer =
         color === PieceColor.WHITE ? (acc, y) => Math.max(acc, y) : (acc, y) => Math.min(acc, y);
     const initial = color === PieceColor.WHITE ? -Infinity : Infinity;
-    return [...board.getPieces(enemyColor)]
+    return [...enemyPieces]
         .filter(([, { type }]) => type === PieceType.PION)
         .reduce((acc, [pos]) => reducer(acc, pos.y), initial);
 };
@@ -425,15 +423,18 @@ const isCapturableByDame = (board, pos, color) =>
  * @param {number} [sideToMove] - PieceColor
  * @returns {number}
  */
-const breakthroughScore = (board, sideToMove) =>
+const breakthroughScore = (board, sideToMove, piecesByColor) =>
     sideToMove === undefined
         ? 0
         : [PieceColor.WHITE, PieceColor.BLACK].reduce((score, color) => {
               const sign = color === PieceColor.WHITE ? 1 : -1;
-              const enemyPionRowLimit = findEnemyPionRowLimit(board, color);
+              const enemyPionRowLimit = findEnemyPionRowLimit(
+                  piecesByColor[oppositeColor(color)],
+                  color,
+              );
               return (
                   score +
-                  [...board.getPieces(color)]
+                  [...piecesByColor[color]]
                       .filter(
                           ([pos, { type }]) =>
                               type === PieceType.PION &&
@@ -556,13 +557,13 @@ const isIsolated = (board, pos, color, enemyPionRowLimit) =>
  * @param {import('./board.mjs').Board} board
  * @returns {number}
  */
-const structureScore = (board) =>
+const structureScore = (board, piecesByColor) =>
     [PieceColor.WHITE, PieceColor.BLACK].reduce((score, color) => {
         const sign = color === PieceColor.WHITE ? 1 : -1;
-        const enemyPionRowLimit = findEnemyPionRowLimit(board, color);
+        const enemyPionRowLimit = findEnemyPionRowLimit(piecesByColor[oppositeColor(color)], color);
         return (
             score +
-            [...board.getPieces(color)]
+            [...piecesByColor[color]]
                 .filter(([, { type }]) => type === PieceType.PION)
                 .reduce(
                     (acc, [pos]) =>
@@ -591,14 +592,15 @@ const IMMEDIATE_DRAW_MAX_PIECE_DIFF = 1;
  * @param {number} color - PieceColor
  * @returns {{pions: number, dames: number}}
  */
-const countPionsAndDames = (board, color) =>
-    [...board.getPieces(color)].reduce(
-        (acc, [, { type }]) =>
-            type === PieceType.DAME
-                ? { pions: acc.pions, dames: acc.dames + 1 }
-                : { pions: acc.pions + 1, dames: acc.dames },
-        { pions: 0, dames: 0 },
-    );
+const countPionsAndDames = (pieces) => {
+    let pions = 0;
+    let dames = 0;
+    for (const { type } of pieces.values()) {
+        if (type === PieceType.DAME) dames++;
+        else pions++;
+    }
+    return { pions, dames };
+};
 
 /**
  * True if `board` is an immediate draw per Thai checkers draw rules.
@@ -613,22 +615,25 @@ const countPionsAndDames = (board, color) =>
  * @param {number} sideToMove PieceColor of the side to move.
  * @returns {boolean}
  */
-export const isImmediateDraw = (board, sideToMove) =>
-    !hasMandatoryCapture(board, sideToMove) &&
-    (() => {
-        const white = countPionsAndDames(board, PieceColor.WHITE);
-        const black = countPionsAndDames(board, PieceColor.BLACK);
-        const whiteTotal = white.pions + white.dames;
-        const blackTotal = black.pions + black.dames;
-        return (
-            white.dames >= 1 &&
-            black.dames >= 1 &&
-            white.pions <= IMMEDIATE_DRAW_MAX_PIONS &&
-            black.pions <= IMMEDIATE_DRAW_MAX_PIONS &&
-            whiteTotal + blackTotal <= IMMEDIATE_DRAW_MAX_TOTAL_PIECES &&
-            Math.abs(whiteTotal - blackTotal) <= IMMEDIATE_DRAW_MAX_PIECE_DIFF
-        );
-    })();
+export const isImmediateDraw = (board, sideToMove) => {
+    const whitePieces = board.getPieces(PieceColor.WHITE);
+    const blackPieces = board.getPieces(PieceColor.BLACK);
+    const sidePieces = sideToMove === PieceColor.WHITE ? whitePieces : blackPieces;
+    if (hasMandatoryCapture(board, sideToMove, sidePieces)) return false;
+
+    const white = countPionsAndDames(whitePieces);
+    const black = countPionsAndDames(blackPieces);
+    const whiteTotal = white.pions + white.dames;
+    const blackTotal = black.pions + black.dames;
+    return (
+        white.dames >= 1 &&
+        black.dames >= 1 &&
+        white.pions <= IMMEDIATE_DRAW_MAX_PIONS &&
+        black.pions <= IMMEDIATE_DRAW_MAX_PIONS &&
+        whiteTotal + blackTotal <= IMMEDIATE_DRAW_MAX_TOTAL_PIECES &&
+        Math.abs(whiteTotal - blackTotal) <= IMMEDIATE_DRAW_MAX_PIECE_DIFF
+    );
+};
 
 /**
  * Statically evaluate a board position. Positive is good for WHITE, negative
@@ -641,12 +646,19 @@ export const isImmediateDraw = (board, sideToMove) =>
  *   depends on whose turn it is.
  * @returns {number}
  */
-export const evaluateBoard = (board, context = {}) =>
-    sideScore(board.getPieces(PieceColor.WHITE), PieceColor.WHITE) -
-    sideScore(board.getPieces(PieceColor.BLACK), PieceColor.BLACK) +
-    mobilityScore(board, context.sideToMove) +
-    breakthroughScore(board, context.sideToMove) +
-    structureScore(board);
+export const evaluateBoard = (board, context = {}) => {
+    const piecesByColor = {
+        [PieceColor.WHITE]: board.getPieces(PieceColor.WHITE),
+        [PieceColor.BLACK]: board.getPieces(PieceColor.BLACK),
+    };
+    return (
+        sideScore(piecesByColor[PieceColor.WHITE], PieceColor.WHITE) -
+        sideScore(piecesByColor[PieceColor.BLACK], PieceColor.BLACK) +
+        mobilityScore(board, context.sideToMove, piecesByColor) +
+        breakthroughScore(board, context.sideToMove, piecesByColor) +
+        structureScore(board, piecesByColor)
+    );
+};
 
 /**
  * Statically evaluate a game's current position. Positive is good for WHITE.

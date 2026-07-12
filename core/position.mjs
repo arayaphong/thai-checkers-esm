@@ -24,6 +24,8 @@ export class Position {
     static BOARD_SIZE = BOARD_SIZE;
     static MAX_POSITIONS = MAX_POSITIONS;
     #index;
+    #x;
+    #y;
 
     /**
      * Internal: construct from validated index.
@@ -33,6 +35,10 @@ export class Position {
     constructor(index) {
         assertValidIndex(index);
         this.#index = index;
+        const y = Math.floor(index / BOARD_HALF_SIZE);
+        const xBase = (index % BOARD_HALF_SIZE) * 2;
+        this.#x = xBase + ((xBase + y) % 2 === 0 ? 1 : 0);
+        this.#y = y;
     }
 
     /**
@@ -97,9 +103,7 @@ export class Position {
      * @type {number}
      */
     get x() {
-        const y = Math.floor(this.#index / BOARD_HALF_SIZE);
-        const xBase = (this.#index % BOARD_HALF_SIZE) * 2;
-        return xBase + ((xBase + y) % 2 === 0 ? 1 : 0);
+        return this.#x;
     }
 
     /**
@@ -107,7 +111,7 @@ export class Position {
      * @type {number}
      */
     get y() {
-        return Math.floor(this.#index / BOARD_HALF_SIZE);
+        return this.#y;
     }
 
     /**
