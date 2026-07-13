@@ -2,11 +2,11 @@
 //
 // This module intentionally contains no Node built-ins so it can be imported
 // by the browser-loaded controller as well as the Node CLI.
-import { Game } from '../core/game.mjs';
-import { Board } from '../core/board.mjs';
-import { Position } from '../core/position.mjs';
+import { Game } from '../core/Game.mjs';
+import { Board } from '../core/Board.mjs';
+import { Position } from '../core/Position.mjs';
 import { PieceColor, PieceType } from '../core/piece.mjs';
-import { Analyzer, MAX_ANALYSIS_DEPTH } from '../core/analyzer.mjs';
+import { Analyzer, MAX_ANALYSIS_DEPTH } from '../core/Analyzer.mjs';
 import { isImmediateDraw } from '../core/evaluation.mjs';
 
 // Move objects returned by Analyzer#analyze come from an internal Game.copy(),

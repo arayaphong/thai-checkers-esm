@@ -10,7 +10,6 @@ export const controlPanelClassMap = Object.freeze({
   collapsedDifficultyLabel: 'text-amber-400 text-xs',
   collapsedEditHint: 'text-xs underline',
 
-  expandedTitle: 'text-lg font-bold text-gray-200 mb-4',
   modeGrid: 'grid grid-cols-2 gap-2 mb-4',
   modeButtonSelected:
     'px-3 py-2.5 rounded-lg text-sm font-semibold transition-all border bg-emerald-600/20 border-emerald-500 text-emerald-400',

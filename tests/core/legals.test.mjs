@@ -1,7 +1,7 @@
 import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
-import { Position } from '../../core/position.mjs';
-import { CaptureTrace, Legals } from '../../core/legals.mjs';
+import { Position } from '../../core/Position.mjs';
+import { CaptureTrace, Legals } from '../../core/Legals.mjs';
 
 describe('core/legals', () => {
   describe('CaptureTrace', () => {

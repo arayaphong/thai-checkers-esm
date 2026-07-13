@@ -2,7 +2,7 @@
 
 ## Context
 
-`controller/GameController.mjs` currently starts the next AI turn from a
+`controller/gameController.mjs` currently starts the next AI turn from a
 hardcoded 320 ms delay. The view's move animation has its own timing, so the
 controller and view race and the "AI is thinking" status can appear while the
 previous move is still visibly playing.
@@ -87,7 +87,7 @@ as a barrier in Phase 2.
 
 ### 1.1 Replace motion-duration waits with browser completion
 
-In `view/html/surfaces/HtmlMotionSurface.mjs`, replace
+In `view/html/surfaces/htmlMotionSurface.mjs`, replace
 `abortableTimeout(...)` as the definition of visual completion with two small
 helpers:
 
@@ -174,7 +174,7 @@ its binder prose records that post-move status is deferred.
 ### 1.3 Enclose the current concurrent animation's complete tail
 
 Keep the existing visual ordering for this phase, but change
-`view/GameView.mjs` so:
+`view/gameView.mjs` so:
 
 - ripple and slide begin together as today;
 - capture fade is chained from the _actual_ slide promise rather than an
@@ -253,7 +253,7 @@ return, otherwise it can erase a newer animation.
 
 ### 1.4 Defer post-move status and hints in the binder
 
-`view/GameViewBinder.mjs#handleMoveMade` must stop rendering the post-move
+`view/gameViewBinder.mjs#handleMoveMade` must stop rendering the post-move
 status before the animation. Give the binder its own render-generation guard;
 controller generation protects controller state, but it cannot stop a stale
 view handler from refreshing status over a newer move:
@@ -417,7 +417,7 @@ maintaining a separately clobberable boolean. Block all human entry points:
 
 ```js
 const humanInputBlocked = () =>
-  isPaused || activeOperation !== null || state.currentPlayerIsAI || state.status !== 'playing';
+  isPaused || activeOperation !== null || state.currentPlayerIsAI || state.status !== 'PLAYING';
 ```
 
 `selectPiece`, `attemptMove`, and `deselect` all check this guard. Internal
@@ -481,7 +481,7 @@ visible early.
 
 ### 2.5 `AiMoveChannel` is a non-mutating serialized analysis boundary
 
-Add `controller/AiMoveChannel.mjs`, but do not pass the live driver through a
+Add `controller/aiMoveChannel.mjs`, but do not pass the live driver through a
 future-Worker-shaped API. The channel receives a structured-clone-safe session,
 runs analysis on a scratch driver, and returns a choice DTO:
 
@@ -677,7 +677,7 @@ Update relevant binder/intent smoke tests for deferred status,
 `waitForQuiescence`, and the distinct Start/Restart reset options. Run
 `npm test`.
 
-Update README's controller tree in this phase to list `AiMoveChannel.mjs` as
+Update README's controller tree in this phase to list `aiMoveChannel.mjs` as
 the serializable, non-mutating AI analysis boundary.
 
 At the end of Phase 2, the reported overlap and next-human transition bugs are
@@ -753,7 +753,7 @@ settled render removes the now-transparent victim.
 
 ### 3.3 Binder and documentation consistency
 
-Update the `gameOver` comment in `GameViewBinder.mjs`: because the controller
+Update the `gameOver` comment in `gameViewBinder.mjs`: because the controller
 awaits `moveMade`, its animation wait is now a defensive safety net rather than
 the normal sequencing mechanism.
 
@@ -791,7 +791,7 @@ After Phases 1–3, every asynchronous DOM tail is inside the one
 `showMoveMade()` promise and every primitive uses the same abort signal. The
 two-phase `in-flight`/`settling` distinction is no longer useful.
 
-### 4.1 `GameViewAnimationLifecycle.mjs`
+### 4.1 `gameViewAnimationLifecycle.mjs`
 
 Collapse the record to `{ generation, abortController, donePromise }` and
 expose only `isAnimating`, `waitForAnimation`, `beginAnimation`, and
@@ -843,7 +843,7 @@ Generation only prevents stale lifecycle-state cleanup. The Phase 1/3 rule
 that aborted runs perform no late global DOM writes remains independently
 required.
 
-### 4.2 `GameView.mjs` and docs
+### 4.2 `gameView.mjs` and docs
 
 - `refresh`/`refreshBoard` guard on `!isAnimating()` for the entire promise;
 - remove `markSettling` from `showMoveMade`/`runMoveAnimation`;
@@ -852,7 +852,7 @@ required.
   `markSettling` descriptions;
 - update README's lifecycle entry to “Tracks active move animation
   (begin/wait/cancel)”;
-- retain the `AiMoveChannel.mjs` controller-tree entry added in Phase 2.
+- retain the `aiMoveChannel.mjs` controller-tree entry added in Phase 2.
 
 The archived plan remains a historical record and is not edited.
 
@@ -937,9 +937,9 @@ is the actual barrier.
 ## Files touched by phase
 
 - **Phase 1:**
-  - `view/GameView.mjs`
-  - `view/GameViewBinder.mjs`
-  - `view/html/surfaces/HtmlMotionSurface.mjs`
+  - `view/gameView.mjs`
+  - `view/gameViewBinder.mjs`
+  - `view/html/surfaces/htmlMotionSurface.mjs`
   - `view/html/styles/motionClassMap.mjs`
   - `view/components/board/BoardMoveAnimationView.mjs`
   - `docs/view_class_diagram.md`
@@ -947,22 +947,22 @@ is the actual barrier.
   - `tests/view/game-view-binder.test.mjs` (new)
   - binder/view smoke tests as needed
 - **Phase 2:**
-  - `controller/GameController.mjs`
-  - `controller/AiMoveChannel.mjs` (new)
-  - `view/GameViewBinder.mjs`
+  - `controller/gameController.mjs`
+  - `controller/aiMoveChannel.mjs` (new)
+  - `view/gameViewBinder.mjs`
   - `view/intent/UiIntentDispatcher.mjs`
   - `README.md`
   - `tests/controller/GameControllerTurnPacing.test.mjs` (new)
   - `tests/controller/AiMoveChannel.test.mjs` (new)
   - relevant controller-driver, binder, and intent smoke tests
 - **Phase 3:**
-  - `view/GameView.mjs`
-  - `view/GameViewBinder.mjs` (comment)
+  - `view/gameView.mjs`
+  - `view/gameViewBinder.mjs` (comment)
   - `docs/view_class_diagram.md`
   - `tests/view/game-view.test.mjs`
 - **Phase 4:**
-  - `view/GameViewAnimationLifecycle.mjs`
-  - `view/GameView.mjs`
+  - `view/gameViewAnimationLifecycle.mjs`
+  - `view/gameView.mjs`
   - `docs/view_class_diagram.md`
   - `README.md`
   - `tests/view/game-view-animation-lifecycle.test.mjs`

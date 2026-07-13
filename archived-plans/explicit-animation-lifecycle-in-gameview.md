@@ -2,7 +2,7 @@
 
 ## Context
 
-`view/GameView.mjs` currently tracks "is a move animation in flight" using two
+`view/gameView.mjs` currently tracks "is a move animation in flight" using two
 independent nullable closure variables, `pendingAnimationAbort` and
 `pendingAnimationDone`. They're set and cleared from four different spots
 across two functions (`performMoveAnimation`, `showMoveMade`), plus a third
@@ -14,26 +14,26 @@ of a worse, more-duplicated version that caused a real bug. The user's ask:
 make it obvious where animation state starts and stops, without changing any
 observable behavior.
 
-`HtmlMotionSurface.mjs`, `motionClassMap.mjs`, and `BoardMoveAnimationView.mjs`
+`htmlMotionSurface.mjs`, `motionClassMap.mjs`, and `BoardMoveAnimationView.mjs`
 are already clean (independent, abort-signal-cancelable effects) and are out
 of scope.
 
 ## Approach
 
-Extract the lifecycle into a new dedicated module, `view/GameViewAnimationLifecycle.mjs`,
+Extract the lifecycle into a new dedicated module, `view/gameViewAnimationLifecycle.mjs`,
 following the codebase's existing pattern of splitting single-responsibility
-pieces out of the orchestrator (`GameViewStateFactory.mjs`, `BoardMoveAnimationView.mjs`).
+pieces out of the orchestrator (`gameViewStateFactory.mjs`, `BoardMoveAnimationView.mjs`).
 It holds **one** nullable record instead of two variables:
 
 ```js
-current = null | { generation, phase: 'in-flight' | 'settling', abortController, donePromise }
+current = null | { generation, phase: 'in-flight' | 'settling', abortController, donePromise };
 ```
 
 `phase` replaces the implicit "which variable is null" encoding. A monotonic
 `generation` counter replaces both identity-comparison guards with a single
 inspectable integer compared via `===`.
 
-### `view/GameViewAnimationLifecycle.mjs` (new)
+### `view/gameViewAnimationLifecycle.mjs` (new)
 
 Exposes: `isInFlight()`, `isAnimating()`, `waitForAnimation()`, `beginAnimation(run)`,
 `cancelAnimation()`.
@@ -49,7 +49,7 @@ Exposes: `isInFlight()`, `isAnimating()`, `waitForAnimation()`, `beginAnimation(
   both phases. This exactly mirrors when `pendingAnimationAbort` vs.
   `pendingAnimationDone` are non-null today.
 
-### `view/GameView.mjs` (rewritten)
+### `view/gameView.mjs` (rewritten)
 
 - Replaces both closure variables with one `animationLifecycle = createGameViewAnimationLifecycle()`.
 - `performMoveAnimation` becomes `runMoveAnimation(moveDisplay, settledViewState, signal, markSettling)` —
@@ -61,11 +61,11 @@ Exposes: `isInFlight()`, `isAnimating()`, `waitForAnimation()`, `beginAnimation(
 - `showMoveMade` becomes `animationLifecycle.beginAnimation((signal, markSettling) => runMoveAnimation(...))`.
 - `stopAnimation` calls `animationLifecycle.cancelAnimation()` then `animationView.clearAnimationLayer()`.
 
-Net effect: `GameView.mjs` has zero raw mutable animation-state variables of
+Net effect: `gameView.mjs` has zero raw mutable animation-state variables of
 its own; every start/settle/end/cancel transition lives in one file
-(`GameViewAnimationLifecycle.mjs`), in named functions.
+(`gameViewAnimationLifecycle.mjs`), in named functions.
 
-**No changes** to `GameViewBinder.mjs` or `HtmlGameViewFactory.mjs` — the
+**No changes** to `gameViewBinder.mjs` or `htmlGameViewFactory.mjs` — the
 public contract (`isAnimating`, `waitForAnimation`, `stopAnimation`,
 `showMoveMade`, `refresh`, `refreshBoard`, `refreshStatus`,
 `showSetupScreen`/`showPlayingScreen`/`showGameOverScreen`) is unchanged, so
@@ -75,7 +75,7 @@ the existing hand-rolled fake `gameView` in `tests/view/smoke-game-flow.test.mjs
 ### Boundary test
 
 `tests/view/check-view-boundaries.test.mjs` walks a fixed `semanticTargets`
-list for forbidden DOM/HTML/CSS tokens. Add `'view/GameViewAnimationLifecycle.mjs'`
+list for forbidden DOM/HTML/CSS tokens. Add `'view/gameViewAnimationLifecycle.mjs'`
 to that list — the new file contains none of the forbidden tokens today, but
 should be scanned going forward since its whole purpose is staying semantic.
 
@@ -97,7 +97,7 @@ should be scanned going forward since its whole purpose is staying semantic.
 
 2. **`tests/view/game-view.test.mjs`** — first direct test of `createGameView`
    itself (none exists today — it's only exercised indirectly via
-   `HtmlGameViewFactory.mjs`), using trivial recording fakes for
+   `htmlGameViewFactory.mjs`), using trivial recording fakes for
    `boardView`/`statusView`/`controlPanelView`/`layoutSurface` and a
    controllable fake `animationView`:
    - `refresh()`/`refreshBoard()` are guarded while an animation is in-flight
@@ -126,8 +126,8 @@ so no config changes needed.
 
 ## Files touched
 
-- `view/GameViewAnimationLifecycle.mjs` (new)
-- `view/GameView.mjs` (rewritten to compose the new module)
+- `view/gameViewAnimationLifecycle.mjs` (new)
+- `view/gameView.mjs` (rewritten to compose the new module)
 - `tests/view/check-view-boundaries.test.mjs` (add one line to `semanticTargets`)
 - `tests/view/game-view-animation-lifecycle.test.mjs` (new)
 - `tests/view/game-view.test.mjs` (new)
@@ -143,5 +143,5 @@ Implemented as planned, with no deviations:
   white piece, moved it, captured a mid-slide frame (piece visibly between
   its origin and destination square) and the settled frame (piece landed,
   turn switched to black). Zero console errors.
-- `GameViewBinder.mjs` and `HtmlGameViewFactory.mjs` needed no edits, as
+- `gameViewBinder.mjs` and `htmlGameViewFactory.mjs` needed no edits, as
   predicted — the public `GameView` contract didn't change shape.

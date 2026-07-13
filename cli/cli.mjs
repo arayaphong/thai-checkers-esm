@@ -2,7 +2,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import process from 'node:process';
-import { Position } from '../core/position.mjs';
+import { Position } from '../core/Position.mjs';
 import { PieceColor, pieceSymbol } from '../core/piece.mjs';
 import {
   GameDriver,

@@ -1,6 +1,6 @@
 import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
-import { Position } from '../../../core/position.mjs';
+import { Position } from '../../../core/Position.mjs';
 import { expandRoute, singleRoute } from '../../../core/moves/expand.mjs';
 
 describe('core/moves/expand', () => {

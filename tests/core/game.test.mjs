@@ -1,9 +1,9 @@
 import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { PieceColor } from '../../core/piece.mjs';
-import { Position } from '../../core/position.mjs';
-import { Board } from '../../core/board.mjs';
-import { Game } from '../../core/game.mjs';
+import { Position } from '../../core/Position.mjs';
+import { Board } from '../../core/Board.mjs';
+import { Game } from '../../core/Game.mjs';
 
 describe('core/game', () => {
   test('initialization with default board and player', () => {

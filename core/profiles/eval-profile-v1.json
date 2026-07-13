@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "description": "Baseline heuristic weights for core/evaluation.mjs (Phases 4-7 starting values).",
+  "PIECE_VALUES": {
+    "PION": 100,
+    "DAME": 350
+  },
+  "PION_ROW_BONUS": [12, 10, 8, 6, 4, 2, -4, 5],
+  "PION_COL_BONUS": [-8, -3, 3, 7, 7, 3, -3, -8],
+  "DAME_LINE_BONUS": [-3, -1, 2, 4, 4, 2, -1, -3],
+  "PION_MOBILITY_PER_SQUARE": 2,
+  "DAME_MOBILITY_PER_SQUARE": 1,
+  "DAME_MOBILITY_CAP": 6,
+  "BREAKTHROUGH_BASE": 40,
+  "BREAKTHROUGH_OPEN_PATH": 20,
+  "BREAKTHROUGH_PROXIMITY_MIN": 10,
+  "BREAKTHROUGH_PROXIMITY_MAX": 30,
+  "BREAKTHROUGH_PROXIMITY_DECAY_PER_ROW": 3,
+  "ISOLATED_PENALTY": 8,
+  "BLOCKED_CAPTURE_PER_SIDE": 4,
+  "BLOCKED_CAPTURE_CAP": 8
+}

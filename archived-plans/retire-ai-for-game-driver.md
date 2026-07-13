@@ -18,16 +18,16 @@ directly to the "what."
 lockstep by `controller/`:
 
 1. **View-driven play** (human clicking through `view/`) continues to run
-   entirely on `model/GameState.mjs` + `model/MoveEngine.mjs`, per-step
+   entirely on `model/gameState.mjs` + `model/moveEngine.mjs`, per-step
    (one walk, or one jump of a chain, per click), exactly as today. No view
    file changes except difficulty label text (§5).
 2. **AI-driven play** is decided by `GameDriver` (`cli/GameDriver.mjs` after
-   the split in §2), which wraps `core/game.mjs`'s `Game` and
-   `core/analyzer.mjs`'s `Analyzer`. `GameDriver` moves are atomic — one
+   the split in §2), which wraps `core/Game.mjs`'s `Game` and
+   `core/Analyzer.mjs`'s `Analyzer`. `GameDriver` moves are atomic — one
    _entire_ turn (including a whole multi-capture chain) is a single
    `getMoves()` entry and a single `selectMove()`/`playMoveIndex()` call.
 
-`controller/GameController.mjs` is the seam: it keeps a `model/GameState`
+`controller/gameController.mjs` is the seam: it keeps a `model/GameState`
 instance (`state`, unchanged shape, drives the view) and a `GameDriver`
 instance (`driver`, new) that mirrors the same position turn-by-turn. Every
 completed turn — whether played by a human through `model/` or decided by
@@ -44,11 +44,11 @@ completed turn — whether played by a human through `model/` or decided by
   stays the sole source of truth for game-over/winner in the UI, unchanged.
   (They already agree on _when_ the game ends — see §1.3 — this is just about
   not adding new UI surface for draw detection, which nobody asked for.)
-- Apart from the one-line promotion-row correction in `core/game.mjs`
+- Apart from the one-line promotion-row correction in `core/Game.mjs`
   (§1.3.1), `core/` is not changed. In particular, no move-generation or
   analyzer rules are changed.
 - Apart from correcting the occupied-square parity of `INITIAL_BOARD` in
-  `model/Types.mjs` (§1.3.1), `model/` is not changed. Its move-generation
+  `model/types.mjs` (§1.3.1), `model/` is not changed. Its move-generation
   rules already agree with `core/`; the repair only makes the standard
   starting position use the same playable squares as demos and `core/`.
 - `cli/cli.mjs`'s REPL behavior is not changed beyond the mechanical split in
@@ -61,11 +61,11 @@ completed turn — whether played by a human through `model/` or decided by
 The entire `view/` rendering stack reads `controller.state` shaped exactly
 like `model/GameState`: `board` (8×8 numeric array, white positive/black
 negative, `2`=dame), `turn` (`1`/`-1`), `mustMovePiece` (`{r,c}` or `null`),
-`status` (`'playing'|'white_wins'|'black_wins'`), `config`, `validMoves`
+`status` (`'PLAYING'|'WHITE_WINS'|'BLACK_WINS'`), `config`, `validMoves`
 (single-hop shape: `{fromR,fromC,toR,toC,isCapture,jumpedR?,jumpedC?}`).
-Confirmed consumers: `view/GameViewStateFactory.mjs` (reads `state.board`,
+Confirmed consumers: `view/gameViewStateFactory.mjs` (reads `state.board`,
 `state.turn`, `state.mustMovePiece`, `state.validMoves`, `state.config`,
-`state.pieceCounts` directly), `view/GameViewBinder.mjs` (reads
+`state.pieceCounts` directly), `view/gameViewBinder.mjs` (reads
 `move.fromR/fromC/toR/toC/isCapture/jumpedR/jumpedC` per `moveMade` event,
 and `controller.state.mustMovePiece` to detect turn completion).
 
@@ -88,8 +88,8 @@ turn boundary — not fuse them into one.
 | Pion        | `abs(piece) === 1`                                     | `PieceType.PION === 0`                                      |
 | Dame        | `abs(piece) === 2`                                     | `PieceType.DAME === 1`                                      |
 
-Derivation: `core/board.mjs` `Board.setup()` puts White on rows 0–1 (bottom)
-and Black on rows 6–7 (top) — i.e. White's home is low `y`. `model/Types.mjs`
+Derivation: `core/Board.mjs` `Board.setup()` puts White on rows 0–1 (bottom)
+and Black on rows 6–7 (top) — i.e. White's home is low `y`. `model/types.mjs`
 `INITIAL_BOARD` puts Black on `r=0-1` (top) and White on `r=6-7` (bottom) —
 i.e. White's home is high `r`. Both put White at the bottom of the physical
 board and Black at the top; the `r`/`y` axes just run in opposite
@@ -103,20 +103,20 @@ This was checked, not assumed, since the whole design depends on it:
   capture, only captures are legal, across the whole side to move (not
   "must take the biggest capture"). `model/MoveEngine.getAllValidMoves`
   groups all moves by `isCapture` and returns only captures if any exist.
-  `core/game.mjs#buildAllMoves` does the same via `#hasMandatoryCapture()`
+  `core/Game.mjs#buildAllMoves` does the same via `#hasMandatoryCapture()`
   over every moveable piece.
 - **Dame "short king" capture rule.** Both only allow landing on the single
   empty square immediately behind the captured piece (not a free choice of
   landing square further along the ray). `model/MoveEngine.scanDameRay`
   returns exactly one capture landing per direction and does not keep
-  scanning past it; `core/explorer.mjs#findCapturesInDir`'s dame branch does
+  scanning past it; `core/Explorer.mjs#findCapturesInDir`'s dame branch does
   the same (comment: "Thai 'short king' rule — no choice of a farther
   landing square").
 - **Promotion ends the capture chain immediately.** Both stop a multi-capture
   sequence the instant a pion reaches the back row, even if further captures
   would otherwise be available as a dame. `model/MoveEngine.executeMove`:
   `canContinue = move.isCapture && !promoted && captures.length > 0`.
-  `core/explorer.mjs#findCapturesFrom`: `if (becameDame) { ...; continue; }`
+  `core/Explorer.mjs#findCapturesFrom`: `if (becameDame) { ...; continue; }`
   ends the recursive search right there.
 - **Coordinate/color mapping is correct** (not just derived from source
   reading, but cross-validated against two independent existing tests that
@@ -154,9 +154,9 @@ The initial §7.0 test run (2026-07-11) produced three passing fixtures
 1. **Promotion application differs (`demo1`, ply 1).** Both engines generate
    the same `E4→C6→E8` capture chain and both correctly stop the chain at the
    promotion row, but `model/` leaves a White dame at E8 while
-   `core/game.mjs#executeMove` leaves a White pion. `core/directions.mjs` and
-   `model/MoveEngine.mjs` agree that White promotes at `y=7`/`r=0` and Black
-   at `y=0`/`r=7`; only `core/game.mjs` has the ternary reversed. Change:
+   `core/Game.mjs#executeMove` leaves a White pion. `core/directions.mjs` and
+   `model/moveEngine.mjs` agree that White promotes at `y=7`/`r=0` and Black
+   at `y=0`/`r=7`; only `core/Game.mjs` has the ternary reversed. Change:
 
    ```js
    // before (incorrect)
@@ -172,7 +172,7 @@ The initial §7.0 test run (2026-07-11) produced three passing fixtures
    Under the canonical mapping `y = 7 - r, x = c`, model playable squares
    have `(r+c) % 2 === 0` (for example `{r:4,c:4}` ⇄ E4). Demo conversion,
    core `Position`, and all validated algebraic fixtures use that parity, but
-   `model/Types.mjs#INITIAL_BOARD` currently places every starting piece on
+   `model/types.mjs#INITIAL_BOARD` currently places every starting piece on
    `(r+c) % 2 === 1`. Shift each occupied entry one column so the corrected
    rows are:
 
@@ -209,7 +209,7 @@ model→driver sync needed afterward — driver was the source of truth.
 **Human turn (model → driver):** the human plays hop-by-hop through
 `model/` as today. `controller` accumulates the turn's path and captured
 squares (a new accumulator, owned by `controller`, independent of the
-similar-looking one already in `view/GameViewBinder.mjs` — see §4.3 note on
+similar-looking one already in `view/gameViewBinder.mjs` — see §4.3 note on
 why these are deliberately not shared). Once the turn completes
 (`!state.mustMovePiece`), `controller` calls
 `driver.playMovePosition(fromSquare, toSquare)`. If `GameDriver` reports
@@ -229,7 +229,7 @@ always resolvable).
    (order-independent comparison), never zero, never more than one, _as
    long as_ `model/` and `core/` agree on rules (validated in §1.3).
 2. **Capture loop returning to the start square, multiple routes, same net
-   result** (e.g. `demo2`, `demo3`): `core/game.mjs`'s `uniqueMoves()` /
+   result** (e.g. `demo2`, `demo3`): `core/Game.mjs`'s `uniqueMoves()` /
    `moveIdentityKey()` dedupes by `` `${from}:${to}:${sortedCapturedSet}` ``
    — order-independent on the captured set. Two routes that capture the
    _same set_ of pieces and land on the same square collapse into a single
@@ -257,8 +257,8 @@ that are never called. `cli/cli.mjs` currently has
 resolve (no `node:` scheme, no import map). If `controller/` (which
 `main.mjs` loads into the browser) imports `GameDriver` from
 `cli/cli.mjs` as it stands today, the browser throws at module-load time,
-before any game code runs. `core/` has no such problem — `core/analyzer.mjs`
-and `core/game.mjs` only import from within `core/`, confirmed via
+before any game code runs. `core/` has no such problem — `core/Analyzer.mjs`
+and `core/Game.mjs` only import from within `core/`, confirmed via
 `grep -rn "from 'node:"` returning zero hits under `core/`. Once §1.3.1's
 prerequisite repair is complete, §2 makes no further `core/` changes:
 `cli/cli.mjs` is touched via this one mechanical split, extracting the
@@ -289,11 +289,11 @@ in the current file; preserve them as-is, this is a pure move, not a
 cleanup):
 
 ```js
-import { Game } from '../core/game.mjs';
-import { Board } from '../core/board.mjs';
-import { Position } from '../core/position.mjs';
+import { Game } from '../core/Game.mjs';
+import { Board } from '../core/Board.mjs';
+import { Position } from '../core/Position.mjs';
 import { PieceColor, PieceType, toStringPieceColor, toStringPieceType } from '../core/piece.mjs';
-import { Analyzer, MAX_ANALYSIS_DEPTH } from '../core/analyzer.mjs';
+import { Analyzer, MAX_ANALYSIS_DEPTH } from '../core/Analyzer.mjs';
 import { isImmediateDraw } from '../core/evaluation.mjs';
 ```
 
@@ -318,7 +318,7 @@ New top of `cli/cli.mjs`:
 import { readFile, writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import process from 'node:process';
-import { Position } from '../core/position.mjs';
+import { Position } from '../core/Position.mjs';
 import { PieceColor, pieceSymbol } from '../core/piece.mjs';
 import {
   GameDriver,
@@ -349,7 +349,7 @@ there — no change to how it's exported.)
 ### 2.3 Why the re-export list is exactly this set
 
 Grepped every external reference to `cli/cli.mjs` exports across the repo:
-`examples/analyzer-vs-analyzer.mjs` and `examples/analyzer-vs-dumber.mjs`
+`examples/analyzer-vs-Analyzer.mjs` and `examples/analyzerVsDumber.mjs`
 import `{ GameDriver, renderBoard, moveKey }`; `tests/cli/GameDriver.test.mjs`
 imports `{ GameDriver, isOneDameEachDraw, moveRecordMatches, parsePieces,
 parseSideToMove }`. `tests/cli/repl.test.mjs` spawns `cli/cli.mjs` as a child
@@ -363,18 +363,18 @@ API surface as a side effect of an unrelated refactor.
 ### 2.4 Verification for this phase
 
 Run `npm test`. `tests/cli/GameDriver.test.mjs`, `tests/cli/repl.test.mjs`,
-and (manually) `node examples/analyzer-vs-analyzer.mjs` /
-`node examples/analyzer-vs-dumber.mjs` must all pass/run with zero changes
+and (manually) `node examples/analyzer-vs-Analyzer.mjs` /
+`node examples/analyzerVsDumber.mjs` must all pass/run with zero changes
 to those files. If anything fails, the split introduced a behavior change —
 it shouldn't have; go back and diff against the original `cli/cli.mjs`.
 
-## 3. New file: `controller/GameDriverBridge.mjs`
+## 3. New file: `controller/gameDriverBridge.mjs`
 
 Pure translation functions, no DOM, no Node built-ins, no game-rule logic of
 its own (it only reshapes data and delegates rule decisions to `GameDriver`).
 
 ```js
-import { Position } from '../core/position.mjs';
+import { Position } from '../core/Position.mjs';
 import { PieceColor, PieceType } from '../core/piece.mjs';
 import { GameDriver } from '../cli/GameDriver.mjs';
 
@@ -417,7 +417,7 @@ export const createStandardDriver = () => new GameDriver();
 // ─── Driver move (atomic, whole turn) → model-shaped hops (per-step) ───
 // A GameDriver/core move is either a pure walk (captured.length === 0,
 // path.length === 2) or a pure capture chain (captured.length === path.length - 1,
-// hop i captures move.captured[i] — see retire-ai-for-game-driver.md §1.3/core/legals.mjs). Never
+// hop i captures move.captured[i] — see retire-ai-for-game-driver.md §1.3/core/Legals.mjs). Never
 // mixed within one move, so `isCapture` applies uniformly to every hop.
 export const expandDriverMoveToModelHops = (move) => {
   const path = move.path && move.path.length > 0 ? move.path : [move.from, move.to];
@@ -467,7 +467,7 @@ export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSq
 };
 ```
 
-## 4. Rewrite `controller/GameController.mjs`
+## 4. Rewrite `controller/gameController.mjs`
 
 ### 4.1 What's removed
 
@@ -475,7 +475,7 @@ export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSq
   `ai/` folder in §6).
 - The `aiInstances` map and the public `availableAIs` / `getAI` /
   `registerAI` API. Grepped the whole repo (`getAI|registerAI|availableAIs`)
-  — nothing outside `controller/GameController.mjs` itself references these,
+  — nothing outside `controller/gameController.mjs` itself references these,
   so removing them is a clean deletion, not a deprecation.
 
 ### 4.2 What's added
@@ -485,7 +485,7 @@ export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSq
   rebuilt alongside `state` in `reset()`/`startGame()`.
 - `turnPath` / `turnCaptured` — a turn accumulator _owned by controller_,
   populated per-hop, read once at turn completion to sync `driver`, then
-  reset. (Note: `view/GameViewBinder.mjs` already has its own
+  reset. (Note: `view/gameViewBinder.mjs` already has its own
   `currentTurnPath`/`currentTurnCaptures` for its turn-summary log — that one
   stays untouched and is not reused here. `controller/` must stay
   self-sufficient and not depend on `view/`, which is downstream of it; a
@@ -502,7 +502,7 @@ export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSq
 - `DIFFICULTY_DEPTH = { easy: 1, medium: 4, hard: 8 }` — replaces the old
   `{ easy: 'random', medium: 'greedy', hard: 'minimax' }` name map.
   `state.config.aiDifficulty` keeps the same string keys
-  (`model/Types.mjs`'s `DEFAULT_CONFIG.aiDifficulty` is untouched); only the
+  (`model/types.mjs`'s `DEFAULT_CONFIG.aiDifficulty` is untouched); only the
   thing that key maps _to_ changes, and only inside `controller/`.
 - `get driver()` on the returned controller object — read-only observability
   for tests/debugging, mirroring the existing `get state()` /
@@ -511,14 +511,14 @@ export const playHumanTurnOnDriver = (driver, { fromSquare, toSquare, capturedSq
 ### 4.3 Full target implementation
 
 ```js
-import { createGameState } from '../model/GameState.mjs';
+import { createGameState } from '../model/gameState.mjs';
 import {
   createStandardDriver,
   createDriverForModelBoard,
   expandDriverMoveToModelHops,
   playHumanTurnOnDriver,
   squareOfModelPos,
-} from './GameDriverBridge.mjs';
+} from './gameDriverBridge.mjs';
 
 // ============================================
 // GameController - Orchestrates Model (view-facing state) + GameDriver
@@ -689,7 +689,7 @@ export const createGameController = (configOrParams) => {
     syncDriverForCompletedHumanTurn();
     resetTurnAccumulator();
 
-    if (state.status !== 'playing') {
+    if (state.status !== 'PLAYING') {
       emit('gameOver', { winner: state.status });
       return;
     }
@@ -735,7 +735,7 @@ export const createGameController = (configOrParams) => {
       applyHop(hops[i]);
     }
 
-    if (state.status !== 'playing') {
+    if (state.status !== 'PLAYING') {
       emit('gameOver', { winner: state.status });
       return;
     }
@@ -828,7 +828,7 @@ export const createGameController = (configOrParams) => {
   /** Resume AI processing if active player is AI */
   const resume = async () => {
     cancelPendingAi();
-    if (state.currentPlayerIsAI && state.status === 'playing') {
+    if (state.currentPlayerIsAI && state.status === 'PLAYING') {
       await startAiTurn(0);
     }
   };
@@ -897,7 +897,7 @@ startAiTurn(320)`, which is how an _AI's own_ multi-capture chain gets a
   reassigns both `state` and `driver` wholesale immediately afterward, so
   the partial progress is simply discarded, not repaired — same as today's
   behavior when `reset()` interrupts a human or AI mid-chain.
-- **Depth-8 search latency.** `core/analyzer.mjs`'s `Analyzer` (negamax +
+- **Depth-8 search latency.** `core/Analyzer.mjs`'s `Analyzer` (negamax +
   alpha-beta + a forced-capture quiescence extension) at depth 8 counts 8
   plies at _atomic-turn_ granularity (a whole capture chain is one ply),
   which is a meaningfully deeper/more expensive search than the old
@@ -910,7 +910,7 @@ startAiTurn(320)`, which is how an _AI's own_ multi-capture chain gets a
 
 ## 5. `view/` changes: difficulty labels only
 
-`view/components/control-panel/ControlPanelView.mjs`, lines 8–12. Current:
+`view/components/control-panel/controlPanelView.mjs`, lines 8–12. Current:
 
 ```js
 const DIFFICULTY_OPTIONS = Object.freeze([
@@ -931,15 +931,15 @@ const DIFFICULTY_OPTIONS = Object.freeze([
 ```
 
 `key` values are unchanged (`'easy'/'medium'/'hard'`) — they're the
-`aiDifficulty` config value stored by `model/Types.mjs` and read by
-`controller/GameController.mjs`'s new `DIFFICULTY_DEPTH` map, so nothing
+`aiDifficulty` config value stored by `model/types.mjs` and read by
+`controller/gameController.mjs`'s new `DIFFICULTY_DEPTH` map, so nothing
 else needs to change for this. `label` renders on the button's first line,
-`description` on the second (`view/html/surfaces/HtmlControlPanelSurface.mjs`
+`description` on the second (`view/html/surfaces/htmlControlPanelSurface.mjs`
 lines 166–173 render both as plain `textContent` with no auto-wrapping —
 the final wording is stored literally in each `description`, as shown above).
 No other file in `view/` references difficulty text (confirmed via
 `grep -rli "difficulty\|ง่าย\|กลาง\|ยาก\|easy\|medium\|hard"` across
-`view/`, `controller/`, `model/` — only `ControlPanelView.mjs` has
+`view/`, `controller/`, `model/` — only `controlPanelView.mjs` has
 human-facing difficulty strings).
 
 ## 6. Delete `ai/`
@@ -947,13 +947,13 @@ human-facing difficulty strings).
 Delete the entire `ai/` directory (`AIInterface.mjs`, `RandomAI.mjs`,
 `GreedyAI.mjs`, `MinimaxAI.mjs`, `Heuristic.mjs`). Confirmed via
 `grep -rln "from '.*ai/"` across the whole repo that
-`controller/GameController.mjs` is the _only_ file that imports from `ai/`
+`controller/gameController.mjs` is the _only_ file that imports from `ai/`
 — once §4's rewrite removes those imports, nothing references the folder
 and it can be deleted outright with no dangling references, no compatibility
 shim needed. Update `README.md` in the same phase: replace the legacy
 Random/Greedy/Minimax difficulty table with Analyzer depths 1/4/8, remove the
 deleted `ai/` tree from the project structure, and document `core/`,
-`cli/GameDriver.mjs`, and `controller/GameDriverBridge.mjs` so the public
+`cli/GameDriver.mjs`, and `controller/gameDriverBridge.mjs` so the public
 architecture description does not advertise deleted code.
 
 ## 7. Testing
@@ -971,7 +971,7 @@ New file: `tests/controller/model-core-parity.test.mjs`. Because implementation
 order deliberately puts this test before the production bridge in §3, define
 the small coordinate/board/move-expansion helpers locally in the test at
 first. In phase 3, replace those local copies with imports from
-`GameDriverBridge.mjs`; the assertions and fixture coverage must remain the
+`gameDriverBridge.mjs`; the assertions and fixture coverage must remain the
 same. This resolves the previous circular ordering where phase 1 required a
 file that phase 3 had not created yet.
 
@@ -998,7 +998,7 @@ suite. Phase 1 is complete only when both are green. If any failure remains,
 stop and re-examine §1.3–§1.3.1 before proceeding — the bridge design in
 §3–4 is not safe to build on top of an unconfirmed assumption.
 
-### 7.1 `controller/GameDriverBridge.mjs` unit tests
+### 7.1 `controller/gameDriverBridge.mjs` unit tests
 
 New file: `tests/controller/GameDriverBridge.test.mjs`.
 
@@ -1020,7 +1020,7 @@ capturedSquares:['D7','D5']}` (deliberately unsorted, to test the
   with route 2's captured set must resolve to route 2. A captured-square set
   matching neither candidate must throw the "diverged" error from §3.
 
-### 7.2 `controller/GameController.mjs` integration tests
+### 7.2 `controller/gameController.mjs` integration tests
 
 New file: `tests/controller/GameControllerDriverSync.test.mjs`.
 
@@ -1038,7 +1038,7 @@ aiDifficulty: 'easy'` (depth 1); after White's human turn completes,
   `controller.state`'s position via the same per-square comparison as
   §7.0's parity test).
 - A no-`ai/`-folder regression check: assert `ai/` does not exist on disk
-  and that `controller/GameController.mjs`'s source contains no
+  and that `controller/gameController.mjs`'s source contains no
   `from '../ai/` import — encodes this migration's completion criterion as
   an automated check, in the same spirit as
   `tests/view/check-view-boundaries.test.mjs`.
@@ -1047,8 +1047,8 @@ aiDifficulty: 'easy'` (depth 1); after White's human turn completes,
 
 - `npm test` — every suite (`tests/cli/**`, `tests/view/**`,
   `tests/controller/**`) must pass.
-- Manually run `node examples/analyzer-vs-analyzer.mjs` and
-  `node examples/analyzer-vs-dumber.mjs` to confirm the `cli/` split didn't
+- Manually run `node examples/analyzer-vs-Analyzer.mjs` and
+  `node examples/analyzerVsDumber.mjs` to confirm the `cli/` split didn't
   break these (they weren't touched, but they import from `cli/cli.mjs`, so
   confirm those re-exports actually work end to end, not just under Jest).
 - Serve the repository with a static HTTP server (no build step, per README),
@@ -1084,10 +1084,10 @@ Final-regression findings (2026-07-11):
    evidence, apply the minimal promotion-row and standard-board alignment
    repairs, and require both the parity test and full `npm test` to pass.
 2. §2 — split `cli/cli.mjs` → `cli/GameDriver.mjs`; verify per §2.4.
-3. §3 — `controller/GameDriverBridge.mjs` + §7.1 unit tests; refactor §7.0
+3. §3 — `controller/gameDriverBridge.mjs` + §7.1 unit tests; refactor §7.0
    to import the production bridge helpers instead of its temporary local
    copies, without changing its assertions.
-4. §4 — rewrite `controller/GameController.mjs`.
+4. §4 — rewrite `controller/gameController.mjs`.
 5. §5 — `view/` difficulty label text.
 6. §6 — delete `ai/`.
 7. §7.2 — controller integration tests.

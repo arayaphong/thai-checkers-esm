@@ -1,9 +1,9 @@
 import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { PieceColor, PieceType } from '../../core/piece.mjs';
-import { Position } from '../../core/position.mjs';
-import { Board } from '../../core/board.mjs';
-import { Explorer } from '../../core/explorer.mjs';
+import { Position } from '../../core/Position.mjs';
+import { Board } from '../../core/Board.mjs';
+import { Explorer } from '../../core/Explorer.mjs';
 
 describe('core/explorer', () => {
   test('throws error if from position is empty', () => {

@@ -2,7 +2,7 @@
 
 A browser-based Thai Checkers game built with **pure ES2025 modules** — no framework, no bundler, no build step. Serve the project directory with any static HTTP server and play.
 
-**Version:** 0.0.1
+**App version:** 0.0.1 (`package.json` version: 1.0.0)
 
 ---
 
@@ -50,46 +50,52 @@ index.html                 Entry point — loads sprite, CSS, and main.mjs
 main.mjs                   Bootstrap — connects controller to view
 
 model/
-  Types.mjs                Constants: INITIAL_BOARD, DEFAULT_CONFIG
-  MoveEngine.mjs           Pure move generation & validation (no state)
-  GameState.mjs            Immutable game state — all updates return new instances
+  types.mjs                Constants: INITIAL_BOARD, DEFAULT_CONFIG
+  moveEngine.mjs           Pure move generation & validation (no state)
+  gameState.mjs            Immutable game state — all updates return new instances
 
 controller/
-  GameController.mjs       Keeps model state and GameDriver in sync
-  GameDriverBridge.mjs     Translates model positions/hops and atomic core moves
-  AiMoveChannel.mjs        Serializable, non-mutating AI analysis boundary
+  gameController.mjs       Keeps model state and GameDriver in sync
+  gameDriverBridge.mjs     Translates model positions/hops and atomic core moves
+  aiMoveChannel.mjs        Serializable, non-mutating AI analysis boundary
+  WorkerGameDriver.mjs     Main-thread proxy for the AI worker
 
 core/                       Atomic-move rules and Analyzer search engine
+
+worker/
+  gameDriverWorker.mjs     Web Worker / worker_threads script that runs AI analysis
 
 cli/
   GameDriver.mjs           Browser-safe adapter over core game and Analyzer
   cli.mjs                  Node-only terminal REPL
 
 view/
-  GameView.mjs                   Semantic facade for the whole visible game UI
-  GameViewBinder.mjs             Subscribes to controller events and refreshes GameView
-  GameViewStateFactory.mjs       Translates controller/model state into display state
-  GameViewAnimationLifecycle.mjs Tracks active move animation (begin/wait/cancel)
+  gameView.mjs                   Semantic facade for the whole visible game UI
+  gameViewBinder.mjs             Subscribes to controller events and refreshes GameView
+  gameViewStateFactory.mjs       Translates controller/model state into display state
+  gameViewAnimationLifecycle.mjs Tracks active move animation (begin/wait/cancel)
   css/                           Stylesheets and Tailwind build input/output
     game.css               Animations and small project utility classes
     tailwind-input.css     Tailwind CLI input
     tailwind.css           Generated Tailwind stylesheet
   icons/                         SVG source files (crown, bot, restart, info)
-  components/                    Semantic board/status/control-panel views
-  intent/                        Actor/action/intent flow for user interaction
+  components/                    Control-panel presentation logic
+  uiCommandDispatcher.mjs       Plain UI-command dispatcher
   html/                          DOM surfaces, templates, element registry, CSS maps
-    templates/             Main layout and board HTML fragments
+    templates/             Main layout HTML fragment
     surfaces/              HTML implementations behind semantic view methods
     styles/                Real CSS class mappings owned by the HTML layer
 tests/
-  check-view-boundaries.test.mjs  Jest test for semantic view boundaries
-  smoke-game-flow.test.mjs        Jest tests for game-flow smoke coverage
+  view/check-view-boundaries.test.mjs  Semantic view boundary checks
+  view/smoke-game-flow.test.mjs        Game-flow smoke coverage
 jest.config.mjs                   Jest config for ESM .mjs tests
 ```
 
 ---
 
 ## Architecture
+
+See [the concise view architecture](docs/view.md) for the browser UI flow and boundaries.
 
 ```
 ┌────────────────────┐   events   ┌────────────────┐
@@ -112,21 +118,23 @@ jest.config.mjs                   Jest config for ESM .mjs tests
 - **Model** — pure functions, immutable state, no DOM dependencies
 - **Controller** — keeps view-facing model state synchronized with the atomic
   `GameDriver` used for AI decisions, and emits typed events (`moveMade`,
-  `gameOver`, `aiThinking`, …)
-- **Semantic view** — uses user-facing methods like `hintTargetSquares()` and `showAiThinking()`, with no DOM API, selectors, datasets, or CSS class names
+  `gameOver`, `aiThinking`, …). AI analysis is offloaded to a Web Worker via
+  `WorkerGameDriver` / `AiMoveChannel` so the UI remains responsive during
+  search.
+- **Semantic view** — coordinates display state and move animations without DOM APIs, selectors, datasets, or CSS class names
 - **HTML adapter** — owns DOM operations, templates, event delegation, element lookup, and CSS class maps under `view/html/**`
-- **Intent flow** — converts UI events into actor/action/intent objects before dispatching controller commands
+- **UI command flow** — converts delegated clicks directly into plain `{ type, ...payload }` commands before controller dispatch
 
 Run the boundary check after view changes:
 
 ```bash
-npm run check:view-boundaries
+npm test -- --runTestsByPath tests/view/check-view-boundaries.test.mjs
 ```
 
 Run the game-flow smoke checks after behavior-affecting changes:
 
 ```bash
-npm run smoke:game-flow
+npm test -- --runTestsByPath tests/view/smoke-game-flow.test.mjs
 ```
 
 Run the full Jest suite:

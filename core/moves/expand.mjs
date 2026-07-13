@@ -4,12 +4,12 @@
 // `expandRoute` fills those gaps in so every consecutive pair is adjacent,
 // giving a continuous trail to print or highlight from source to destination.
 
-import { Position } from '../position.mjs';
+import { Position } from '../Position.mjs';
 
 /**
  * Fills in the cell gaps in the path representation.
- * @param {import('../position.mjs').Position[]} waypoints
- * @returns {import('../position.mjs').Position[]}
+ * @param {import('../Position.mjs').Position[]} waypoints
+ * @returns {import('../Position.mjs').Position[]}
  */
 export const expandRoute = (waypoints) =>
     waypoints.length === 0
@@ -33,10 +33,10 @@ export const expandRoute = (waypoints) =>
  * no such move or when several distinct moves share the same endpoints (e.g.
  * dame loops that capture different piece sets) — those are intentionally not
  * highlighted.
- * @param {import('../game.mjs').Move[]} moves
+ * @param {import('../Game.mjs').Move[]} moves
  * @param {string} from algebraic notation, e.g. "D1"
  * @param {string} to algebraic notation, e.g. "B3"
- * @returns {import('../position.mjs').Position[] | null}
+ * @returns {import('../Position.mjs').Position[] | null}
  */
 export const singleRoute = (moves, from, to) => {
     const matches = moves.filter(

@@ -1,8 +1,8 @@
 import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { PieceColor, PieceType } from '../../core/piece.mjs';
-import { Position } from '../../core/position.mjs';
-import { Board } from '../../core/board.mjs';
+import { Position } from '../../core/Position.mjs';
+import { Board } from '../../core/Board.mjs';
 
 describe('core/board', () => {
   test('constructor and validation invariants', () => {
