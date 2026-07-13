@@ -1,12 +1,12 @@
 {
   "id": "demo2",
   "title": "Demo 2: dame loop capture ending on the original square.",
-  "description": "Demo 2: dame loop capture ending on the original square.\n\nThe white dame on E4 can capture four black pieces in a loop:\n  E4 -> F5 -> G6 -> F7 -> E8 -> D7 -> C6 -> D5 -> E4\n\nIt captures F5, F7, D7, and D5, then lands back on E4.\nIn the REPL, try:\n  > e4 e4\n",
+  "description": "Demo 2: dame loop capture ending on the original square.\n\nThe white dame on F4 can capture four black pieces in a loop:\n  F4 -> G5 -> H6 -> G7 -> F8 -> E7 -> D6 -> E5 -> F4\n\nIt captures G5, G7, E7, and E5, then lands back on F4.\nIn the REPL, try:\n  > f4 f4\n",
   "pieces": [
-    ["E4", { "color": "WHITE", "type": "DAME" }],
-    ["F5", { "color": "BLACK", "type": "PION" }],
-    ["D5", { "color": "BLACK", "type": "PION" }],
-    ["F7", { "color": "BLACK", "type": "PION" }],
-    ["D7", { "color": "BLACK", "type": "PION" }]
+    ["F4", { "color": "WHITE", "type": "DAME" }],
+    ["G5", { "color": "BLACK", "type": "PION" }],
+    ["E5", { "color": "BLACK", "type": "PION" }],
+    ["G7", { "color": "BLACK", "type": "PION" }],
+    ["E7", { "color": "BLACK", "type": "PION" }]
   ]
 }

@@ -33,7 +33,7 @@ describe('HtmlBoardSurface initialization', () => {
 
     assert.equal(squares.length, 64);
     for (const { position, element } of squares) {
-      const isPlayable = (position.r + position.c) % 2 === 0;
+      const isPlayable = (position.r + position.c) % 2 === 1;
       assert.equal(
         element.className === boardClassMap.squareDark,
         isPlayable,

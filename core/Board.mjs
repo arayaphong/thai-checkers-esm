@@ -160,7 +160,7 @@ export class Board {
     static setup() {
         const { occBits, blackBits } = HOME_ROWS.reduce(
             (acc, row) => {
-                const startCol = row % 2 === 0 ? 1 : 0;
+                const startCol = row % 2 === 0 ? 0 : 1;
                 return Array.from({ length: 4 }).reduce((innerAcc, _, i) => {
                     const mask = bit(Position.fromCoords(startCol + i * 2, row).hash());
                     return {

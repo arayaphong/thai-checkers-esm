@@ -1,15 +1,15 @@
 {
   "id": "demo4",
   "title": "Demo 4: dame loop capture with extra central branching.",
-  "description": "Demo 4: dame loop capture with extra central branching.\n\nSame ring as Demo 3, but with an extra black pion on D5 in the centre.\nThe central piece creates genuine branches: some sequences capture only the\nouter ring and end on E8, while others weave through D5 and end elsewhere.\n\n  Outer ring loop (ends E8):\n    E8 -> F7 -> G6 -> F5 -> E4 -> D3 -> C2 -> B3 -> A4 -> B5 -> C6 -> D7 -> E8\n\nIn the REPL, try:\n  > e8 e8\nThe app lists the matching routes. Choose one with:\n  > e8 e8 1\n  > e8 e8 2\n",
+  "description": "Demo 4: dame loop capture with extra central branching.\n\nSame ring as Demo 3, but with an extra black pion on E5 in the centre.\nThe central piece creates genuine branches: some sequences capture only the\nouter ring and end on F8, while others weave through E5 and end elsewhere.\n\n  Outer ring loop (ends F8):\n    F8 -> G7 -> H6 -> G5 -> F4 -> E3 -> D2 -> C3 -> B4 -> C5 -> D6 -> E7 -> F8\n\nIn the REPL, try:\n  > f8 f8\nThe app lists the matching routes. Choose one with:\n  > f8 f8 1\n  > f8 f8 2\n",
   "pieces": [
-    ["E8", { "color": "WHITE", "type": "DAME" }],
-    ["F7", { "color": "BLACK", "type": "PION" }],
-    ["F5", { "color": "BLACK", "type": "PION" }],
-    ["D5", { "color": "BLACK", "type": "PION" }],
-    ["D3", { "color": "BLACK", "type": "PION" }],
-    ["B3", { "color": "BLACK", "type": "PION" }],
-    ["B5", { "color": "BLACK", "type": "PION" }],
-    ["D7", { "color": "BLACK", "type": "PION" }]
+    ["F8", { "color": "WHITE", "type": "DAME" }],
+    ["G7", { "color": "BLACK", "type": "PION" }],
+    ["G5", { "color": "BLACK", "type": "PION" }],
+    ["E5", { "color": "BLACK", "type": "PION" }],
+    ["E3", { "color": "BLACK", "type": "PION" }],
+    ["C3", { "color": "BLACK", "type": "PION" }],
+    ["C5", { "color": "BLACK", "type": "PION" }],
+    ["E7", { "color": "BLACK", "type": "PION" }]
   ]
 }

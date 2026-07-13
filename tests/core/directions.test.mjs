@@ -44,7 +44,7 @@ describe('core/directions', () => {
   });
 
   test('isOpponentPiece evaluates correctly on mock board', () => {
-    const mockPos = Position.fromCoords(1, 0);
+    const mockPos = Position.fromCoords(2, 0);
 
     // Scenario 1: Square is empty
     const board1 = {

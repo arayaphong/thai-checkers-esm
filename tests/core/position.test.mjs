@@ -9,15 +9,15 @@ describe('core/position', () => {
   });
 
   test('Position.isValid', () => {
-    // Valid dark squares (x + y is odd)
-    assert.equal(Position.isValid(1, 0), true);
-    assert.equal(Position.isValid(0, 1), true);
-    assert.equal(Position.isValid(3, 2), true);
-    assert.equal(Position.isValid(7, 6), true);
+    // Valid dark squares (x + y is even)
+    assert.equal(Position.isValid(0, 0), true);
+    assert.equal(Position.isValid(1, 1), true);
+    assert.equal(Position.isValid(2, 2), true);
+    assert.equal(Position.isValid(6, 6), true);
 
-    // Invalid squares (x + y is even)
-    assert.equal(Position.isValid(0, 0), false);
-    assert.equal(Position.isValid(2, 2), false);
+    // Invalid squares (x + y is odd)
+    assert.equal(Position.isValid(1, 0), false);
+    assert.equal(Position.isValid(3, 2), false);
 
     // Out of bounds
     assert.equal(Position.isValid(-1, 0), false);
@@ -42,14 +42,14 @@ describe('core/position', () => {
 
   test('Position.fromCoords', () => {
     // Valid coordinate inputs
-    const p1 = Position.fromCoords(1, 0); // index = 0 + 4 * 0 = 0
+    const p1 = Position.fromCoords(0, 0); // index = 0 + 4 * 0 = 0
     assert.equal(p1.hash(), 0);
 
-    const p2 = Position.fromCoords(0, 1); // index = 0 + 4 * 1 = 4
+    const p2 = Position.fromCoords(1, 1); // index = 0 + 4 * 1 = 4
     assert.equal(p2.hash(), 4);
 
     // Invalid coordinates throw
-    assert.throws(() => Position.fromCoords(0, 0), Error);
+    assert.throws(() => Position.fromCoords(1, 0), Error);
     assert.throws(() => Position.fromCoords(8, 8), Error);
   });
 
@@ -59,16 +59,16 @@ describe('core/position', () => {
   });
 
   test('Position.fromString algebraic notation parser', () => {
-    const p1 = Position.fromString('B1'); // coords (1, 0)
-    assert.equal(p1.x, 1);
+    const p1 = Position.fromString('A1'); // coords (0, 0)
+    assert.equal(p1.x, 0);
     assert.equal(p1.y, 0);
 
-    const p2 = Position.fromString('A2'); // coords (0, 1)
-    assert.equal(p2.x, 0);
+    const p2 = Position.fromString('B2'); // coords (1, 1)
+    assert.equal(p2.x, 1);
     assert.equal(p2.y, 1);
 
-    const p3 = Position.fromString('H7'); // coords (7, 6)
-    assert.equal(p3.x, 7);
+    const p3 = Position.fromString('G7'); // coords (6, 6)
+    assert.equal(p3.x, 6);
     assert.equal(p3.y, 6);
 
     // Invalid strings throw
@@ -102,9 +102,9 @@ describe('core/position', () => {
   });
 
   test('toString method algebraic notation format', () => {
-    assert.equal(Position.fromCoords(1, 0).toString(), 'B1');
-    assert.equal(Position.fromCoords(0, 1).toString(), 'A2');
-    assert.equal(Position.fromCoords(7, 6).toString(), 'H7');
+    assert.equal(Position.fromCoords(0, 0).toString(), 'A1');
+    assert.equal(Position.fromCoords(1, 1).toString(), 'B2');
+    assert.equal(Position.fromCoords(6, 6).toString(), 'G7');
   });
 
   test('equals method', () => {

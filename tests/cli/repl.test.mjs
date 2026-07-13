@@ -58,7 +58,7 @@ describe('REPL end-to-end', () => {
     expect(code).toBe(0);
     expect(stdout).toContain('Player to move: WHITE');
     expect(stdout).toContain('Player to move: BLACK');
-    expect(stdout).toContain('[3] C2 -> D3');
+    expect(stdout).toContain('[3] D2 -> C3');
   });
 
   test('starts with a demo file and shows its metadata', async () => {
@@ -70,16 +70,16 @@ describe('REPL end-to-end', () => {
 
   test('ambiguous coordinate move prints candidate routes', async () => {
     const demoPath = path.join(ROOT, 'examples', 'demos', 'demo1.json');
-    const { code, stdout } = await runRepl([demoPath], ['e4 e8', 'quit']);
+    const { code, stdout } = await runRepl([demoPath], ['f4 f8', 'quit']);
     expect(code).toBe(0);
     expect(stdout).toContain('Ambiguous move');
-    expect(stdout).toContain('E4 -> G6 -> E8* (xF5 xF7)');
-    expect(stdout).toContain('E4 -> C6 -> E8* (xD5 xD7)');
+    expect(stdout).toContain('F4 -> H6 -> F8* (xG5 xG7)');
+    expect(stdout).toContain('F4 -> D6 -> F8* (xE5 xE7)');
   });
 
   test('ambiguous move with choice applies the selected route', async () => {
     const demoPath = path.join(ROOT, 'examples', 'demos', 'demo1.json');
-    const { code, stdout } = await runRepl([demoPath], ['e4 e8 1', 'quit']);
+    const { code, stdout } = await runRepl([demoPath], ['f4 f8 1', 'quit']);
     expect(code).toBe(0);
     expect(stdout).toContain('Player to move: BLACK');
   });
@@ -108,7 +108,7 @@ describe('REPL end-to-end', () => {
 
     const second = await runRepl([saveFile], ['history', 'quit']);
     expect(second.code).toBe(0);
-    expect(second.stdout).toContain('1. C2 -> D3');
+    expect(second.stdout).toContain('1. D2 -> C3');
   });
 
   test('undo and redo commands work', async () => {
@@ -120,6 +120,6 @@ describe('REPL end-to-end', () => {
   test('history command lists played moves only', async () => {
     const { code, stdout } = await runRepl([], ['3', 'history', 'quit']);
     expect(code).toBe(0);
-    expect(stdout).toContain('1. C2 -> D3');
+    expect(stdout).toContain('1. D2 -> C3');
   });
 });
