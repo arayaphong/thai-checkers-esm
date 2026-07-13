@@ -6,10 +6,7 @@ import { createMotionSurface } from './surfaces/htmlMotionSurface.mjs';
 import { createStatusSurface } from './surfaces/htmlStatusSurface.mjs';
 import { createControlPanelSurface } from './surfaces/htmlControlPanelSurface.mjs';
 import { createUiEventSource } from './htmlUiEventSource.mjs';
-import {
-  createControlPanelView,
-  MODE_OPTIONS,
-} from '../components/controlPanelView.mjs';
+import { createControlPanelView, MODE_OPTIONS } from '../components/controlPanelView.mjs';
 import { createGameView } from '../gameView.mjs';
 import { createGameViewBinder } from '../gameViewBinder.mjs';
 import * as stateFactory from '../gameViewStateFactory.mjs';
@@ -49,7 +46,16 @@ export const createHtmlGameView = (controller, rootId) => {
 
   const dispatchCommand = createUiCommandDispatcher(controller, binder, MODE_OPTIONS);
   const uiEventSource = createUiEventSource(registry);
-  uiEventSource.onUiCommand(dispatchCommand);
+
+  let currentRotation = 0;
+  uiEventSource.onUiCommand((command) => {
+    if (command.type === 'rotateBoard') {
+      currentRotation = currentRotation === 0 ? 180 : 0;
+      boardView.setRotation(currentRotation);
+      return;
+    }
+    dispatchCommand(command);
+  });
 
   binder.refreshNow();
 

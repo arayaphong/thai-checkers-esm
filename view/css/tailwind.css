@@ -39,6 +39,15 @@
       --tw-ring-offset-width: 0px;
       --tw-ring-offset-color: #fff;
       --tw-ring-offset-shadow: 0 0 #0000;
+      --tw-backdrop-blur: initial;
+      --tw-backdrop-brightness: initial;
+      --tw-backdrop-contrast: initial;
+      --tw-backdrop-grayscale: initial;
+      --tw-backdrop-hue-rotate: initial;
+      --tw-backdrop-invert: initial;
+      --tw-backdrop-opacity: initial;
+      --tw-backdrop-saturate: initial;
+      --tw-backdrop-sepia: initial;
       --tw-duration: initial;
       --tw-ease: initial;
       --tw-scale-x: 1;
@@ -68,7 +77,6 @@
     --color-rose-500: oklch(64.5% 0.246 16.439);
     --color-rose-800: oklch(45.5% 0.188 13.697);
     --color-rose-900: oklch(41% 0.159 10.272);
-    --color-slate-600: oklch(44.6% 0.043 257.281);
     --color-slate-700: oklch(37.2% 0.044 257.287);
     --color-slate-900: oklch(20.8% 0.042 265.755);
     --color-gray-100: oklch(96.7% 0.003 264.542);
@@ -119,6 +127,7 @@
     --radius-2xl: 1rem;
     --ease-out: cubic-bezier(0, 0, 0.2, 1);
     --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    --blur-sm: 8px;
     --default-transition-duration: 0.15s;
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     --default-font-family: var(--font-sans);
@@ -373,8 +382,14 @@
 }
 @layer components;
 @layer utilities {
+  .pointer-events-auto {
+    pointer-events: auto;
+  }
   .pointer-events-none {
     pointer-events: none;
+  }
+  .collapse {
+    visibility: collapse;
   }
   .visible {
     visibility: visible;
@@ -397,6 +412,12 @@
   .-inset-3 {
     inset: calc(var(--spacing) * -3);
   }
+  .top-2 {
+    top: calc(var(--spacing) * 2);
+  }
+  .right-2 {
+    right: calc(var(--spacing) * 2);
+  }
   .z-0 {
     z-index: 0;
   }
@@ -408,9 +429,6 @@
   }
   .z-30 {
     z-index: 30;
-  }
-  .z-\[15\] {
-    z-index: 15;
   }
   .container {
     width: 100%;
@@ -485,6 +503,9 @@
   .h-4 {
     height: calc(var(--spacing) * 4);
   }
+  .h-5 {
+    height: calc(var(--spacing) * 5);
+  }
   .h-10 {
     height: calc(var(--spacing) * 10);
   }
@@ -511,6 +532,9 @@
   }
   .w-4 {
     width: calc(var(--spacing) * 4);
+  }
+  .w-5 {
+    width: calc(var(--spacing) * 5);
   }
   .w-10 {
     width: calc(var(--spacing) * 10);
@@ -621,6 +645,14 @@
   .border-neutral-700 {
     border-color: var(--color-neutral-700);
   }
+  .border-neutral-700\/50 {
+    border-color: #40404080;
+  }
+  @supports (color: color-mix(in lab, red, red)) {
+    .border-neutral-700\/50 {
+      border-color: color-mix(in oklab, var(--color-neutral-700) 50%, transparent);
+    }
+  }
   .border-neutral-950 {
     border-color: var(--color-neutral-950);
   }
@@ -674,6 +706,14 @@
   }
   .bg-neutral-950 {
     background-color: var(--color-neutral-950);
+  }
+  .bg-neutral-950\/60 {
+    background-color: #0a0a0a99;
+  }
+  @supports (color: color-mix(in lab, red, red)) {
+    .bg-neutral-950\/60 {
+      background-color: color-mix(in oklab, var(--color-neutral-950) 60%, transparent);
+    }
   }
   .bg-rose-400 {
     background-color: var(--color-rose-400);
@@ -783,6 +823,9 @@
       var(--tw-gradient-from) var(--tw-gradient-from-position),
       var(--tw-gradient-to) var(--tw-gradient-to-position)
     );
+  }
+  .p-2 {
+    padding: calc(var(--spacing) * 2);
   }
   .p-3 {
     padding: calc(var(--spacing) * 3);
@@ -933,6 +976,9 @@
   .opacity-30 {
     opacity: 0.3;
   }
+  .opacity-40 {
+    opacity: 0.4;
+  }
   .opacity-60 {
     opacity: 0.6;
   }
@@ -967,10 +1013,25 @@
       var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
       var(--tw-ring-shadow), var(--tw-shadow);
   }
+  .shadow-md {
+    --tw-shadow:
+      0 4px 6px -1px var(--tw-shadow-color, #0000001a),
+      0 2px 4px -2px var(--tw-shadow-color, #0000001a);
+    box-shadow:
+      var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+      var(--tw-ring-shadow), var(--tw-shadow);
+  }
   .shadow-xl {
     --tw-shadow:
       0 20px 25px -5px var(--tw-shadow-color, #0000001a),
       0 8px 10px -6px var(--tw-shadow-color, #0000001a);
+    box-shadow:
+      var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+      var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .ring {
+    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(1px + var(--tw-ring-offset-width))
+      var(--tw-ring-color, currentcolor);
     box-shadow:
       var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
       var(--tw-ring-shadow), var(--tw-shadow);
@@ -1044,6 +1105,17 @@
   }
   .ring-offset-slate-900 {
     --tw-ring-offset-color: var(--color-slate-900);
+  }
+  .backdrop-blur-sm {
+    --tw-backdrop-blur: blur(var(--blur-sm));
+    -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+      var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+      var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+      var(--tw-backdrop-sepia,);
+    backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+      var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+      var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+      var(--tw-backdrop-sepia,);
   }
   .transition {
     transition-property:
@@ -1120,12 +1192,42 @@
     .hover\:bg-neutral-700:hover {
       background-color: var(--color-neutral-700);
     }
-    .hover\:bg-slate-600:hover {
-      background-color: var(--color-slate-600);
+    .hover\:bg-neutral-900\/80:hover {
+      background-color: #171717cc;
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:bg-neutral-900\/80:hover {
+        background-color: color-mix(in oklab, var(--color-neutral-900) 80%, transparent);
+      }
     }
     .hover\:text-gray-200:hover {
       color: var(--color-gray-200);
     }
+    .hover\:text-white:hover {
+      color: var(--color-white);
+    }
+    .hover\:opacity-100:hover {
+      opacity: 1;
+    }
+  }
+  .focus\:ring-2:focus {
+    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width))
+      var(--tw-ring-color, currentcolor);
+    box-shadow:
+      var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+      var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .focus\:ring-emerald-500\/50:focus {
+    --tw-ring-color: #00bb7f80;
+  }
+  @supports (color: color-mix(in lab, red, red)) {
+    .focus\:ring-emerald-500\/50:focus {
+      --tw-ring-color: color-mix(in oklab, var(--color-emerald-500) 50%, transparent);
+    }
+  }
+  .focus\:outline-none:focus {
+    --tw-outline-style: none;
+    outline-style: none;
   }
   @media (min-width: 40rem) {
     .sm\:h-6 {
@@ -1290,6 +1392,42 @@
   syntax: '*';
   inherits: false;
   initial-value: 0 0 #0000;
+}
+@property --tw-backdrop-blur {
+  syntax: '*';
+  inherits: false;
+}
+@property --tw-backdrop-brightness {
+  syntax: '*';
+  inherits: false;
+}
+@property --tw-backdrop-contrast {
+  syntax: '*';
+  inherits: false;
+}
+@property --tw-backdrop-grayscale {
+  syntax: '*';
+  inherits: false;
+}
+@property --tw-backdrop-hue-rotate {
+  syntax: '*';
+  inherits: false;
+}
+@property --tw-backdrop-invert {
+  syntax: '*';
+  inherits: false;
+}
+@property --tw-backdrop-opacity {
+  syntax: '*';
+  inherits: false;
+}
+@property --tw-backdrop-saturate {
+  syntax: '*';
+  inherits: false;
+}
+@property --tw-backdrop-sepia {
+  syntax: '*';
+  inherits: false;
 }
 @property --tw-duration {
   syntax: '*';

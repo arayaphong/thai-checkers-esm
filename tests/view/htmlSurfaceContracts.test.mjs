@@ -2,6 +2,7 @@ import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { createControlPanelSurface } from '../../view/html/surfaces/htmlControlPanelSurface.mjs';
 import { createMotionSurface } from '../../view/html/surfaces/htmlMotionSurface.mjs';
+import { createStatusSurface } from '../../view/html/surfaces/htmlStatusSurface.mjs';
 import { layoutClassMap } from '../../view/html/styles/layoutClassMap.mjs';
 
 const createClassList = (element) => {
@@ -115,5 +116,92 @@ describe('HTML surface contracts', () => {
       assert.deepEqual(Object.keys(surface).sort(), expectedMethods);
       expectedMethods.forEach((method) => assert.equal(typeof surface[method], 'function'));
       assert.equal(board.children.length, 1, 'surface installs one animation layer');
+    }));
+
+  test('control-panel renders correct difficulty selection colors', () =>
+    withFakeDocument(() => {
+      const panel = createFakeElement();
+      const gameArea = createFakeElement();
+      const surface = createControlPanelSurface({
+        getSetupPanel: () => panel,
+        getGameArea: () => gameArea,
+      });
+
+      surface.buildDifficultyButtons([
+        { key: 'easy', label: 'Easy', description: 'Easy desc' },
+        { key: 'medium', label: 'Medium', description: 'Medium desc' },
+        { key: 'hard', label: 'Hard', description: 'Hard desc' },
+      ]);
+
+      const state = (selectedDifficulty) => ({
+        isCollapsed: false,
+        gameConfig: {
+          whiteText: 'White',
+          blackText: 'Black',
+          difficultyLabel: 'Easy',
+        },
+        selectedMode: 'eve',
+        selectedDifficulty,
+        isDifficultyVisible: true,
+        isCancelable: false,
+      });
+
+      const expandedEl = panel.children[1];
+      const difficultyRowEl = expandedEl.children[4];
+      const easyBtn = difficultyRowEl.children[0];
+      const mediumBtn = difficultyRowEl.children[1];
+      const hardBtn = difficultyRowEl.children[2];
+
+      // 1. Easy selected
+      surface.render(state('easy'));
+      assert.match(easyBtn.className, /emerald/);
+      assert.match(mediumBtn.className, /neutral-800/);
+      assert.match(hardBtn.className, /neutral-800/);
+
+      // 2. Medium selected
+      surface.render(state('medium'));
+      assert.match(easyBtn.className, /neutral-800/);
+      assert.match(mediumBtn.className, /amber/);
+      assert.match(hardBtn.className, /neutral-800/);
+
+      // 3. Hard selected
+      surface.render(state('hard'));
+      assert.match(easyBtn.className, /neutral-800/);
+      assert.match(mediumBtn.className, /neutral-800/);
+      assert.match(hardBtn.className, /rose/);
+    }));
+
+  test('status-panel displays correct winner message when game ends', () =>
+    withFakeDocument(() => {
+      const panel = createFakeElement();
+      const surface = createStatusSurface({
+        getStatusPanel: () => panel,
+      });
+
+      const state = (status) => ({
+        turn: 'white',
+        status,
+        mustMovePiece: null,
+        isAIThinking: false,
+        gameConfig: { whiteIsAI: false, blackIsAI: false },
+        pieceCounts: { white: 8, black: 8 },
+        isRestartVisible: status !== 'PLAYING',
+      });
+
+      const messageArea = panel.children[1];
+      const messageRowEl = messageArea.children[0];
+      const resultEl = messageRowEl.children[0];
+
+      // Test WHITE_WINS
+      surface.render(state('WHITE_WINS'));
+      assert.equal(resultEl.textContent, '⚪ ขาวชนะ!');
+
+      // Test BLACK_WINS
+      surface.render(state('BLACK_WINS'));
+      assert.equal(resultEl.textContent, '⚫ ดำชนะ!');
+
+      // Test DRAW
+      surface.render(state('DRAW'));
+      assert.equal(resultEl.textContent, 'เสมอ!');
     }));
 });

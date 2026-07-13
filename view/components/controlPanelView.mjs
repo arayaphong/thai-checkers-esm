@@ -6,9 +6,9 @@ export const MODE_OPTIONS = Object.freeze([
 ]);
 
 const DIFFICULTY_OPTIONS = Object.freeze([
-  { key: 'easy', label: 'ง่าย', description: 'คิดลึกระดับ 1' },
-  { key: 'medium', label: 'พอสู้ได้', description: 'คิดลึกระดับ 4' },
-  { key: 'hard', label: 'ไม่ยอมแพ้', description: 'คิดลึกระดับ 8' },
+  { key: 'easy', label: 'หัดเล่น', description: 'คิดลึกระดับ 1' },
+  { key: 'medium', label: 'เก่ง', description: 'คิดลึกระดับ 4' },
+  { key: 'hard', label: 'เซียน', description: 'คิดลึกระดับ 8' },
 ]);
 
 export const createControlPanelView = (controlPanelSurface) => {

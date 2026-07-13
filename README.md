@@ -2,7 +2,7 @@
 
 A browser-based Thai Checkers game built with **pure ES2025 modules** — no framework, no bundler, no build step. Serve the project directory with any static HTTP server and play.
 
-**App version:** 0.0.1 (`package.json` version: 1.0.0)
+**App version:** 1.0.0 (`package.json` version: 1.0.0)
 
 ---
 
@@ -35,11 +35,11 @@ python3 -m http.server 8000
 
 ### AI Difficulty
 
-| Level     | Algorithm  | Description                |
-| --------- | ---------- | -------------------------- |
-| ง่าย      | `Analyzer` | Atomic-turn search depth 1 |
-| พอสู้ได้  | `Analyzer` | Atomic-turn search depth 4 |
-| ไม่ยอมแพ้ | `Analyzer` | Atomic-turn search depth 8 |
+| Level   | Algorithm  | Description                |
+| ------- | ---------- | -------------------------- |
+| หัดเล่น | `Analyzer` | Atomic-turn search depth 1 |
+| เก่ง    | `Analyzer` | Atomic-turn search depth 4 |
+| เซียน   | `Analyzer` | Atomic-turn search depth 8 |
 
 ---
 

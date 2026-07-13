@@ -78,7 +78,7 @@ const buildMessageArea = () => {
     '<svg class="w-4 h-4 inline"><use href="#icon-bot"/></svg> AI กำลังคิด...';
   const turnMessageEl = h('span', '');
   const turnLabelEl = h('span', '');
-  turnMessageEl.append('ตาของ: ', turnLabelEl);
+  turnMessageEl.append('ผู้เล่น: ', turnLabelEl);
   messageRowEl.append(resultEl, aiThinkingEl, turnMessageEl);
 
   const mandatoryWrapperEl = h('div', statusClassMap.hidden);
@@ -168,6 +168,9 @@ const createUpdaters = ({
         white_wins: '⚪ ขาวชนะ!',
         black_wins: '⚫ ดำชนะ!',
         draw: 'เสมอ!',
+        WHITE_WINS: '⚪ ขาวชนะ!',
+        BLACK_WINS: '⚫ ดำชนะ!',
+        DRAW: 'เสมอ!',
       }[status];
       resultEl.textContent = resultText;
       showOnlyMessage(resultEl);
