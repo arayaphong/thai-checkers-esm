@@ -4,7 +4,7 @@ import { createPieceElement } from '../pieceElement.mjs';
 
 const h = (tag, cls) => Object.assign(document.createElement(tag), { className: cls });
 const coordLabel = (text, isDark) =>
-  `<span class="${isDark ? boardClassMap.coordLabelOnDark : boardClassMap.coordLabelOnLight} counter-rotate-transition">${text}</span>`;
+  `<span class="${isDark ? boardClassMap.coordLabelOnLight : boardClassMap.coordLabelOnDark} counter-rotate-transition">${text}</span>`;
 const moveDot = (color) =>
   `<div class="${boardClassMap.dotBase}"><div class="${boardClassMap.dotInnerBase} ${color}"></div></div>`;
 const BOARD_SIZE = 8;
