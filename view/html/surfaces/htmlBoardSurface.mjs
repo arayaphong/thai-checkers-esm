@@ -114,6 +114,11 @@ export const createBoardSurface = (registry) => {
       currentRotation = degrees;
       boardEl.style.transform = `rotate(${degrees}deg)`;
 
+      const glowEl = boardEl.parentElement?.querySelector('#boardGlow');
+      const innerEl = boardEl.parentElement?.querySelector('#boardInner');
+      if (glowEl) glowEl.style.transform = `rotate(${degrees}deg)`;
+      if (innerEl) innerEl.style.transform = `rotate(${degrees}deg)`;
+
       const counterDegrees = -degrees;
       boardEl.querySelectorAll('.abs-coord').forEach((el) => {
         el.style.transform = `rotate(${counterDegrees}deg)`;
