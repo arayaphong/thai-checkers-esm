@@ -8,6 +8,9 @@ export const controlPanelClassMap = Object.freeze({
     'w-full flex items-center justify-between text-sm text-gray-400 hover:text-gray-200 transition-colors',
   collapsedModeLabel: 'text-emerald-400',
   collapsedDifficultyLabel: 'text-amber-400 text-xs',
+  collapsedDifficultyLabelEasy: 'text-emerald-400 text-xs',
+  collapsedDifficultyLabelMedium: 'text-amber-400 text-xs',
+  collapsedDifficultyLabelHard: 'text-rose-400 text-xs',
   collapsedEditHint: 'text-xs underline',
 
   modeGrid: 'grid grid-cols-2 gap-2 mb-4',
@@ -19,6 +22,12 @@ export const controlPanelClassMap = Object.freeze({
   difficultyRow: 'flex gap-2 mb-4',
   difficultyButtonSelected:
     'flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all border bg-amber-600/20 border-amber-500 text-amber-400',
+  difficultyButtonSelectedEasy:
+    'flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all border bg-emerald-600/20 border-emerald-500 text-emerald-400',
+  difficultyButtonSelectedMedium:
+    'flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all border bg-amber-600/20 border-amber-500 text-amber-400',
+  difficultyButtonSelectedHard:
+    'flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all border bg-rose-900/30 border-rose-800 text-rose-400',
   difficultyButtonUnselected:
     'flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-all border bg-neutral-800 border-neutral-700 text-gray-400 hover:bg-neutral-700',
   difficultyDescription: 'text-[10px] font-normal opacity-70',

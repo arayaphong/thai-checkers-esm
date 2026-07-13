@@ -116,4 +116,57 @@ describe('HTML surface contracts', () => {
       expectedMethods.forEach((method) => assert.equal(typeof surface[method], 'function'));
       assert.equal(board.children.length, 1, 'surface installs one animation layer');
     }));
+
+  test('control-panel renders correct difficulty selection colors', () =>
+    withFakeDocument(() => {
+      const panel = createFakeElement();
+      const gameArea = createFakeElement();
+      const surface = createControlPanelSurface({
+        getSetupPanel: () => panel,
+        getGameArea: () => gameArea,
+      });
+
+      surface.buildDifficultyButtons([
+        { key: 'easy', label: 'Easy', description: 'Easy desc' },
+        { key: 'medium', label: 'Medium', description: 'Medium desc' },
+        { key: 'hard', label: 'Hard', description: 'Hard desc' },
+      ]);
+
+      const state = (selectedDifficulty) => ({
+        isCollapsed: false,
+        gameConfig: {
+          whiteText: 'White',
+          blackText: 'Black',
+          difficultyLabel: 'Easy',
+        },
+        selectedMode: 'eve',
+        selectedDifficulty,
+        isDifficultyVisible: true,
+        isCancelable: false,
+      });
+
+      const expandedEl = panel.children[1];
+      const difficultyRowEl = expandedEl.children[4];
+      const easyBtn = difficultyRowEl.children[0];
+      const mediumBtn = difficultyRowEl.children[1];
+      const hardBtn = difficultyRowEl.children[2];
+
+      // 1. Easy selected
+      surface.render(state('easy'));
+      assert.match(easyBtn.className, /emerald/);
+      assert.match(mediumBtn.className, /neutral-800/);
+      assert.match(hardBtn.className, /neutral-800/);
+
+      // 2. Medium selected
+      surface.render(state('medium'));
+      assert.match(easyBtn.className, /neutral-800/);
+      assert.match(mediumBtn.className, /amber/);
+      assert.match(hardBtn.className, /neutral-800/);
+
+      // 3. Hard selected
+      surface.render(state('hard'));
+      assert.match(easyBtn.className, /neutral-800/);
+      assert.match(mediumBtn.className, /neutral-800/);
+      assert.match(hardBtn.className, /rose/);
+    }));
 });

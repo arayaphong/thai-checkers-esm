@@ -35,11 +35,11 @@ python3 -m http.server 8000
 
 ### AI Difficulty
 
-| Level     | Algorithm  | Description                |
-| --------- | ---------- | -------------------------- |
-| ง่าย      | `Analyzer` | Atomic-turn search depth 1 |
-| พอสู้ได้  | `Analyzer` | Atomic-turn search depth 4 |
-| ไม่ยอมแพ้ | `Analyzer` | Atomic-turn search depth 8 |
+| Level   | Algorithm  | Description                |
+| ------- | ---------- | -------------------------- |
+| หัดเล่น | `Analyzer` | Atomic-turn search depth 1 |
+| เก่ง    | `Analyzer` | Atomic-turn search depth 4 |
+| เซียน   | `Analyzer` | Atomic-turn search depth 8 |
 
 ---
 

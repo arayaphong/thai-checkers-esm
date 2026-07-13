@@ -20,7 +20,7 @@ const createUpdaters = ({
     expandedEl.classList.toggle(controlPanelClassMap.hidden, isCollapsed);
   };
 
-  const updateCollapsedText = ({ isCollapsed, gameConfig }) => {
+  const updateCollapsedText = ({ isCollapsed, gameConfig, selectedDifficulty }) => {
     if (!isCollapsed) return;
 
     const { whiteText, blackText, difficultyLabel } = gameConfig;
@@ -29,6 +29,11 @@ const createUpdaters = ({
     collapsedDifficultyWrapperEl.classList.toggle(controlPanelClassMap.hidden, !hasDifficulty);
     if (hasDifficulty) {
       collapsedDifficultyTextEl.textContent = difficultyLabel;
+      const classKey = selectedDifficulty
+        ? `collapsedDifficultyLabel${selectedDifficulty.charAt(0).toUpperCase() + selectedDifficulty.slice(1)}`
+        : 'collapsedDifficultyLabel';
+      collapsedDifficultyTextEl.className =
+        controlPanelClassMap[classKey] || controlPanelClassMap.collapsedDifficultyLabel;
     }
   };
 
@@ -43,10 +48,13 @@ const createUpdaters = ({
 
   const updateDifficultyButtons = ({ selectedDifficulty }) => {
     difficultyButtons.forEach((btn, key) => {
-      btn.className =
-        key === selectedDifficulty
-          ? controlPanelClassMap.difficultyButtonSelected
-          : controlPanelClassMap.difficultyButtonUnselected;
+      if (key === selectedDifficulty) {
+        const classKey = `difficultyButtonSelected${key.charAt(0).toUpperCase() + key.slice(1)}`;
+        btn.className =
+          controlPanelClassMap[classKey] || controlPanelClassMap.difficultyButtonSelected;
+      } else {
+        btn.className = controlPanelClassMap.difficultyButtonUnselected;
+      }
     });
   };
 

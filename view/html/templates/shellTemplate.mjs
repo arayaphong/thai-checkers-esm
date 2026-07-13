@@ -5,7 +5,6 @@ export const renderShell = () => `
       <h1 class="${layoutClassMap.headerTitle}">
         <svg class="${layoutClassMap.headerIcon}"><use href="#icon-crown"/></svg> หมากฮอสไทย
       </h1>
-      <p class="${layoutClassMap.headerSubtitle}">Thai Checkers — Pure ESM</p>
     </div>
     <div id="setupPanel" class="${layoutClassMap.setupPanel}"></div>
     <div id="gameArea" class="${layoutClassMap.gameAreaBase} ${layoutClassMap.gameAreaInactiveModifier}">

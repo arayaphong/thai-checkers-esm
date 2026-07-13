@@ -924,9 +924,9 @@ New:
 
 ```js
 const DIFFICULTY_OPTIONS = Object.freeze([
-  { key: 'easy', label: 'ง่าย', description: 'คิดลึกระดับ 1' },
-  { key: 'medium', label: 'พอสู้ได้', description: 'คิดลึกระดับ 4' },
-  { key: 'hard', label: 'ไม่ยอมแพ้', description: 'คิดลึกระดับ 8' },
+  { key: 'easy', label: 'หัดเล่น', description: 'คิดลึกระดับ 1' },
+  { key: 'medium', label: 'เก่ง', description: 'คิดลึกระดับ 4' },
+  { key: 'hard', label: 'เซียน', description: 'คิดลึกระดับ 8' },
 ]);
 ```
 
@@ -938,7 +938,7 @@ else needs to change for this. `label` renders on the button's first line,
 lines 166–173 render both as plain `textContent` with no auto-wrapping —
 the final wording is stored literally in each `description`, as shown above).
 No other file in `view/` references difficulty text (confirmed via
-`grep -rli "difficulty\|ง่าย\|กลาง\|ยาก\|easy\|medium\|hard"` across
+`grep -rli "difficulty\|หัดเล่น\|กลาง\|ยาก\|easy\|medium\|hard"` across
 `view/`, `controller/`, `model/` — only `controlPanelView.mjs` has
 human-facing difficulty strings).
 
@@ -1054,7 +1054,7 @@ aiDifficulty: 'easy'` (depth 1); after White's human turn completes,
 - Serve the repository with a static HTTP server (no build step, per README),
   open `index.html` in a browser, and
   manually verify: a full human-vs-human game; a human-vs-AI game at each of
-  the three difficulty levels (confirm the new ง่าย/พอสู้ได้/ไม่ยอมแพ้ labels and
+  the three difficulty levels (confirm the new หัดเล่น/เก่ง/เซียน labels and
   depth-N subtitles render correctly); an AI-vs-AI game (confirm multi-capture
   chains still animate hop-by-hop with visible pacing, not instantly); no
   console errors (the `#elog` overlay in `index.html` surfaces uncaught

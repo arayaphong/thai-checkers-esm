@@ -6,10 +6,7 @@ import { createMotionSurface } from './surfaces/htmlMotionSurface.mjs';
 import { createStatusSurface } from './surfaces/htmlStatusSurface.mjs';
 import { createControlPanelSurface } from './surfaces/htmlControlPanelSurface.mjs';
 import { createUiEventSource } from './htmlUiEventSource.mjs';
-import {
-  createControlPanelView,
-  MODE_OPTIONS,
-} from '../components/controlPanelView.mjs';
+import { createControlPanelView, MODE_OPTIONS } from '../components/controlPanelView.mjs';
 import { createGameView } from '../gameView.mjs';
 import { createGameViewBinder } from '../gameViewBinder.mjs';
 import * as stateFactory from '../gameViewStateFactory.mjs';

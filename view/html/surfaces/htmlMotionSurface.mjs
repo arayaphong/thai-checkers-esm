@@ -85,7 +85,7 @@ export const createMotionSurface = (registry) => {
       const slide = createPieceElement(piece);
       slide.classList.add(...motionClassMap.slideOverlay.split(' '));
       slide.style.cssText = `position:absolute;width:${SQUARE_PERCENT}%;height:${SQUARE_PERCENT}%;top:${from.r * SQUARE_PERCENT}%;left:${from.c * SQUARE_PERCENT}%;padding:2.5%;z-index:30;${motionClassMap.slideTransitionCss}`;
-      
+
       if (piece.rank === 'king') {
         const boardRotation = boardEl.style.transform.match(/rotate\((-?\d+)deg\)/);
         const deg = boardRotation ? parseInt(boardRotation[1], 10) : 0;
