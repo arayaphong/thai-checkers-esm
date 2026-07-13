@@ -12,7 +12,7 @@ export const createGameState = (params = {}) => {
   const mustMovePiece = params.mustMovePiece ?? null;
   const status = params.status ?? 'PLAYING';
   const moveCount = params.moveCount ?? 0;
-  const config = params.config ? { ...params.config } : { ...DEFAULT_CONFIG };
+  const config = { ...DEFAULT_CONFIG, ...(params.config ?? {}) };
   const lastMove = params.lastMove ?? null;
 
   /** Get all valid moves for current player */
