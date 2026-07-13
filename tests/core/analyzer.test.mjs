@@ -30,11 +30,11 @@ describe('core/analyzer', () => {
   });
 
   test('analyzer selects the best move in a simple setup', () => {
-    // Setup: White pion at B3, Black pion at C4.
-    // There is only 1 capture move, which is B3 -> D5 capturing C4.
+    // Setup: White pion at C3, Black pion at D4.
+    // There is only 1 capture move, which is C3 -> E5 capturing D4.
     // It is White's turn.
-    const whitePos = Position.fromString('B3');
-    const blackPos = Position.fromString('C4');
+    const whitePos = Position.fromString('C3');
+    const blackPos = Position.fromString('D4');
     const board = Board.fromPieces([
       [whitePos, { color: PieceColor.WHITE, type: PieceType.PION }],
       [blackPos, { color: PieceColor.BLACK, type: PieceType.PION }],
@@ -44,8 +44,8 @@ describe('core/analyzer', () => {
 
     const result = analyzer.analyze(1);
     assert.notEqual(result, null);
-    assert.equal(result.move.from.toString(), 'B3');
-    assert.equal(result.move.to.toString(), 'D5');
+    assert.equal(result.move.from.toString(), 'C3');
+    assert.equal(result.move.to.toString(), 'E5');
     assert.deepEqual(result.move.captured, [blackPos]);
     assert.equal(analyzer.nodeCount > 0, true);
   });

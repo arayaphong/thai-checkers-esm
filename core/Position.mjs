@@ -1,5 +1,5 @@
 // Board position — only black squares on 8×8 board (32 playable squares)
-// Index 0..31 maps to coordinates where (x+y) is odd.
+// Index 0..31 maps to coordinates where (x+y) is even.
 const BOARD_SIZE = 8;
 const BOARD_HALF_SIZE = BOARD_SIZE / 2;
 const MAX_POSITIONS = (BOARD_SIZE * BOARD_SIZE) / 2; // 32
@@ -37,7 +37,7 @@ export class Position {
         this.#index = index;
         const y = Math.floor(index / BOARD_HALF_SIZE);
         const xBase = (index % BOARD_HALF_SIZE) * 2;
-        this.#x = xBase + ((xBase + y) % 2 === 0 ? 1 : 0);
+        this.#x = xBase + ((xBase + y) % 2 === 0 ? 0 : 1);
         this.#y = y;
     }
 
@@ -94,7 +94,7 @@ export class Position {
             x < BOARD_SIZE &&
             y >= 0 &&
             y < BOARD_SIZE &&
-            (x + y) % 2 === 1
+            (x + y) % 2 === 0
         );
     }
 

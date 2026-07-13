@@ -6,10 +6,10 @@ import { CaptureTrace, Legals } from '../../core/Legals.mjs';
 describe('core/legals', () => {
   describe('CaptureTrace', () => {
     test('valid constructor and properties', () => {
-      const p1 = Position.fromString('C4'); // captured
-      const p2 = Position.fromString('D5'); // landing
-      const p3 = Position.fromString('E6'); // captured
-      const p4 = Position.fromString('F7'); // landing
+      const p1 = Position.fromString('D4'); // captured
+      const p2 = Position.fromString('E5'); // landing
+      const p3 = Position.fromString('F6'); // captured
+      const p4 = Position.fromString('G7'); // landing
 
       const trace = new CaptureTrace([p1, p2, p3, p4]);
 
@@ -17,17 +17,17 @@ describe('core/legals', () => {
       assert.deepEqual(trace.sequence, [p1, p2, p3, p4]);
       assert.deepEqual(trace.captured, [p1, p3]);
 
-      const from = Position.fromString('B3');
+      const from = Position.fromString('C3');
       assert.deepEqual(trace.path(from), [from, p2, p4]);
       assert.equal(trace.finalLanding.equals(p4), true);
 
-      assert.equal(trace.toString(), '×C4 →D5 ×E6 →F7');
+      assert.equal(trace.toString(), '×D4 →E5 ×F6 →G7');
     });
 
     test('invalid constructor parameters throw', () => {
       assert.throws(() => new CaptureTrace([]), Error);
-      assert.throws(() => new CaptureTrace([Position.fromString('C4')]), Error); // odd length
-      assert.throws(() => new CaptureTrace([null, Position.fromString('D5')]), TypeError); // non-Position
+      assert.throws(() => new CaptureTrace([Position.fromString('D4')]), Error); // odd length
+      assert.throws(() => new CaptureTrace([null, Position.fromString('E5')]), TypeError); // non-Position
     });
   });
 
@@ -37,8 +37,8 @@ describe('core/legals', () => {
     });
 
     test('fromRegularMoves factory', () => {
-      const p1 = Position.fromString('B3');
-      const p2 = Position.fromString('D3');
+      const p1 = Position.fromString('C3');
+      const p2 = Position.fromString('E3');
 
       const legals = Legals.fromRegularMoves([p1, p2]);
 
@@ -63,10 +63,10 @@ describe('core/legals', () => {
     });
 
     test('fromCaptures factory', () => {
-      const cap1 = Position.fromString('C4');
-      const land1 = Position.fromString('D5');
-      const cap2 = Position.fromString('E6');
-      const land2 = Position.fromString('F7');
+      const cap1 = Position.fromString('D4');
+      const land1 = Position.fromString('E5');
+      const cap2 = Position.fromString('F6');
+      const land2 = Position.fromString('G7');
 
       const seq1 = [cap1, land1];
       const seq2 = [cap1, land1, cap2, land2];
@@ -93,8 +93,8 @@ describe('core/legals', () => {
     });
 
     test('iterator implementation', () => {
-      const p1 = Position.fromString('B3');
-      const p2 = Position.fromString('D3');
+      const p1 = Position.fromString('C3');
+      const p2 = Position.fromString('E3');
       const legals = Legals.fromRegularMoves([p1, p2]);
 
       const list = [...legals];
@@ -104,7 +104,7 @@ describe('core/legals', () => {
     });
 
     test('out of bounds checks', () => {
-      const legals = Legals.fromRegularMoves([Position.fromString('B3')]);
+      const legals = Legals.fromRegularMoves([Position.fromString('C3')]);
       assert.throws(() => legals.getPosition(-1), RangeError);
       assert.throws(() => legals.getPosition(1), RangeError);
       assert.throws(() => legals.getPosition(1.5), RangeError);

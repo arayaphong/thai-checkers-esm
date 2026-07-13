@@ -94,8 +94,8 @@ export const createBoardSurface = (registry) => {
     for (let c = 0; c < BOARD_SIZE; c += 1) {
       const position = { r, c };
       // Model rows run top-to-bottom while core ranks run bottom-to-top.
-      // The 32 playable (dark) squares have even row+column parity.
-      const isDark = (r + c) % 2 === 0;
+      // The 32 playable (dark) squares have odd row+column parity (A1 = dark).
+      const isDark = (r + c) % 2 === 1;
       const el = h('div', isDark ? boardClassMap.squareDark : boardClassMap.squareLight);
       el.dataset.row = String(r);
       el.dataset.col = String(c);
