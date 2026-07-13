@@ -4,7 +4,7 @@ import { createPieceElement } from '../pieceElement.mjs';
 
 const h = (tag, cls) => Object.assign(document.createElement(tag), { className: cls });
 const coordLabel = (text, isDark) =>
-  `<span class="${isDark ? boardClassMap.coordLabelOnDark : boardClassMap.coordLabelOnLight}">${text}</span>`;
+  `<span class="${isDark ? boardClassMap.coordLabelOnDark : boardClassMap.coordLabelOnLight} counter-rotate-transition">${text}</span>`;
 const moveDot = (color) =>
   `<div class="${boardClassMap.dotBase}"><div class="${boardClassMap.dotInnerBase} ${color}"></div></div>`;
 const BOARD_SIZE = 8;
@@ -37,6 +37,12 @@ export const createBoardSurface = (registry) => {
     throw new Error('HtmlBoardSurface: #board not found in DOM');
   }
 
+  // Track rotation state
+  let currentRotation = 0;
+  if (boardEl.classList) {
+    boardEl.classList.add('board-rotation-transition');
+  }
+
   [...boardEl.children].forEach((child) => {
     if (child.dataset.uiRole !== layoutClassMap.animLayerUiRole) child.remove();
   });
@@ -58,6 +64,15 @@ export const createBoardSurface = (registry) => {
       mandatoryCapture: pieceState.mandatoryCapture,
       moveableHint: pieceState.moveableHint,
     });
+
+    // If the piece is a King and the board is currently rotated, counter-rotate the SVG
+    if (pieceState.piece.rank === 'king' && currentRotation !== 0) {
+      const svg = pieceEl.querySelector('svg');
+      if (svg) {
+        svg.style.transform = `rotate(${-currentRotation}deg)`;
+      }
+    }
+
     el.append(pieceEl);
   };
 
@@ -95,6 +110,19 @@ export const createBoardSurface = (registry) => {
   }
 
   return {
+    setRotation: (degrees) => {
+      currentRotation = degrees;
+      boardEl.style.transform = `rotate(${degrees}deg)`;
+
+      const counterDegrees = -degrees;
+      boardEl.querySelectorAll('.abs-coord').forEach((el) => {
+        el.style.transform = `rotate(${counterDegrees}deg)`;
+      });
+      boardEl.querySelectorAll('.piece svg').forEach((el) => {
+        el.style.transform = `rotate(${counterDegrees}deg)`;
+      });
+    },
+
     render: (boardRenderState) => {
       const {
         pieces,

@@ -48,6 +48,11 @@ export const createUiEventSource = (registry) => {
       return;
     }
 
+    if (event.target.closest('#rotateBtn')) {
+      emit({ type: 'rotateBoard' });
+      return;
+    }
+
     if (event.target.closest('[data-ui-role="setupPanel"]')) {
       emit({ type: 'expandSetup' });
     }

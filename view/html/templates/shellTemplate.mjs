@@ -14,6 +14,9 @@ export const renderShell = () => `
         <div class="${layoutClassMap.boardFrameGlow}"></div>
         <div class="${layoutClassMap.boardFrameInner}"></div>
         <div id="board" class="${layoutClassMap.boardGrid}"></div>
+        <button id="rotateBtn" class="${layoutClassMap.rotateButton}" title="หมุนกระดาน">
+          <svg class="w-5 h-5"><use href="#icon-rotate"/></svg>
+        </button>
       </div>
     </div>
     <div class="${layoutClassMap.footer}">

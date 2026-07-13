@@ -49,7 +49,16 @@ export const createHtmlGameView = (controller, rootId) => {
 
   const dispatchCommand = createUiCommandDispatcher(controller, binder, MODE_OPTIONS);
   const uiEventSource = createUiEventSource(registry);
-  uiEventSource.onUiCommand(dispatchCommand);
+
+  let currentRotation = 0;
+  uiEventSource.onUiCommand((command) => {
+    if (command.type === 'rotateBoard') {
+      currentRotation = currentRotation === 0 ? 180 : 0;
+      boardView.setRotation(currentRotation);
+      return;
+    }
+    dispatchCommand(command);
+  });
 
   binder.refreshNow();
 
