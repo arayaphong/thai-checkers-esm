@@ -10,7 +10,19 @@
 .animate-target-pulse {
   animation: target-pulse 1s ease-in-out infinite;
 }
-
+/* ============================================
+ * Rotate button — manual tuning knobs.
+ * Edit --rotate-btn-dx / --rotate-btn-dy (any CSS length) and
+ * reload. No Tailwind rebuild needed.
+ *   dx > 0 nudges right, dy > 0 nudges down.
+ * ============================================ */
+#rotateBtn {
+  --rotate-btn-dx: 2px;
+  --rotate-btn-dy: 2px;
+  top: calc(6.25% + var(--rotate-btn-dy));
+  left: calc(6.25% + var(--rotate-btn-dx));
+  transform: translate(-50%, -50%);
+}
 /* Only the visible move hint reacts to the pointer. Its full-square wrapper
    remains transparent to pointer events, so empty space does not highlight. */
 .move-hint {

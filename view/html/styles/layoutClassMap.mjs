@@ -34,5 +34,5 @@ export const layoutClassMap = Object.freeze({
 
   footer: 'mt-8 text-gray-400 text-sm max-w-lg text-center leading-relaxed',
   rotateButton:
-    'absolute top-2 right-2 z-20 p-2 bg-neutral-950/60 hover:bg-neutral-900/80 border border-neutral-700/50 text-gray-400 hover:text-white rounded-full opacity-40 hover:opacity-100 transition-all duration-200 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 pointer-events-auto',
+    'absolute z-20 p-2 bg-neutral-950/60 hover:bg-neutral-900/80 border border-neutral-700/50 text-gray-400 hover:text-white rounded-full opacity-40 hover:opacity-100 transition-all duration-200 shadow-md backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 pointer-events-auto',
 });
