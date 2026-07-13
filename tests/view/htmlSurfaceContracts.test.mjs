@@ -2,6 +2,7 @@ import { describe, test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { createControlPanelSurface } from '../../view/html/surfaces/htmlControlPanelSurface.mjs';
 import { createMotionSurface } from '../../view/html/surfaces/htmlMotionSurface.mjs';
+import { createStatusSurface } from '../../view/html/surfaces/htmlStatusSurface.mjs';
 import { layoutClassMap } from '../../view/html/styles/layoutClassMap.mjs';
 
 const createClassList = (element) => {
@@ -168,5 +169,39 @@ describe('HTML surface contracts', () => {
       assert.match(easyBtn.className, /neutral-800/);
       assert.match(mediumBtn.className, /neutral-800/);
       assert.match(hardBtn.className, /rose/);
+    }));
+
+  test('status-panel displays correct winner message when game ends', () =>
+    withFakeDocument(() => {
+      const panel = createFakeElement();
+      const surface = createStatusSurface({
+        getStatusPanel: () => panel,
+      });
+
+      const state = (status) => ({
+        turn: 'white',
+        status,
+        mustMovePiece: null,
+        isAIThinking: false,
+        gameConfig: { whiteIsAI: false, blackIsAI: false },
+        pieceCounts: { white: 8, black: 8 },
+        isRestartVisible: status !== 'PLAYING',
+      });
+
+      const messageArea = panel.children[1];
+      const messageRowEl = messageArea.children[0];
+      const resultEl = messageRowEl.children[0];
+
+      // Test WHITE_WINS
+      surface.render(state('WHITE_WINS'));
+      assert.equal(resultEl.textContent, '⚪ ขาวชนะ!');
+
+      // Test BLACK_WINS
+      surface.render(state('BLACK_WINS'));
+      assert.equal(resultEl.textContent, '⚫ ดำชนะ!');
+
+      // Test DRAW
+      surface.render(state('DRAW'));
+      assert.equal(resultEl.textContent, 'เสมอ!');
     }));
 });

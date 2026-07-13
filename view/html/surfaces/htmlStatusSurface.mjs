@@ -168,6 +168,9 @@ const createUpdaters = ({
         white_wins: '⚪ ขาวชนะ!',
         black_wins: '⚫ ดำชนะ!',
         draw: 'เสมอ!',
+        WHITE_WINS: '⚪ ขาวชนะ!',
+        BLACK_WINS: '⚫ ดำชนะ!',
+        DRAW: 'เสมอ!',
       }[status];
       resultEl.textContent = resultText;
       showOnlyMessage(resultEl);
