@@ -2,7 +2,7 @@
 
 A browser-based Thai Checkers game built with **pure ES2025 modules** — no framework, no bundler, no build step. Serve the project directory with any static HTTP server and play.
 
-**App version:** 0.0.1 (`package.json` version: 1.0.0)
+**App version:** 1.0.0 (`package.json` version: 1.0.0)
 
 ---
 

@@ -19,6 +19,6 @@ export const renderShell = () => `
       </div>
     </div>
     <div class="${layoutClassMap.footer}">
-      <p>เวอร์ชั่น 0.0.1</p>
+      <p>เวอร์ชั่น 1.0.0</p>
     </div>
   `;
