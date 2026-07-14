@@ -23,7 +23,7 @@ Confirmed constraints from exploration:
 
 This plan is saved to the repo as `PLAN.md` at the start of implementation (before Phase 1) so progress can be tracked directly against it in git, and updated (checked off / amended) as each phase lands. Each phase below is independently shippable and testable before the next one starts; later phases depend on earlier ones but not vice versa.
 
-**Phase 1 — Protocol foundation (no app wiring yet)** — [ ] not started
+**Phase 1 — Protocol foundation (no app wiring yet)** — [x] done
 Build and prove the WS engine protocol in isolation, without touching any existing game code.
 - `controller/WsGameDriver.mjs` (new) — §1
 - `server/gameDriverServer.mjs` (new) — §2
@@ -31,25 +31,25 @@ Build and prove the WS engine protocol in isolation, without touching any existi
 - `tests/controller/wsGameDriver.test.mjs` (new) — §7
 - Verify: `npm test` (new file only needs to pass in isolation); `npm run server` starts and logs a listening URL.
 
-**Phase 2 — Browser integration (opt-in wiring)** — [ ] not started
+**Phase 2 — Browser integration (opt-in wiring)** — [x] done
 Wire the protocol into the live game, opt-in only, with zero behavior change for anyone who doesn't use it.
 - `controller/aiMoveChannel.mjs` (modify) — §3
 - `main.mjs` (modify) — §4's browser half (`getWsParam()`)
 - Verify: full existing suite still passes unchanged (`aiMoveChannel.test.mjs`, `gameControllerDriverSync.test.mjs`, `gameControllerTurnPacing.test.mjs` need zero edits — that's the regression signal); manual browser check per Verification §2-3 below.
 
-**Phase 3 — CLI integration** — [ ] not started
+**Phase 3 — CLI integration** — [x] done
 Same opt-in/hard-error treatment for the Node REPL.
 - `cli/cli.mjs` (modify) — §4's CLI half + §5
 - `tests/cli/cliWsFlag.test.mjs` (new) — §7
 - Verify: manual REPL check per Verification §4 below.
 
-**Phase 4 — Vendor-facing spec & conformance tooling** — [ ] not started
+**Phase 4 — Vendor-facing spec & conformance tooling** — [x] done
 Make the protocol implementable by third parties, not just readable from this repo's source.
 - `docs/ws-engine-api-spec.md` (new) — §8
 - `examples/checkWsEngineConformance.mjs` (new) — §8
 - Verify: run the conformance checker against Phase 1's own reference server (dogfooding) per Verification §5 below.
 
-**Phase 5 — Documentation & polish** — [ ] not started
+**Phase 5 — Documentation & polish** — [x] done
 - `docs/ws-engine.md` (new) — §9
 - `README.md` updates — §9
 - Final full-suite pass: `npm test` and `npm run lint` per Verification §6 below.
