@@ -6,8 +6,7 @@ import { pionForwardDirs, promotionRow, isOpponentPiece, DAME_DIRS } from './dir
 // All tunable heuristic weights (piece values, PST tables, mobility,
 // breakthrough, structure) live in the evaluation profile so they can be
 // tuned or swapped without touching evaluator logic. Search sentinels
-// (MATE_SCORE) and rule-derived immediate-draw constants are not weights and
-// stay in code.
+// (MATE_SCORE) are not weights and stay in code.
 import profile from './profiles/eval-profile-v1.json' with { type: 'json' };
 
 /**
@@ -582,64 +581,6 @@ const structureScore = (board, piecesByColor) =>
                 )
         );
     }, 0);
-
-// ─── Immediate Draw (per Thai checkers draw rules) ───
-// With no mandatory capture pending for sideToMove, a position is an
-// immediate draw once both sides hold at least one dame, at most one pion
-// each, a combined piece count of at most 7, and a piece-count difference of
-// at most 1 — exactly the 17 endings that document's §3 tabulates.
-const IMMEDIATE_DRAW_MAX_PIONS = 1;
-const IMMEDIATE_DRAW_MAX_TOTAL_PIECES = 7;
-const IMMEDIATE_DRAW_MAX_PIECE_DIFF = 1;
-
-/**
- * Counts pions and dames for a side.
- * @param {import('./Board.mjs').Board} board
- * @param {number} color - PieceColor
- * @returns {{pions: number, dames: number}}
- */
-const countPionsAndDames = (pieces) => {
-    let pions = 0;
-    let dames = 0;
-    for (const { type } of pieces.values()) {
-        if (type === PieceType.DAME) dames++;
-        else pions++;
-    }
-    return { pions, dames };
-};
-
-/**
- * True if `board` is an immediate draw per Thai checkers draw rules.
- * Reuses the same direct-scan hasMandatoryCapture Mobility/Breakthrough rely
- * on (not full move generation), so this stays cheap enough to call at every
- * search node — see core/Analyzer.mjs's #negamax/#quiescence,
- * which both score an immediate draw as a loss for
- * sideToMove (same -MATE_SCORE + plyFromRoot convention as having no legal
- * moves at all), rather than the neutral score a genuine mutual draw would
- * otherwise get.
- * @param {import('./Board.mjs').Board} board
- * @param {number} sideToMove PieceColor of the side to move.
- * @returns {boolean}
- */
-export const isImmediateDraw = (board, sideToMove) => {
-    const whitePieces = board.getPieces(PieceColor.WHITE);
-    const blackPieces = board.getPieces(PieceColor.BLACK);
-    const sidePieces = sideToMove === PieceColor.WHITE ? whitePieces : blackPieces;
-    if (hasMandatoryCapture(board, sideToMove, sidePieces)) return false;
-
-    const white = countPionsAndDames(whitePieces);
-    const black = countPionsAndDames(blackPieces);
-    const whiteTotal = white.pions + white.dames;
-    const blackTotal = black.pions + black.dames;
-    return (
-        white.dames >= 1 &&
-        black.dames >= 1 &&
-        white.pions <= IMMEDIATE_DRAW_MAX_PIONS &&
-        black.pions <= IMMEDIATE_DRAW_MAX_PIONS &&
-        whiteTotal + blackTotal <= IMMEDIATE_DRAW_MAX_TOTAL_PIECES &&
-        Math.abs(whiteTotal - blackTotal) <= IMMEDIATE_DRAW_MAX_PIECE_DIFF
-    );
-};
 
 /**
  * Statically evaluate a board position. Positive is good for WHITE, negative

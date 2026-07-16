@@ -12,6 +12,7 @@ describe('core/game', () => {
     assert.equal(game.board().equals(Board.setup()), true);
     assert.equal(game.getBoardHistory().length, 1);
     assert.equal(game.getEncodedHistory().length, 1);
+    assert.equal(game.getPositionKeyHistory().length, 1);
     assert.equal(game.getMoveSequence().length, 0);
   });
 
@@ -50,6 +51,7 @@ describe('core/game', () => {
     assert.equal(game.player(), PieceColor.BLACK); // Turn toggles to BLACK
     assert.equal(game.getBoardHistory().length, 2);
     assert.equal(game.getEncodedHistory().length, 2);
+    assert.equal(game.getPositionKeyHistory().length, 2);
 
     // Undo the move
     game.undoMove();
@@ -58,12 +60,27 @@ describe('core/game', () => {
     assert.equal(game.board().equals(initialBoard), true);
     assert.equal(game.getBoardHistory().length, 1);
     assert.equal(game.getEncodedHistory().length, 1);
+    assert.equal(game.getPositionKeyHistory().length, 1);
   });
 
   test('positionKey calculations', () => {
     const game = new Game();
     const expectedKey = (game.board().encode() << 1n) | BigInt(game.player());
     assert.equal(game.positionKey(), expectedKey);
+  });
+
+  test('position key history includes the side to move at every ply', () => {
+    const game = Game.from(Board.setup(), PieceColor.BLACK);
+    const initialEncoded = game.board().encode();
+    game.selectMove(0);
+
+    const encodedHistory = game.getEncodedHistory();
+    const positionKeys = game.getPositionKeyHistory();
+
+    assert.equal(positionKeys[0], (initialEncoded << 1n) | BigInt(PieceColor.BLACK));
+    assert.equal(positionKeys[1], (encodedHistory[1] << 1n) | BigInt(PieceColor.WHITE));
+    assert.equal(positionKeys.at(-1), game.positionKey());
+    assert.deepEqual(Game.copy(game).getPositionKeyHistory(), positionKeys);
   });
 
   test('getMoves returns valid Move structures', () => {
