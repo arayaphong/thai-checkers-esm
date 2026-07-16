@@ -178,22 +178,6 @@ const detectInputShape = (json) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────
-// Draw helpers (CLI-level, no core/ changes)
-// ─────────────────────────────────────────────────────────────────────────
-
-// The only forced terminal draw case for the CLI: the board contains exactly
-// two pieces total, one White dame and one Black dame.
-export const isOneDameEachDraw = (board) => {
-  const white = board.getPieces(PieceColor.WHITE);
-  const black = board.getPieces(PieceColor.BLACK);
-  const whiteDames = [...white.values()].filter(({ type }) => type === PieceType.DAME).length;
-  const blackDames = [...black.values()].filter(({ type }) => type === PieceType.DAME).length;
-  const whiteTotal = white.size;
-  const blackTotal = black.size;
-  return whiteTotal === 1 && blackTotal === 1 && whiteDames === 1 && blackDames === 1;
-};
-
-// ─────────────────────────────────────────────────────────────────────────
 // GameDriver
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -305,24 +289,21 @@ export class GameDriver {
     const board = game.board();
     const player = game.player();
     const moves = game.getMoves();
-    const oneDameEach = isOneDameEachDraw(board);
     const noLegalMoves = moves.length === 0;
-    const isGameOver = noLegalMoves || oneDameEach;
+    const isGameOver = noLegalMoves;
     const winner = noLegalMoves
       ? player === PieceColor.WHITE
         ? PieceColor.BLACK
         : PieceColor.WHITE
       : null;
-    const isDraw = oneDameEach;
-    const drawReason = oneDameEach ? 'ONE_DAME_EACH' : null;
     return {
       board,
       player,
       moves,
       isGameOver,
       winner,
-      isDraw,
-      drawReason,
+      isDraw: false,
+      drawReason: null,
       canUndo: this.#currentIndex > 0,
       canRedo: this.#currentIndex < this.#history.length - 1,
     };

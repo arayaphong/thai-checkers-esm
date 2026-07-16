@@ -7,7 +7,6 @@ import { PieceColor, pieceSymbol } from '../core/piece.mjs';
 import {
   GameDriver,
   moveKey,
-  isOneDameEachDraw,
   moveRecordMatches,
   parsePieces,
   parseSideToMove,
@@ -19,7 +18,6 @@ import { WsGameDriver, wsPortUrl } from '../controller/WsGameDriver.mjs';
 export {
   GameDriver,
   moveKey,
-  isOneDameEachDraw,
   moveRecordMatches,
   parsePieces,
   parseSideToMove,
@@ -111,12 +109,8 @@ const printState = (driver) => {
   console.log(renderBoard(state.board));
 
   if (state.isGameOver) {
-    if (state.isDraw) {
-      console.log('Game over: forced draw (ONE_DAME_EACH).');
-    } else {
-      const winnerName = COLOR_LABEL.get(state.winner);
-      console.log(`Game over: ${winnerName} wins.`);
-    }
+    const winnerName = COLOR_LABEL.get(state.winner);
+    console.log(`Game over: ${winnerName} wins.`);
     return;
   }
 

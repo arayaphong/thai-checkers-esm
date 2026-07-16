@@ -1,14 +1,7 @@
 import { describe, test, expect } from '@jest/globals';
 import assert from 'node:assert/strict';
-import {
-  GameDriver,
-  isOneDameEachDraw,
-  moveRecordMatches,
-  parsePieces,
-  parseSideToMove,
-} from '../../cli/cli.mjs';
+import { GameDriver, moveRecordMatches, parsePieces, parseSideToMove } from '../../cli/cli.mjs';
 import { WorkerGameDriver } from '../../controller/WorkerGameDriver.mjs';
-import { Board } from '../../core/Board.mjs';
 import { Position } from '../../core/Position.mjs';
 import { PieceColor, PieceType } from '../../core/piece.mjs';
 import { readFile } from 'node:fs/promises';
@@ -210,35 +203,33 @@ describe('Save / Load', () => {
 });
 
 describe('Draw handling', () => {
-  test('ONE_DAME_EACH board reports forced terminal draw', () => {
-    const board = Board.fromPieces([
-      [Position.fromString('E1'), { color: PieceColor.WHITE, type: PieceType.DAME }],
-      [Position.fromString('F8'), { color: PieceColor.BLACK, type: PieceType.DAME }],
-    ]);
-    expect(isOneDameEachDraw(board)).toBe(true);
-    const driver = new GameDriver({
+  test('one dame each remains playable for humans and AI', () => {
+    const setup = {
       pieces: [
         ['E1', { color: 'WHITE', type: 'DAME' }],
         ['F8', { color: 'BLACK', type: 'DAME' }],
       ],
-    });
+    };
+    const driver = new GameDriver(setup);
     const state = driver.getState();
-    expect(state.isGameOver).toBe(true);
-    expect(state.isDraw).toBe(true);
-    expect(state.drawReason).toBe('ONE_DAME_EACH');
+    expect(state.isGameOver).toBe(false);
+    expect(state.isDraw).toBe(false);
+    expect(state.drawReason).toBe(null);
     expect(state.winner).toBe(null);
+    expect(state.moves.length).toBeGreaterThan(0);
 
-    const move = state.moves[0];
-    expect(() => driver.playMoveIndex(0)).toThrow(/game is over/i);
-    expect(() => driver.playMovePosition(move.from.toString(), move.to.toString())).toThrow(
-      /game is over/i,
-    );
-    const aiResult = driver.playAiMove(1);
-    expect(aiResult.played).toBe(false);
-    expect(driver.history()).toHaveLength(0);
+    const afterHumanMove = driver.playMoveIndex(0);
+    expect(afterHumanMove.isGameOver).toBe(false);
+    expect(driver.history()).toHaveLength(1);
+
+    const aiDriver = new GameDriver(setup);
+    const aiResult = aiDriver.playAiMove(1);
+    expect(aiResult.played).toBe(true);
+    expect(aiResult.state.isGameOver).toBe(false);
+    expect(aiDriver.history()).toHaveLength(1);
   });
 
-  test('standard board is not a ONE_DAME_EACH draw', () => {
+  test('standard board is not a draw', () => {
     const driver = new GameDriver();
     const state = driver.getState();
     expect(state.isDraw).toBe(false);

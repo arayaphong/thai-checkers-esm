@@ -64,12 +64,10 @@ const runGame = (gameNumber) => {
   const totalSeconds = ((performance.now() - gameStart) / 1000).toFixed(2);
 
   const state = driver.getState();
-  const analyzerLost = state.isGameOver && state.winner !== ANALYZER_COLOR && !state.isDraw;
+  const analyzerLost = state.isGameOver && state.winner !== ANALYZER_COLOR;
 
   const resultMessage = state.isGameOver
-    ? state.isDraw
-      ? `Draw by ${state.drawReason} in ${ply} plies`
-      : `${PLAYER_NAMES[state.winner]} wins in ${ply} plies`
+    ? `${PLAYER_NAMES[state.winner]} wins in ${ply} plies`
     : `Stopped after reaching the ${MAX_PLIES}-ply safety cap with no result.`;
 
   console.log(`\n${resultMessage}`);
