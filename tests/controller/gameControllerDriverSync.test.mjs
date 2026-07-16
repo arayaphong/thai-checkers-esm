@@ -36,9 +36,9 @@ const demo1Setup = async (config = humanConfig) => {
 };
 
 const playDemo1LeftRoute = async (controller) => {
-  assert.equal(controller.selectPiece({ r: 4, c: 4 }), true);
-  assert.equal(await controller.attemptMove({ r: 2, c: 2 }), true);
-  assert.equal(await controller.attemptMove({ r: 0, c: 4 }), true);
+  assert.equal(controller.selectPiece({ r: 4, c: 5 }), true);
+  assert.equal(await controller.attemptMove({ r: 2, c: 3 }), true);
+  assert.equal(await controller.attemptMove({ r: 0, c: 5 }), true);
 };
 
 const assertControllerAndDriverEquivalent = async (controller) => {
@@ -86,11 +86,11 @@ describe('GameController and GameDriver synchronization', () => {
     assert.equal(history.length, 1);
     assert.deepEqual(
       history[0].path.map((position) => position.toString()),
-      ['E4', 'C6', 'E8'],
+      ['F4', 'D6', 'F8'],
     );
     assert.deepEqual(
       history[0].captured.map((position) => position.toString()),
-      ['D5', 'D7'],
+      ['E5', 'E7'],
     );
     await assertControllerAndDriverEquivalent(controller);
   });
@@ -113,12 +113,12 @@ describe('GameController and GameDriver synchronization', () => {
 
   test('a game-ending human capture still synchronizes the driver', async () => {
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
-    board[2][2] = 1;
-    board[1][3] = -1;
+    board[2][3] = 1;
+    board[1][4] = -1;
     const controller = createGameController({ board, turn: 1, config: humanConfig });
 
-    assert.equal(controller.selectPiece({ r: 2, c: 2 }), true);
-    assert.equal(await controller.attemptMove({ r: 0, c: 4 }), true);
+    assert.equal(controller.selectPiece({ r: 2, c: 3 }), true);
+    assert.equal(await controller.attemptMove({ r: 0, c: 5 }), true);
 
     assert.equal(controller.state.status, 'WHITE_WINS');
     assert.equal((await controller.driver.history()).length, 1);

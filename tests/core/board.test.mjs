@@ -36,10 +36,10 @@ describe('core/board', () => {
   test('Board.setup initial layout', () => {
     const board = Board.setup();
     // White starts on rows 0 and 1. There are 4 dark squares per row.
-    // Row 0 squares: B1 (idx 0), D1 (idx 1), F1 (idx 2), H1 (idx 3)
-    // Row 1 squares: A2 (idx 4), C2 (idx 5), E2 (idx 6), G2 (idx 7)
-    // Row 6 squares: B7 (idx 24), D7 (idx 25), F7 (idx 26), H7 (idx 27)
-    // Row 7 squares: A8 (idx 28), C8 (idx 29), E8 (idx 30), G8 (idx 31)
+    // Row 0 squares: A1 (idx 0), C1 (idx 1), E1 (idx 2), G1 (idx 3)
+    // Row 1 squares: B2 (idx 4), D2 (idx 5), F2 (idx 6), H2 (idx 7)
+    // Row 6 squares: A7 (idx 24), C7 (idx 25), E7 (idx 26), G7 (idx 27)
+    // Row 7 squares: B8 (idx 28), D8 (idx 29), F8 (idx 30), H8 (idx 31)
 
     // White total: 8 pieces, Black total: 8 pieces
     // occBits should have bits 0..7 and 24..31 set.
@@ -52,8 +52,8 @@ describe('core/board', () => {
   });
 
   test('Board.fromPieces', () => {
-    const p1 = Position.fromString('B1');
-    const p2 = Position.fromString('H7');
+    const p1 = Position.fromString('C1');
+    const p2 = Position.fromString('G7');
     const pieces = [
       [p1, { color: PieceColor.WHITE, type: PieceType.PION }],
       [p2, { color: PieceColor.BLACK, type: PieceType.DAME }],
@@ -88,9 +88,9 @@ describe('core/board', () => {
 
   test('isOccupied, isBlackPiece, isDamePiece queries', () => {
     const board = Board.setup();
-    const b1 = Position.fromString('B1');
-    const h7 = Position.fromString('H7');
-    const emptySquare = Position.fromString('C4');
+    const b1 = Position.fromString('C1');
+    const h7 = Position.fromString('G7');
+    const emptySquare = Position.fromString('D4');
 
     assert.equal(board.isOccupied(b1), true);
     assert.equal(board.isBlackPiece(b1), false);
@@ -105,12 +105,12 @@ describe('core/board', () => {
     assert.equal(board.isDamePiece(emptySquare), false);
 
     // Invalid position return false
-    assert.equal(board.isOccupied({ x: 0, y: 0 }), false);
+    assert.equal(board.isOccupied({ x: 1, y: 0 }), false);
   });
 
   test('getPieces', () => {
-    const p1 = Position.fromString('B1');
-    const p2 = Position.fromString('H7');
+    const p1 = Position.fromString('C1');
+    const p2 = Position.fromString('G7');
     const board = Board.fromPieces([
       [p1, { color: PieceColor.WHITE, type: PieceType.PION }],
       [p2, { color: PieceColor.BLACK, type: PieceType.DAME }],
@@ -142,7 +142,7 @@ describe('core/board', () => {
   });
 
   test('promotePiece mutation', () => {
-    const p = Position.fromString('B1');
+    const p = Position.fromString('C1');
     const board = Board.fromPieces([[p, { color: PieceColor.WHITE, type: PieceType.PION }]]);
 
     const promoted = board.promotePiece(p);
@@ -150,13 +150,13 @@ describe('core/board', () => {
     assert.equal(board.isDamePiece(p), false); // original unchanged
 
     // Promote empty or already dame throws
-    assert.throws(() => board.promotePiece(Position.fromString('C4')), Error);
+    assert.throws(() => board.promotePiece(Position.fromString('D4')), Error);
     assert.throws(() => promoted.promotePiece(p), Error);
   });
 
   test('movePiece mutation', () => {
-    const from = Position.fromString('B1');
-    const to = Position.fromString('C2');
+    const from = Position.fromString('C1');
+    const to = Position.fromString('D2');
     const board = Board.fromPieces([[from, { color: PieceColor.WHITE, type: PieceType.PION }]]);
 
     const moved = board.movePiece(from, to);
@@ -165,19 +165,19 @@ describe('core/board', () => {
     assert.equal(moved.isBlackPiece(to), false);
 
     // Invalid moves throw
-    assert.throws(() => board.movePiece(Position.fromString('C4'), to), Error); // empty source
+    assert.throws(() => board.movePiece(Position.fromString('D4'), to), Error); // empty source
     assert.throws(() => board.movePiece(from, from), Error); // same square (Wait, from equals to throws as occupied in movePiece logic because bit fm and tm match)
   });
 
   test('removePiece mutation', () => {
-    const p = Position.fromString('B1');
+    const p = Position.fromString('C1');
     const board = Board.fromPieces([[p, { color: PieceColor.WHITE, type: PieceType.PION }]]);
 
     const removed = board.removePiece(p);
     assert.equal(removed.isOccupied(p), false);
 
     // Remove empty throws
-    assert.throws(() => board.removePiece(Position.fromString('C4')), Error);
+    assert.throws(() => board.removePiece(Position.fromString('D4')), Error);
   });
 
   test('encode and decode canonical round-trip', () => {
@@ -190,8 +190,8 @@ describe('core/board', () => {
 
     // Test custom board encoding/decoding with Dames
     const custom = Board.fromPieces([
-      [Position.fromString('B1'), { color: PieceColor.WHITE, type: PieceType.PION }],
-      [Position.fromString('H7'), { color: PieceColor.BLACK, type: PieceType.DAME }],
+      [Position.fromString('C1'), { color: PieceColor.WHITE, type: PieceType.PION }],
+      [Position.fromString('H8'), { color: PieceColor.BLACK, type: PieceType.DAME }],
     ]);
     const customDecoded = Board.decode(custom.encode());
     assert.equal(custom.equals(customDecoded), true);

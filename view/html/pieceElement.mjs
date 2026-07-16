@@ -24,7 +24,7 @@ export const createPieceElement = (
     color === 'white' ? boardClassMap.pieceInnerWhite : boardClassMap.pieceInnerBlack,
   );
   if (rank === 'king') {
-    inner.innerHTML = `<svg class="${color === 'white' ? boardClassMap.kingIconWhite : boardClassMap.kingIconBlack}"><use href="#icon-crown"/></svg>`;
+    inner.innerHTML = `<svg class="${color === 'white' ? boardClassMap.kingIconWhite : boardClassMap.kingIconBlack} counter-rotate-transition"><use href="#icon-crown"/></svg>`;
   }
   pieceEl.append(inner);
   return pieceEl;

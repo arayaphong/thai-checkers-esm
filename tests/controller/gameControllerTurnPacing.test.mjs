@@ -107,8 +107,8 @@ describe('GameController turn pacing and synchronization', () => {
       stateChangedCalls.push(evt);
     });
 
-    assert.equal(controller.selectPiece({ r: 6, c: 0 }), true);
-    await controller.attemptMove({ r: 5, c: 1 });
+    assert.equal(controller.selectPiece({ r: 6, c: 1 }), true);
+    await controller.attemptMove({ r: 5, c: 2 });
 
     console.error = originalError;
 
@@ -122,7 +122,7 @@ describe('GameController turn pacing and synchronization', () => {
 
     // Token must be released: next human can select.
     assert.equal(controller.state.turn, -1);
-    assert.equal(controller.selectPiece({ r: 1, c: 1 }), true);
+    assert.equal(controller.selectPiece({ r: 1, c: 2 }), true);
   });
 
   test('human -> AI: aiThinking waits for the moveMade barrier to resolve', async () => {
@@ -132,8 +132,8 @@ describe('GameController turn pacing and synchronization', () => {
     controller.on('moveMade', listener);
     controller.on('aiThinking', () => aiThinkingCalls.push(true));
 
-    assert.equal(controller.selectPiece({ r: 6, c: 0 }), true);
-    const moveDone = controller.attemptMove({ r: 5, c: 1 });
+    assert.equal(controller.selectPiece({ r: 6, c: 1 }), true);
+    const moveDone = controller.attemptMove({ r: 5, c: 2 });
     await tick();
 
     assert.equal(calls(), 1, 'moveMade fired');
@@ -158,8 +158,8 @@ describe('GameController turn pacing and synchronization', () => {
     controller.on('aiThinking', () => events.push({ type: 'aiThinking' }));
     controller.on('aiMoved', () => events.push({ type: 'aiMoved' }));
 
-    assert.equal(controller.selectPiece({ r: 6, c: 0 }), true);
-    const moveDone = controller.attemptMove({ r: 5, c: 1 });
+    assert.equal(controller.selectPiece({ r: 6, c: 1 }), true);
+    const moveDone = controller.attemptMove({ r: 5, c: 2 });
     await tick();
 
     assert.equal(events.length, 1, 'turnReady is the first AI-turn boundary');
@@ -184,19 +184,19 @@ describe('GameController turn pacing and synchronization', () => {
     const { listener, release, calls } = makeCountingBarrier();
     controller.on('moveMade', listener);
 
-    assert.equal(controller.selectPiece({ r: 6, c: 0 }), true);
-    const moveDone = controller.attemptMove({ r: 5, c: 1 });
+    assert.equal(controller.selectPiece({ r: 6, c: 1 }), true);
+    const moveDone = controller.attemptMove({ r: 5, c: 2 });
     await tick();
     assert.equal(calls(), 1);
 
     // Next player is black; try to preselect and deselect.
     assert.equal(
-      controller.selectPiece({ r: 2, c: 1 }),
+      controller.selectPiece({ r: 2, c: 2 }),
       false,
       'selectPiece blocked during animation',
     );
     assert.equal(
-      await controller.attemptMove({ r: 3, c: 0 }),
+      await controller.attemptMove({ r: 3, c: 1 }),
       false,
       'attemptMove blocked during animation',
     );
@@ -212,26 +212,26 @@ describe('GameController turn pacing and synchronization', () => {
     await moveDone;
 
     assert.equal(controller.state.turn, -1);
-    assert.equal(controller.selectPiece({ r: 1, c: 1 }), true, 'input accepted after animation');
+    assert.equal(controller.selectPiece({ r: 1, c: 2 }), true, 'input accepted after animation');
   });
 
   test('second interior human-capture click is rejected during the first hop', async () => {
     const board = emptyBoard();
-    board[4][4] = 1;
-    board[3][3] = -1;
-    board[1][3] = -1;
+    board[4][5] = 1;
+    board[3][4] = -1;
+    board[1][4] = -1;
     const controller = createGameController({ board, turn: 1, config: humanConfig });
     const { listener, release, calls } = makeCountingBarrier();
     controller.on('moveMade', listener);
 
-    assert.equal(controller.selectPiece({ r: 4, c: 4 }), true);
-    const hop1 = controller.attemptMove({ r: 2, c: 2 });
+    assert.equal(controller.selectPiece({ r: 4, c: 5 }), true);
+    const hop1 = controller.attemptMove({ r: 2, c: 3 });
     await tick();
     assert.equal(calls(), 1);
 
-    // The same piece is locked at (2,2); a premature continuation click is rejected.
+    // The same piece is locked at (2,3); a premature continuation click is rejected.
     assert.equal(
-      await controller.attemptMove({ r: 0, c: 4 }),
+      await controller.attemptMove({ r: 0, c: 5 }),
       false,
       'interior hop blocked during animation',
     );
@@ -239,9 +239,9 @@ describe('GameController turn pacing and synchronization', () => {
     release(0);
     await hop1;
 
-    assert.deepEqual(controller.state.mustMovePiece, { r: 2, c: 2 });
+    assert.deepEqual(controller.state.mustMovePiece, { r: 2, c: 3 });
     assert.equal(
-      await controller.attemptMove({ r: 0, c: 4 }),
+      await controller.attemptMove({ r: 0, c: 5 }),
       true,
       'continuation accepted after animation',
     );
@@ -250,9 +250,9 @@ describe('GameController turn pacing and synchronization', () => {
 
   test('AI multi-capture paused during hop 1 still drains hop 2 and blocks input', async () => {
     const board = emptyBoard();
-    board[2][0] = -1;
-    board[3][1] = 1;
-    board[5][1] = 1;
+    board[2][1] = -1;
+    board[3][2] = 1;
+    board[5][2] = 1;
     const controller = createGameController({ board, turn: -1, config: blackAiConfig });
 
     const { listener, release, calls } = makeCountingBarrier();
@@ -296,27 +296,27 @@ describe('GameController turn pacing and synchronization', () => {
         name: 'promotion',
         board: (() => {
           const b = emptyBoard();
-          b[2][0] = 1;
-          b[1][1] = -1;
+          b[2][1] = 1;
+          b[1][2] = -1;
           return b;
         })(),
         turn: 1,
         boundary: 'promotion',
-        play: (c) => c.selectPiece({ r: 2, c: 0 }) && c.attemptMove({ r: 0, c: 2 }),
+        play: (c) => c.selectPiece({ r: 2, c: 1 }) && c.attemptMove({ r: 0, c: 3 }),
         staleEvent: 'moveMade',
       },
       {
         name: 'multiCapture',
         board: (() => {
           const b = emptyBoard();
-          b[4][4] = 1;
-          b[3][3] = -1;
-          b[1][3] = -1;
+          b[4][5] = 1;
+          b[3][4] = -1;
+          b[1][4] = -1;
           return b;
         })(),
         turn: 1,
         boundary: 'multiCapture',
-        play: (c) => c.selectPiece({ r: 4, c: 4 }) && c.attemptMove({ r: 2, c: 2 }),
+        play: (c) => c.selectPiece({ r: 4, c: 5 }) && c.attemptMove({ r: 2, c: 3 }),
         staleEvent: 'moveMade',
       },
       {
@@ -326,8 +326,8 @@ describe('GameController turn pacing and synchronization', () => {
         boundary: 'moveMade',
         play: (c) => {
           // Standard opening walk so reset happens on a plain moveMade.
-          c.selectPiece({ r: 5, c: 0 });
-          return c.attemptMove({ r: 4, c: 1 });
+          c.selectPiece({ r: 5, c: 1 });
+          return c.attemptMove({ r: 4, c: 2 });
         },
         staleEvent: 'gameOver',
       },
@@ -335,7 +335,7 @@ describe('GameController turn pacing and synchronization', () => {
         name: 'aiMoved',
         board: (() => {
           const b = emptyBoard();
-          b[5][1] = -1;
+          b[5][2] = -1;
           return b;
         })(),
         turn: -1,
@@ -369,8 +369,8 @@ describe('GameController turn pacing and synchronization', () => {
     const oldBarrier = Barrier();
     controller.on('moveMade', () => oldBarrier.promise);
 
-    assert.equal(controller.selectPiece({ r: 6, c: 0 }), true);
-    const oldMove = controller.attemptMove({ r: 5, c: 1 });
+    assert.equal(controller.selectPiece({ r: 6, c: 1 }), true);
+    const oldMove = controller.attemptMove({ r: 5, c: 2 });
     await tick();
 
     const resetPromise = controller.reset({ paused: false });
@@ -379,14 +379,14 @@ describe('GameController turn pacing and synchronization', () => {
     // New move after reset.
     const newBarrier = Barrier();
     controller.on('moveMade', () => newBarrier.promise);
-    assert.equal(controller.selectPiece({ r: 6, c: 2 }), true);
-    const newMove = controller.attemptMove({ r: 5, c: 3 });
+    assert.equal(controller.selectPiece({ r: 6, c: 3 }), true);
+    const newMove = controller.attemptMove({ r: 5, c: 4 });
 
     // Release the stale barrier; the new operation must still own the lock.
     oldBarrier.resolve();
     await oldMove;
     assert.equal(
-      controller.selectPiece({ r: 2, c: 1 }),
+      controller.selectPiece({ r: 2, c: 2 }),
       false,
       'new lock still held after stale release',
     );
@@ -395,14 +395,14 @@ describe('GameController turn pacing and synchronization', () => {
     await newMove;
 
     assert.equal(controller.state.turn, -1, 'new move completed');
-    assert.equal(controller.selectPiece({ r: 1, c: 1 }), true, 'lock released after new move');
+    assert.equal(controller.selectPiece({ r: 1, c: 2 }), true, 'lock released after new move');
   });
 
   test('stale AI finally cannot abort the replacement AI started by reset', async () => {
     const board = emptyBoard();
-    board[2][0] = -1;
-    board[3][1] = 1;
-    board[5][1] = 1;
+    board[2][1] = -1;
+    board[3][2] = 1;
+    board[5][2] = 1;
     const controller = createGameController({ board, turn: -1, config: blackAiConfig });
 
     const oldBarrier = Barrier();
@@ -465,8 +465,8 @@ describe('GameController turn pacing and synchronization', () => {
 
   test('consecutive AI players run iteratively through one owned AI sequence', async () => {
     const board = emptyBoard();
-    board[5][7] = 1;
-    board[3][5] = -1;
+    board[2][3] = 1;
+    board[0][3] = -1;
     const controller = createGameController({ board, turn: 1, config: bothAiConfig });
     const aiMovedCalls = [];
     controller.on('aiMoved', (evt) => aiMovedCalls.push(evt));
@@ -488,8 +488,8 @@ describe('GameController turn pacing and synchronization', () => {
       return barrier.promise;
     });
 
-    assert.equal(controller.selectPiece({ r: 6, c: 0 }), true);
-    const humanMove = controller.attemptMove({ r: 5, c: 1 });
+    assert.equal(controller.selectPiece({ r: 6, c: 1 }), true);
+    const humanMove = controller.attemptMove({ r: 5, c: 2 });
     await tick();
 
     barrier.resolve();

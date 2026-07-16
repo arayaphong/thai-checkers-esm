@@ -5,11 +5,11 @@
 // ============================================
 
 export const boardClassMap = Object.freeze({
-  squareDark: 'w-full h-full flex items-center justify-center relative bg-stone-800/60',
+  squareDark: 'w-full h-full flex items-center justify-center relative bg-stone-800',
   squareLight: 'w-full h-full flex items-center justify-center relative bg-slate-700',
 
-  coordLabelOnDark: 'abs-coord text-white',
-  coordLabelOnLight: 'abs-coord text-stone-400/50',
+  coordLabelOnDark: 'abs-coord text-stone-400/50',
+  coordLabelOnLight: 'abs-coord text-white',
 
   pieceBase:
     'piece w-[80%] h-[80%] rounded-full shadow-lg flex items-center justify-center relative z-10 transition-transform duration-200 hover:scale-105',

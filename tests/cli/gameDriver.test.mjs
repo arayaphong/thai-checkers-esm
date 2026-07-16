@@ -41,7 +41,7 @@ describe('GameDriver initialization', () => {
   });
 
   test('invalid demo JSON: unknown piece color throws', () => {
-    const bad = { pieces: [['D5', { color: 'PURPLE', type: 'PION' }]] };
+    const bad = { pieces: [['E5', { color: 'PURPLE', type: 'PION' }]] };
     expect(() => new GameDriver(bad)).toThrow(/Invalid piece color/);
   });
 
@@ -53,8 +53,8 @@ describe('GameDriver initialization', () => {
   test('invalid demo JSON: duplicate squares throw', () => {
     const bad = {
       pieces: [
-        ['D5', { color: 'WHITE', type: 'PION' }],
-        ['D5', { color: 'BLACK', type: 'PION' }],
+        ['E5', { color: 'WHITE', type: 'PION' }],
+        ['E5', { color: 'BLACK', type: 'PION' }],
       ],
     };
     expect(() => new GameDriver(bad)).toThrow(/Duplicate/);
@@ -86,7 +86,7 @@ describe('Move execution', () => {
   test('ambiguous coordinate move requires a choice', async () => {
     const driver = new GameDriver(await demo1Json());
     try {
-      driver.playMovePosition('e4', 'e8');
+      driver.playMovePosition('f4', 'f8');
       assert.fail('expected AmbiguousMoveError');
     } catch (error) {
       expect(error.code).toBe('AMBIGUOUS_MOVE');
@@ -96,21 +96,21 @@ describe('Move execution', () => {
 
   test('ambiguous coordinate move with choice plays the selected route', async () => {
     const driver = new GameDriver(await demo1Json());
-    const state = driver.playMovePosition('e4', 'e8', 1);
+    const state = driver.playMovePosition('f4', 'f8', 1);
     expect(state.moves.length).toBeGreaterThan(0);
     expect(driver.history().length).toBe(1);
     const played = driver.history()[0];
-    expect(played.path.map((p) => p.toString())).toEqual(['E4', 'C6', 'E8']);
+    expect(played.path.map((p) => p.toString())).toEqual(['F4', 'D6', 'F8']);
   });
 
   test('ambiguous choice out of range throws', async () => {
     const driver = new GameDriver(await demo1Json());
-    expect(() => driver.playMovePosition('e4', 'e8', 3)).toThrow(RangeError);
+    expect(() => driver.playMovePosition('f4', 'f8', 3)).toThrow(RangeError);
   });
 
   test('invalid coordinate move throws', async () => {
     const driver = new GameDriver(await demo1Json());
-    expect(() => driver.playMovePosition('e4', 'a6')).toThrow(/No legal move/);
+    expect(() => driver.playMovePosition('f4', 'b6')).toThrow(/No legal move/);
   });
 });
 
@@ -157,9 +157,9 @@ describe('History navigation', () => {
 describe('Save / Load', () => {
   test('toJSON / load round-trips identical state', async () => {
     const driver = new GameDriver(await demo1Json());
-    driver.playMovePosition('e4', 'e8', 1);
+    driver.playMovePosition('f4', 'f8', 1);
     const json = driver.toJSON();
-    expect(json.format).toBe('thai-checkers-cli-session-v1');
+    expect(json.format).toBe('thai-checkers-cli-session-v2');
     expect(json.moveSequence.length).toBe(1);
     expect(json.currentIndex).toBe(1);
 
@@ -193,7 +193,7 @@ describe('Save / Load', () => {
     driver.playMoveIndex(0);
     const json = driver.toJSON();
     // Corrupt a saved record's path to force a mismatch.
-    json.moveSequence[0].path = ['D5', 'E4'];
+    json.moveSequence[0].path = ['E5', 'F4'];
     const fresh = new GameDriver();
     expect(() => fresh.load(json)).toThrow(/incompatible/);
   });
@@ -211,14 +211,14 @@ describe('Save / Load', () => {
 describe('Draw handling', () => {
   test('ONE_DAME_EACH board reports forced terminal draw', () => {
     const board = Board.fromPieces([
-      [Position.fromString('D1'), { color: PieceColor.WHITE, type: PieceType.DAME }],
-      [Position.fromString('E8'), { color: PieceColor.BLACK, type: PieceType.DAME }],
+      [Position.fromString('E1'), { color: PieceColor.WHITE, type: PieceType.DAME }],
+      [Position.fromString('F8'), { color: PieceColor.BLACK, type: PieceType.DAME }],
     ]);
     expect(isOneDameEachDraw(board)).toBe(true);
     const driver = new GameDriver({
       pieces: [
-        ['D1', { color: 'WHITE', type: 'DAME' }],
-        ['E8', { color: 'BLACK', type: 'DAME' }],
+        ['E1', { color: 'WHITE', type: 'DAME' }],
+        ['F8', { color: 'BLACK', type: 'DAME' }],
       ],
     });
     const state = driver.getState();
@@ -244,58 +244,58 @@ describe('Pure helper functions', () => {
   });
 
   test('parsePieces converts demo entries to Position/pieceInfo pairs', () => {
-    const pairs = parsePieces([['D5', { color: 'WHITE', type: 'PION' }]]);
+    const pairs = parsePieces([['E5', { color: 'WHITE', type: 'PION' }]]);
     expect(pairs.length).toBe(1);
-    expect(pairs[0][0].toString()).toBe('D5');
+    expect(pairs[0][0].toString()).toBe('E5');
     expect(pairs[0][1].color).toBe(PieceColor.WHITE);
     expect(pairs[0][1].type).toBe(PieceType.PION);
   });
 
   test('moveRecordMatches compares path and captured sets', () => {
     const move = {
-      from: Position.fromString('E4'),
-      to: Position.fromString('E8'),
-      captured: [Position.fromString('F5'), Position.fromString('F7')],
-      path: ['E4', 'G6', 'E8'].map((s) => Position.fromString(s)),
+      from: Position.fromString('F4'),
+      to: Position.fromString('F8'),
+      captured: [Position.fromString('G5'), Position.fromString('G7')],
+      path: ['F4', 'H6', 'F8'].map((s) => Position.fromString(s)),
     };
     const record = {
-      from: 'E4',
-      to: 'E8',
-      captured: ['F5', 'F7'],
-      path: ['E4', 'G6', 'E8'],
+      from: 'F4',
+      to: 'F8',
+      captured: ['G5', 'G7'],
+      path: ['F4', 'H6', 'F8'],
     };
     expect(moveRecordMatches(move, record)).toBe(true);
-    const badRecord = { ...record, path: ['E4', 'C6', 'E8'] };
+    const badRecord = { ...record, path: ['F4', 'D6', 'F8'] };
     expect(moveRecordMatches(move, badRecord)).toBe(false);
   });
 });
 
 describe('Demo scenarios (demo1-demo4)', () => {
-  test('demo1: branching chain capture with two routes to E8', async () => {
+  test('demo1: branching chain capture with two routes to F8', async () => {
     const driver = new GameDriver(await demo1Json());
     const state = driver.getState();
     expect(state.moves.length).toBe(2);
-    // Both moves share from=E4, to=E8 but differ in path/captures.
+    // Both moves share from=F4, to=F8 but differ in path/captures.
     const endpoints = state.moves.map((m) => `${m.from.toString()}-${m.to.toString()}`);
-    expect(endpoints.every((e) => e === 'E4-E8')).toBe(true);
-    // Playing route 1 captures D5 then D7 (4 black -> 2 black remain).
-    const after = driver.playMovePosition('e4', 'e8', 1);
+    expect(endpoints.every((e) => e === 'F4-F8')).toBe(true);
+    // Playing route 1 captures E5 then E7 (4 black -> 2 black remain).
+    const after = driver.playMovePosition('f4', 'f8', 1);
     expect(after.board.getPieces(PieceColor.BLACK).size).toBe(2);
     const played = driver.history()[0];
-    expect(played.captured.map((p) => p.toString())).toEqual(['D5', 'D7']);
+    expect(played.captured.map((p) => p.toString())).toEqual(['E5', 'E7']);
   });
 
   test('demo2: dame loop ending on the original square is a single move', async () => {
     const driver = new GameDriver(await demo2Json());
     const state = driver.getState();
-    // Equivalent loop routes are reduced to one legal move (E4 -> E4).
+    // Equivalent loop routes are reduced to one legal move (F4 -> F4).
     expect(state.moves.length).toBe(1);
     const move = state.moves[0];
-    expect(move.from.toString()).toBe('E4');
-    expect(move.to.toString()).toBe('E4');
+    expect(move.from.toString()).toBe('F4');
+    expect(move.to.toString()).toBe('F4');
     expect(move.captured.length).toBe(4);
     // playMovePosition with no choice applies the single route directly.
-    const after = driver.playMovePosition('e4', 'e4');
+    const after = driver.playMovePosition('f4', 'f4');
     expect(after.board.getPieces(PieceColor.BLACK).size).toBe(0);
     expect(after.player).toBe(PieceColor.BLACK);
   });
@@ -306,11 +306,11 @@ describe('Demo scenarios (demo1-demo4)', () => {
     // Both ring directions are one legal move; no ambiguity.
     expect(state.moves.length).toBe(1);
     const move = state.moves[0];
-    expect(move.from.toString()).toBe('E8');
-    expect(move.to.toString()).toBe('E8');
+    expect(move.from.toString()).toBe('F8');
+    expect(move.to.toString()).toBe('F8');
     expect(move.captured.length).toBe(6);
     // Should NOT throw AmbiguousMoveError — applies immediately.
-    const after = driver.playMovePosition('e8', 'e8');
+    const after = driver.playMovePosition('f8', 'f8');
     expect(after.board.getPieces(PieceColor.BLACK).size).toBe(0);
     expect(after.board.getPieces(PieceColor.WHITE).size).toBe(1);
   });
@@ -318,22 +318,22 @@ describe('Demo scenarios (demo1-demo4)', () => {
   test('demo4: dame loop with central branching is ambiguous', async () => {
     const driver = new GameDriver(await demo4Json());
     const state = driver.getState();
-    // The central D5 piece creates genuine branches -> multiple routes.
+    // The central E5 piece creates genuine branches -> multiple routes.
     expect(state.moves.length).toBeGreaterThan(1);
     const endpoints = state.moves.map((m) => `${m.from.toString()}-${m.to.toString()}`);
-    // All branches start at E8; at least one ends elsewhere (not all E8-E8).
-    expect(endpoints.every((e) => e.startsWith('E8-'))).toBe(true);
-    expect(endpoints.some((e) => e !== 'E8-E8')).toBe(true);
+    // All branches start at F8; at least one ends elsewhere (not all F8-F8).
+    expect(endpoints.every((e) => e.startsWith('F8-'))).toBe(true);
+    expect(endpoints.some((e) => e !== 'F8-F8')).toBe(true);
     // Without a choice it must throw AMBIGUOUS_MOVE.
     try {
-      driver.playMovePosition('e8', 'e8');
+      driver.playMovePosition('f8', 'f8');
       assert.fail('expected AmbiguousMoveError');
     } catch (error) {
       expect(error.code).toBe('AMBIGUOUS_MOVE');
       expect(error.candidates.length).toBeGreaterThan(1);
     }
     // Choosing route 1 applies a valid capture sequence.
-    const after = driver.playMovePosition('e8', 'e8', 1);
+    const after = driver.playMovePosition('f8', 'f8', 1);
     expect(after.board.getPieces(PieceColor.BLACK).size).toBeLessThan(8);
   });
 

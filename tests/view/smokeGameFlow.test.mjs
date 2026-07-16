@@ -352,23 +352,23 @@ const createGameFlowSmokeSteps = () => {
 
         const boardState = createBoardState(controller);
 
-        const whitePiece = boardState.pieces.find((p) => samePos(p.position, { r: 4, c: 4 }));
+        const whitePiece = boardState.pieces.find((p) => samePos(p.position, { r: 4, c: 5 }));
         assert.ok(whitePiece);
         assert.equal(whitePiece.color, 'white');
         assert.equal(whitePiece.rank, 'man');
 
-        const blackPiece = boardState.pieces.find((p) => samePos(p.position, { r: 3, c: 3 }));
+        const blackPiece = boardState.pieces.find((p) => samePos(p.position, { r: 3, c: 4 }));
         assert.ok(blackPiece);
         assert.equal(blackPiece.color, 'black');
 
-        controller.selectPiece({ r: 4, c: 4 });
-        await controller.attemptMove({ r: 2, c: 2 });
+        controller.selectPiece({ r: 4, c: 5 });
+        await controller.attemptMove({ r: 2, c: 3 });
 
         await controller.reset();
 
         const resetBoardState = createBoardState(controller);
         const whitePieceAfterReset = resetBoardState.pieces.find((p) =>
-          samePos(p.position, { r: 4, c: 4 }),
+          samePos(p.position, { r: 4, c: 5 }),
         );
         assert.ok(whitePieceAfterReset);
         assert.equal(whitePieceAfterReset.color, 'white');
