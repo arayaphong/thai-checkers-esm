@@ -159,7 +159,7 @@ describe('Save / Load', () => {
     const driver = new GameDriver(await demo1Json());
     driver.playMovePosition('f4', 'f8', 1);
     const json = driver.toJSON();
-    expect(json.format).toBe('thai-checkers-cli-session-v1');
+    expect(json.format).toBe('thai-checkers-cli-session-v2');
     expect(json.moveSequence.length).toBe(1);
     expect(json.currentIndex).toBe(1);
 

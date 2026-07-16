@@ -103,7 +103,7 @@ describe('REPL end-to-end', () => {
     expect(first.stdout).toContain(`Saved session to ${saveFile}`);
 
     const saved = JSON.parse(await readFile(saveFile, 'utf8'));
-    expect(saved.format).toBe('thai-checkers-cli-session-v1');
+    expect(saved.format).toBe('thai-checkers-cli-session-v2');
     expect(saved.moveSequence.length).toBe(1);
 
     const second = await runRepl([saveFile], ['history', 'quit']);

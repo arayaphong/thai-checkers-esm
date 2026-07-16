@@ -14,6 +14,7 @@ import {
   SaveIncompatibilityError,
   AmbiguousMoveError,
 } from './GameDriver.mjs';
+import { WsGameDriver, wsPortUrl } from '../controller/WsGameDriver.mjs';
 
 export {
   GameDriver,
@@ -207,8 +208,34 @@ const parseCommand = (line) => {
   return { kind: 'unknown' };
 };
 
+// Runs one AI move: via the configured WS engine if `wsUrl` is set (letting
+// any failure, including an unreachable engine, propagate rather than
+// falling back to local analysis), otherwise today's direct/local path.
+const runAiMove = async (driver, depth, wsUrl) => {
+  if (!wsUrl) return driver.playAiMove(depth);
+
+  const choice = await new WsGameDriver({ session: driver.toJSON(), url: wsUrl }).playAiMove(depth);
+  if (!choice.played) return { played: false };
+  const moves = driver.getMoves();
+  const move = moves[choice.matchIndex];
+  if (!move || moveKey(move) !== choice.moveKey) {
+    throw new Error('WS engine returned a move not present in current legal moves');
+  }
+  const board = driver.getState().board;
+  driver.playMoveIndex(choice.matchIndex);
+  return {
+    played: true,
+    choice: choice.matchIndex + 1,
+    move,
+    board,
+    score: choice.score,
+    nodes: choice.nodes,
+    time: choice.elapsedMs / 1000,
+  };
+};
+
 // Execute a parsed command against the driver. Returns true to continue, false to quit.
-const executeCommand = async (driver, cmd) => {
+const executeCommand = async (driver, cmd, wsUrl) => {
   switch (cmd.kind) {
     case 'noop':
       return true;
@@ -232,7 +259,7 @@ const executeCommand = async (driver, cmd) => {
       printHistory(driver);
       return true;
     case 'ai': {
-      const result = driver.playAiMove(cmd.depth);
+      const result = await runAiMove(driver, cmd.depth, wsUrl);
       if (!result.played) {
         console.log('No legal moves; AI could not play.');
       } else {
@@ -289,7 +316,7 @@ const handleDriverError = (driver, error) => {
   console.log(`Error: ${error.message}`);
 };
 
-const replLoop = async (driver, rl) => {
+const replLoop = async (driver, rl, wsUrl) => {
   printState(driver);
   const line = await rl.question('> ').catch(() => null);
   if (line === null) {
@@ -298,7 +325,7 @@ const replLoop = async (driver, rl) => {
   }
   const cmd = parseCommand(line);
   try {
-    const keepGoing = await executeCommand(driver, cmd);
+    const keepGoing = await executeCommand(driver, cmd, wsUrl);
     if (!keepGoing) {
       rl.close();
       return;
@@ -306,10 +333,10 @@ const replLoop = async (driver, rl) => {
   } catch (error) {
     handleDriverError(driver, error);
   }
-  await replLoop(driver, rl);
+  await replLoop(driver, rl, wsUrl);
 };
 
-const runRepl = async (driver) => {
+const runRepl = async (driver, wsUrl) => {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const meta = driver.metadata;
   if (meta !== null && meta !== undefined) {
@@ -320,7 +347,7 @@ const runRepl = async (driver) => {
       console.log(meta.description);
     }
   }
-  await replLoop(driver, rl);
+  await replLoop(driver, rl, wsUrl);
 };
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -330,7 +357,20 @@ const runRepl = async (driver) => {
 const isMainModule = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
 
 if (isMainModule) {
-  const startupFile = process.argv[2];
+  // Parse an optional `-ws <port>` flag out of the argv, leaving the
+  // remaining positional argument as today's optional startup-file path.
+  const args = process.argv.slice(2);
+  const wsFlagIndex = args.indexOf('-ws');
+  let wsUrl;
+  if (wsFlagIndex !== -1) {
+    const port = args[wsFlagIndex + 1];
+    args.splice(wsFlagIndex, 2);
+    if (port !== undefined && /^\d+$/.test(port)) {
+      wsUrl = wsPortUrl(port);
+    }
+  }
+
+  const startupFile = args[0];
   const startDriver = async () => {
     if (startupFile === undefined) {
       return new GameDriver();
@@ -340,9 +380,16 @@ if (isMainModule) {
     return new GameDriver(parsed);
   };
   startDriver()
-    .then(runRepl)
+    .then((driver) => runRepl(driver, wsUrl))
     .catch((error) => {
       console.error(`Startup failed: ${error.message}`);
       process.exitCode = 1;
+    })
+    .finally(() => {
+      // A successful WS request leaves the shared socket open for reuse
+      // (fine for a long-lived browser tab) — but this is a one-shot
+      // process, and an open socket is an active handle that would keep
+      // the event loop (and the process) alive forever after 'quit'.
+      WsGameDriver.terminate();
     });
 }

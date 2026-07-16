@@ -22,7 +22,7 @@ export const moveKey = (move) =>
 // JSON / serialization helpers (CLI-local, pure where practical)
 // ─────────────────────────────────────────────────────────────────────────
 
-const SESSION_FORMAT = 'thai-checkers-cli-session-v1';
+const SESSION_FORMAT = 'thai-checkers-cli-session-v2';
 
 const COLOR_NAME_TO_ENUM = new Map([
   ['WHITE', PieceColor.WHITE],

@@ -1,11 +1,21 @@
 import { createGameController } from './controller/gameController.mjs';
 import { createHtmlGameView } from './view/html/htmlGameViewFactory.mjs';
+import { wsPortUrl } from './controller/WsGameDriver.mjs';
 
 // ============================================
 // Entry Point - Pure ESM, no React
 // Composition root: wires the controller to the HTML view via
 // HtmlGameViewFactory (GameView + GameViewBinder + plain UI commands).
 // ============================================
+
+// Opt-in AI engine selection: `?ws=1982` points AI analysis at a WS engine
+// on localhost:1982 instead of the built-in Worker. Absent or non-numeric
+// values leave WS mode off (today's exact behavior). See
+// controller/aiMoveChannel.mjs and docs/ws-engine.md.
+const getWsParam = () => {
+  const value = new URLSearchParams(window.location.search).get('ws');
+  return value !== null && /^\d+$/.test(value) ? value : null;
+};
 
 const getDemoParam = () => {
   const href = window.location.href;
@@ -43,6 +53,11 @@ const loadDemoParams = async (demoName) => {
     return null;
   }
 };
+
+const wsPort = getWsParam();
+if (wsPort) {
+  globalThis.__WS_ENGINE_URL__ = wsPortUrl(wsPort);
+}
 
 let controllerParams = { config: { whiteIsAI: false, blackIsAI: false } };
 const demoName = getDemoParam();
