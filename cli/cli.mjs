@@ -103,18 +103,12 @@ const HELP_LINE =
   'Commands: <n> (move by number) | <from> <to> [choice] (move by square) | ' +
   'ai [depth] | undo | redo | history | save <file> | load <file> | exit | quit';
 
-// Print the current state: player, board, move list, warnings, game-over.
+// Print the current state: player, board, move list, and game-over status.
 const printState = (driver) => {
   const state = driver.getState();
   const colorName = COLOR_LABEL.get(state.player);
   console.log(`\nPlayer to move: ${colorName}`);
   console.log(renderBoard(state.board));
-
-  if (state.drawWarning !== null) {
-    console.log(
-      'Draw warning: draw is likely/possible under the draw rule. You may continue playing.',
-    );
-  }
 
   if (state.isGameOver) {
     if (state.isDraw) {

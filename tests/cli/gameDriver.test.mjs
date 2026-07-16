@@ -28,6 +28,7 @@ describe('GameDriver initialization', () => {
     expect(state.moves.length).toBe(7);
     expect(state.canUndo).toBe(false);
     expect(state.canRedo).toBe(false);
+    expect(state).not.toHaveProperty('drawWarning');
     expect(state.isGameOver).toBe(false);
   });
 
@@ -226,6 +227,15 @@ describe('Draw handling', () => {
     expect(state.isDraw).toBe(true);
     expect(state.drawReason).toBe('ONE_DAME_EACH');
     expect(state.winner).toBe(null);
+
+    const move = state.moves[0];
+    expect(() => driver.playMoveIndex(0)).toThrow(/game is over/i);
+    expect(() => driver.playMovePosition(move.from.toString(), move.to.toString())).toThrow(
+      /game is over/i,
+    );
+    const aiResult = driver.playAiMove(1);
+    expect(aiResult.played).toBe(false);
+    expect(driver.history()).toHaveLength(0);
   });
 
   test('standard board is not a ONE_DAME_EACH draw', () => {
@@ -233,6 +243,26 @@ describe('Draw handling', () => {
     const state = driver.getState();
     expect(state.isDraw).toBe(false);
     expect(state.drawReason).toBe(null);
+  });
+
+  test('human move APIs may revisit a position from played history', () => {
+    const driver = new GameDriver({
+      pieces: [
+        ['A1', { color: 'WHITE', type: 'DAME' }],
+        ['C1', { color: 'WHITE', type: 'PION' }],
+        ['E1', { color: 'WHITE', type: 'PION' }],
+        ['H6', { color: 'BLACK', type: 'DAME' }],
+      ],
+    });
+
+    driver.playMovePosition('A1', 'D4');
+    const firstD4Position = driver.game.positionKey();
+    driver.playMovePosition('H6', 'G5');
+    driver.playMovePosition('D4', 'A1');
+    driver.playMovePosition('G5', 'H6');
+    driver.playMovePosition('A1', 'D4');
+
+    expect(driver.game.positionKey()).toBe(firstD4Position);
   });
 });
 

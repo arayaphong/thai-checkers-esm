@@ -7,7 +7,6 @@ import { Board } from '../core/Board.mjs';
 import { Position } from '../core/Position.mjs';
 import { PieceColor, PieceType } from '../core/piece.mjs';
 import { Analyzer, MAX_ANALYSIS_DEPTH } from '../core/Analyzer.mjs';
-import { isImmediateDraw } from '../core/evaluation.mjs';
 
 // Move objects returned by Analyzer#analyze come from an internal Game.copy(),
 // so they're structurally equal but not the same instances as this game's own
@@ -295,6 +294,12 @@ export class GameDriver {
     return this.#currentEntry().game;
   }
 
+  #assertGameInProgress() {
+    if (this.getState().isGameOver) {
+      throw new Error('Cannot play a move after the game is over');
+    }
+  }
+
   getState() {
     const game = this.#currentGame();
     const board = game.board();
@@ -310,8 +315,6 @@ export class GameDriver {
       : null;
     const isDraw = oneDameEach;
     const drawReason = oneDameEach ? 'ONE_DAME_EACH' : null;
-    const drawWarning =
-      !isGameOver && isImmediateDraw(board, player) ? { reason: 'DRAW_POSSIBLE' } : null;
     return {
       board,
       player,
@@ -320,7 +323,6 @@ export class GameDriver {
       winner,
       isDraw,
       drawReason,
-      drawWarning,
       canUndo: this.#currentIndex > 0,
       canRedo: this.#currentIndex < this.#history.length - 1,
     };
@@ -368,6 +370,7 @@ export class GameDriver {
     if (!Number.isInteger(index)) {
       throw new RangeError(`Move index must be an integer: ${String(index)}`);
     }
+    this.#assertGameInProgress();
     const moves = this.getMoves();
     if (index < 0 || index >= moves.length) {
       const range = moves.length > 0 ? `0-${moves.length - 1}` : 'no legal moves';
@@ -389,6 +392,7 @@ export class GameDriver {
   playMovePosition(from, to, choice) {
     const fromPos = Position.fromString(String(from).toUpperCase());
     const toPos = Position.fromString(String(to).toUpperCase());
+    this.#assertGameInProgress();
     const candidates = this.getMoves()
       .map((move, index) => ({ move, index }))
       .filter(({ move }) => move.from.equals(fromPos) && move.to.equals(toPos));
@@ -417,6 +421,10 @@ export class GameDriver {
         `Analysis depth must be an integer between 1 and ${MAX_ANALYSIS_DEPTH}: ${depth}`,
       );
     }
+    const initialState = this.getState();
+    if (initialState.isGameOver) {
+      return { played: false, state: initialState };
+    }
     const game = this.#currentGame();
     const analyzer = new Analyzer(game);
     const turnStart = performance.now();
@@ -431,7 +439,7 @@ export class GameDriver {
     if (matchIndex === -1) {
       throw new Error('Analyzer produced a move not present in current legal moves');
     }
-    const board = this.getState().board;
+    const board = initialState.board;
     this.playMoveIndex(matchIndex);
     return {
       played: true,

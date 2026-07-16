@@ -44,7 +44,7 @@ export const pionForwardDirs = (color) =>
     color === PieceColor.BLACK ? BLACK_PION_DIRS : WHITE_PION_DIRS;
 
 /**
- * The y-coordinate of the promotion row for `color` (0 for WHITE, 7 for BLACK).
+ * The y-coordinate of the promotion row for `color` (7 for WHITE, 0 for BLACK).
  * @param {number} color PieceColor
  * @returns {number}
  */

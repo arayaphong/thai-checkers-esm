@@ -1,7 +1,8 @@
 // Deep-first search analysis for Thai Checkers
 import { PieceColor } from './piece.mjs';
 import { Game } from './Game.mjs';
-import { evaluatePosition, isImmediateDraw, MATE_SCORE } from './evaluation.mjs';
+import { evaluatePosition, MATE_SCORE } from './evaluation.mjs';
+import { promotionRow } from './directions.mjs';
 import { orderMoveIndices } from './moves/moveOrder.mjs';
 
 /**
@@ -9,6 +10,25 @@ import { orderMoveIndices } from './moves/moveOrder.mjs';
  * @type {number}
  */
 export const MAX_ANALYSIS_DEPTH = 16;
+
+/**
+ * A simulated line loses when it reaches this many consecutive plies without
+ * a capture or promotion. The counter starts at zero for every analyze() call.
+ * @type {number}
+ */
+export const NO_PROGRESS_THRESHOLD = 16;
+
+/**
+ * Captures and promotions are the only moves that reset the search-local
+ * no-progress counter.
+ * @param {import('./Board.mjs').Board} board Position before the move.
+ * @param {number} player Side making the move.
+ * @param {import('./Game.mjs').Move} move
+ * @returns {boolean}
+ */
+const moveMakesProgress = (board, player, move) =>
+    move.captured.length > 0 ||
+    (!board.isDamePiece(move.from) && move.to.y === promotionRow(player));
 
 /**
  * Asserts depth parameter validity.
@@ -78,12 +98,29 @@ export class Analyzer {
 
         const board = game.board();
         const player = game.player();
+        const seenPositions = new Set(game.getPositionKeyHistory());
 
         const { bestMoveIndex, bestScore } = orderMoveIndices(moves, board, player).reduce(
             (acc, index) => {
-                game.selectMove(index);
-                const score = -this.#negamax(game, depth - 1, -Infinity, Infinity, -playerColor, 1);
-                game.undoMove();
+                const transition = this.#enterMove(game, index, moves[index], 0, seenPositions);
+                let score;
+                try {
+                    score =
+                        transition.losesByPolicy && game.moveCount() > 0
+                            ? -MATE_SCORE + 1
+                            : -this.#negamax(
+                                  game,
+                                  depth - 1,
+                                  -Infinity,
+                                  Infinity,
+                                  -playerColor,
+                                  1,
+                                  transition.noProgressPlies,
+                                  seenPositions,
+                              );
+                } finally {
+                    this.#leaveMove(game, transition, seenPositions);
+                }
 
                 // Strict improvement wins; ties keep the lowest move index, matching the
                 // ascending-order tie-break of the original unordered scan.
@@ -108,9 +145,11 @@ export class Analyzer {
      * @param {number} plyFromRoot Distance in plies from the analyze() root to `game`'s
      *   current position, used so a terminal score reflects actual mate distance rather
      *   than remaining search depth (see core/evaluation.mjs).
+     * @param {number} noProgressPlies Consecutive simulated plies without capture/promotion.
+     * @param {Set<bigint>} seenPositions Full played history plus the current search branch.
      * @returns {number} The score of the position from the perspective of the current player.
      */
-    #negamax(game, depth, alpha, beta, color, plyFromRoot) {
+    #negamax(game, depth, alpha, beta, color, plyFromRoot, noProgressPlies, seenPositions) {
         this.#nodeCount++;
 
         if (game.moveCount() === 0) {
@@ -120,32 +159,49 @@ export class Analyzer {
         const board = game.board();
         const player = game.player();
 
-        // An immediate draw (per Thai checkers draw rules) scores as a loss for
-        // player, not a neutral 0: the real game doesn't stop play here (see
-        // analyze()'s doc comment on why the core engine is left alone), but
-        // the search should never treat reaching this dead end as acceptable
-        // as an actual win, so it's penalized identically to having no moves.
-        // An immediate draw is now scored as a neutral value (0) rather than a loss.
-        // This makes draws higher than losses (which are -MATE_SCORE) but lower than
-        // winning scores, satisfying win > draw > lose.
-        if (isImmediateDraw(board, player)) {
-            return 0;
-        }
-
         if (depth === 0) {
-            return this.#quiescence(game, alpha, beta, color, plyFromRoot);
+            return this.#quiescence(
+                game,
+                alpha,
+                beta,
+                color,
+                plyFromRoot,
+                noProgressPlies,
+                seenPositions,
+            );
         }
 
         const moves = game.getMoves();
 
         let value = -Infinity;
         for (const index of orderMoveIndices(moves, board, player)) {
-            game.selectMove(index);
-            value = Math.max(
-                value,
-                -this.#negamax(game, depth - 1, -beta, -alpha, -color, plyFromRoot + 1),
+            const childPly = plyFromRoot + 1;
+            const transition = this.#enterMove(
+                game,
+                index,
+                moves[index],
+                noProgressPlies,
+                seenPositions,
             );
-            game.undoMove();
+            let score;
+            try {
+                score =
+                    transition.losesByPolicy && game.moveCount() > 0
+                        ? -MATE_SCORE + childPly
+                        : -this.#negamax(
+                              game,
+                              depth - 1,
+                              -beta,
+                              -alpha,
+                              -color,
+                              childPly,
+                              transition.noProgressPlies,
+                              seenPositions,
+                          );
+            } finally {
+                this.#leaveMove(game, transition, seenPositions);
+            }
+            value = Math.max(value, score);
             alpha = Math.max(alpha, value);
             if (alpha >= beta) break;
         }
@@ -163,9 +219,11 @@ export class Analyzer {
      * @param {number} beta
      * @param {number} color 1 for maximizing player, -1 for minimizing
      * @param {number} plyFromRoot See #negamax.
+     * @param {number} noProgressPlies See #negamax.
+     * @param {Set<bigint>} seenPositions See #negamax.
      * @returns {number} The score of the position from the perspective of the current player.
      */
-    #quiescence(game, alpha, beta, color, plyFromRoot) {
+    #quiescence(game, alpha, beta, color, plyFromRoot, noProgressPlies, seenPositions) {
         this.#nodeCount++;
 
         const moves = game.getMoves();
@@ -179,24 +237,84 @@ export class Analyzer {
         const player = game.player();
 
         if (!hasMandatoryCapture) {
-            // Immediate draws are neutral (0) rather than loss scores.
-            if (isImmediateDraw(board, player)) {
-                return 0; // See comment above for draw scoring rationale.
-            }
             return color * evaluatePosition(game);
         }
 
         let value = -Infinity;
         for (const index of orderMoveIndices(moves, board, player)) {
-            game.selectMove(index);
-            value = Math.max(
-                value,
-                -this.#quiescence(game, -beta, -alpha, -color, plyFromRoot + 1),
+            const childPly = plyFromRoot + 1;
+            const transition = this.#enterMove(
+                game,
+                index,
+                moves[index],
+                noProgressPlies,
+                seenPositions,
             );
-            game.undoMove();
+            let score;
+            try {
+                score =
+                    transition.losesByPolicy && game.moveCount() > 0
+                        ? -MATE_SCORE + childPly
+                        : -this.#quiescence(
+                              game,
+                              -beta,
+                              -alpha,
+                              -color,
+                              childPly,
+                              transition.noProgressPlies,
+                              seenPositions,
+                          );
+            } finally {
+                this.#leaveMove(game, transition, seenPositions);
+            }
+            value = Math.max(value, score);
             alpha = Math.max(alpha, value);
             if (alpha >= beta) break;
         }
         return value;
+    }
+
+    /**
+     * Selects one move and updates the two independent search policies:
+     * no-progress counting and full-position repetition detection.
+     * @param {import('./Game.mjs').Game} game
+     * @param {number} index
+     * @param {import('./Game.mjs').Move} move
+     * @param {number} noProgressPlies
+     * @param {Set<bigint>} seenPositions
+     * @returns {{noProgressPlies: number, positionKey: bigint, losesByPolicy: boolean}}
+     */
+    #enterMove(game, index, move, noProgressPlies, seenPositions) {
+        const nextNoProgressPlies = moveMakesProgress(game.board(), game.player(), move)
+            ? 0
+            : noProgressPlies + 1;
+
+        game.selectMove(index);
+        const positionKey = game.positionKey();
+        const losesByPolicy =
+            nextNoProgressPlies >= NO_PROGRESS_THRESHOLD || seenPositions.has(positionKey);
+
+        if (!losesByPolicy) {
+            seenPositions.add(positionKey);
+        }
+
+        return {
+            noProgressPlies: nextNoProgressPlies,
+            positionKey,
+            losesByPolicy,
+        };
+    }
+
+    /**
+     * Restores the branch-local seen set and game after #enterMove().
+     * @param {import('./Game.mjs').Game} game
+     * @param {{positionKey: bigint, losesByPolicy: boolean}} transition
+     * @param {Set<bigint>} seenPositions
+     */
+    #leaveMove(game, transition, seenPositions) {
+        if (!transition.losesByPolicy) {
+            seenPositions.delete(transition.positionKey);
+        }
+        game.undoMove();
     }
 }

@@ -9,7 +9,6 @@ import {
   MATE_SCORE,
   MATE_SCORE_THRESHOLD,
   pstMoveDelta,
-  isImmediateDraw,
   evaluateBoard,
   evaluatePosition,
 } from '../../core/evaluation.mjs';
@@ -33,42 +32,6 @@ describe('core/evaluation', () => {
     // delta = 17 - 15 = 2
     const delta = pstMoveDelta(board, Position.fromString('C1'), Position.fromString('D2'));
     assert.equal(delta, 2);
-  });
-
-  test('isImmediateDraw detection', () => {
-    // Case 1: Both sides have exactly one dame and nothing else -> Immediate Draw
-    const board1 = Board.fromPieces([
-      [Position.fromString('C1'), { color: PieceColor.WHITE, type: PieceType.DAME }],
-      [Position.fromString('H8'), { color: PieceColor.BLACK, type: PieceType.DAME }],
-    ]);
-    assert.equal(isImmediateDraw(board1, PieceColor.WHITE), true);
-
-    // Case 2: One side has no dame -> Not immediate draw
-    const board2 = Board.fromPieces([
-      [Position.fromString('C1'), { color: PieceColor.WHITE, type: PieceType.PION }],
-      [Position.fromString('H8'), { color: PieceColor.BLACK, type: PieceType.DAME }],
-    ]);
-    assert.equal(isImmediateDraw(board2, PieceColor.WHITE), false);
-
-    // Case 3: More than 1 pion on a side -> Not immediate draw
-    const board3 = Board.fromPieces([
-      [Position.fromString('C1'), { color: PieceColor.WHITE, type: PieceType.DAME }],
-      [Position.fromString('D2'), { color: PieceColor.WHITE, type: PieceType.PION }],
-      [Position.fromString('E3'), { color: PieceColor.WHITE, type: PieceType.PION }],
-      [Position.fromString('H8'), { color: PieceColor.BLACK, type: PieceType.DAME }],
-    ]);
-    assert.equal(isImmediateDraw(board3, PieceColor.WHITE), false);
-
-    // Case 4: Mandatory capture exists -> Not immediate draw
-    // White Dame at C3, Black Pion at D4, landing at E5 is empty.
-    // There is a mandatory capture.
-    const board4 = Board.fromPieces([
-      [Position.fromString('C3'), { color: PieceColor.WHITE, type: PieceType.DAME }],
-      [Position.fromString('D4'), { color: PieceColor.BLACK, type: PieceType.PION }],
-      [Position.fromString('H6'), { color: PieceColor.BLACK, type: PieceType.DAME }],
-    ]);
-    // White has a capture on D4, landing on E5.
-    assert.equal(isImmediateDraw(board4, PieceColor.WHITE), false);
   });
 
   test('evaluateBoard and evaluatePosition basic checks', () => {

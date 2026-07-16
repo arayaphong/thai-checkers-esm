@@ -53,6 +53,17 @@ const uniqueMoves = (moves) => {
 const oppositeColor = (color) => (color === PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE);
 
 /**
+ * Packs an encoded board and its side to move into the canonical position key.
+ * Board#encode() may use all 64 bits, but BigInt shifts do not truncate: the
+ * result expands to at most 65 bits, with PieceColor (0 or 1) in the low bit.
+ * The mapping is therefore reversible and collision-free.
+ * @param {bigint} encodedBoard
+ * @param {number} player
+ * @returns {bigint}
+ */
+const encodePositionKey = (encodedBoard, player) => (encodedBoard << 1n) | BigInt(player);
+
+/**
  * Orchestrates game rules, legal moves generation, and board history.
  */
 export class Game {
@@ -191,6 +202,18 @@ export class Game {
     }
 
     /**
+     * Returns the full position-key history, including the side to move at
+     * every recorded board state.
+     * @returns {bigint[]}
+     */
+    getPositionKeyHistory() {
+        return this.#encodedHistory.map((encodedBoard, ply) => {
+            const player = ply % 2 === 0 ? this.#rootPlayer : oppositeColor(this.#rootPlayer);
+            return encodePositionKey(encodedBoard, player);
+        });
+    }
+
+    /**
      * Returns the current board state.
      * @returns {import('./Board.mjs').Board}
      */
@@ -214,7 +237,7 @@ export class Game {
      * @returns {bigint}
      */
     positionKey() {
-        return (this.board().encode() << 1n) | BigInt(this.player());
+        return encodePositionKey(this.#encodedHistory.at(-1), this.player());
     }
 
     // ─── Private: move execution ───
