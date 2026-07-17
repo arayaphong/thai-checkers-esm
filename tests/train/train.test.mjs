@@ -8,9 +8,11 @@ import path from 'node:path';
 import { GameDriver } from '../../cli/GameDriver.mjs';
 import { PieceColor } from '../../core/piece.mjs';
 import {
+  createSeededRandom,
   parseTrainingArgs,
   playTrainingGame,
   runTraining,
+  selectExplorationCandidate,
 } from '../../train/train.mjs';
 import { createEmptyTrajectory, loadTrajectory } from '../../train/trajectory.mjs';
 
@@ -51,6 +53,18 @@ describe('self-play trainer', () => {
       '4',
       '--games',
       '3',
+      '--epochs',
+      '4',
+      '--exploration',
+      '0.25',
+      '--exploration-decay',
+      '0.8',
+      '--exploration-plies',
+      '10',
+      '--exploration-top',
+      '2',
+      '--seed',
+      '123',
       '--max-plies',
       '20',
       '--trajectory',
@@ -62,6 +76,12 @@ describe('self-play trainer', () => {
     assert.equal(first.whiteDepth, 7);
     assert.equal(first.blackDepth, 4);
     assert.equal(first.games, 3);
+    assert.equal(first.epochs, 4);
+    assert.equal(first.exploration, 0.25);
+    assert.equal(first.explorationDecay, 0.8);
+    assert.equal(first.explorationPlies, 10);
+    assert.equal(first.explorationTop, 2);
+    assert.equal(first.seed, 123);
     assert.equal(first.maxPlies, 20);
     assert.equal(first.trajectoryPath, 'custom.json');
     assert.equal(first.showBoard, false);
@@ -74,8 +94,59 @@ describe('self-play trainer', () => {
     assert.throws(() => parseTrainingArgs(['--depth', '17']), /whiteDepth/);
     assert.throws(() => parseTrainingArgs(['--games', '1.5']), /integer value/);
     assert.throws(() => parseTrainingArgs(['--max-plies', '0']), /maxPlies/);
+    assert.throws(() => parseTrainingArgs(['--epochs', '0']), /epochs/);
+    assert.throws(() => parseTrainingArgs(['--exploration', '1.1']), /between 0 and 1/);
+    assert.throws(() => parseTrainingArgs(['--exploration-decay', '-1']), /between 0 and 1/);
+    assert.throws(() => parseTrainingArgs(['--exploration-top', '0']), /explorationTop/);
+    assert.throws(() => parseTrainingArgs(['--seed', '4294967296']), /unsigned 32-bit/);
     assert.throws(() => parseTrainingArgs(['--trajectory']), /requires a path/);
     assert.throws(() => parseTrainingArgs(['--unknown']), /Unknown training option/);
+  });
+
+  test('seeded random generation is deterministic and bounded', () => {
+    const first = createSeededRandom(123);
+    const second = createSeededRandom(123);
+    const firstValues = Array.from({ length: 5 }, () => first());
+    const secondValues = Array.from({ length: 5 }, () => second());
+
+    assert.deepEqual(firstValues, secondValues);
+    assert.equal(firstValues.every((value) => value >= 0 && value < 1), true);
+    assert.equal(new Set(firstValues).size > 1, true);
+  });
+
+  test('exploration selects only within top-N using rank weights', () => {
+    const candidates = ['first', 'second', 'third', 'excluded'];
+
+    assert.deepEqual(selectExplorationCandidate(candidates, 3, () => 0), {
+      candidate: 'first',
+      rank: 0,
+    });
+    assert.deepEqual(selectExplorationCandidate(candidates, 3, () => 0.99), {
+      candidate: 'third',
+      rank: 2,
+    });
+    assert.throws(() => selectExplorationCandidate(candidates, 3, () => 1), /random/);
+  });
+
+  test('opening exploration can choose a non-best ranked candidate', () => {
+    const trajectory = createEmptyTrajectory();
+    const randomValues = [0, 0.99];
+    const plies = [];
+    const result = playTrainingGame(trajectory, {
+      whiteDepth: 1,
+      blackDepth: 1,
+      maxPlies: 1,
+      exploration: 1,
+      explorationPlies: 1,
+      explorationTop: 3,
+      random: () => randomValues.shift(),
+      onPly: (event) => plies.push(event),
+    });
+
+    assert.equal(result.plies, 1);
+    assert.equal(plies[0].explored, true);
+    assert.equal(plies[0].candidateRank, 2);
+    assert.equal(plies[0].explorationRate, 1);
   });
 
   test('credits a forced White win to the side that made the recorded decision', () => {
@@ -173,6 +244,34 @@ describe('self-play trainer', () => {
     assert.equal(saved.games.total, 1);
     assert.equal(saved.games.whiteWins, 1);
     assert.equal(Object.keys(saved.gameIds).length, 1);
+  });
+
+  test('runTraining decays exploration once per epoch', async () => {
+    const trajectoryPath = path.join(temporaryDirectory, 'epochs.json');
+    const rates = [];
+    const output = await runTraining({
+      epochs: 3,
+      games: 1,
+      whiteDepth: 1,
+      blackDepth: 1,
+      maxPlies: 1,
+      exploration: 0.4,
+      explorationDecay: 0.5,
+      explorationPlies: 0,
+      seed: 99,
+      trajectoryPath,
+      onGameComplete: ({ epochNumber, explorationRate }) => {
+        rates.push([epochNumber, explorationRate]);
+      },
+    });
+
+    assert.deepEqual(rates, [
+      [1, 0.4],
+      [2, 0.2],
+      [3, 0.1],
+    ]);
+    assert.equal(output.results.length, 3);
+    assert.equal(output.seed, 99);
   });
 
   test('the executable CLI runs a bounded game and writes its trajectory', async () => {

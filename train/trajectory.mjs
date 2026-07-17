@@ -9,6 +9,11 @@ export const DEFAULT_TRAJECTORY_CONFIG = Object.freeze({
   creditCurve: 'logarithmic',
   priorVisits: 8,
   maxBias: 200,
+  hardPrune: Object.freeze({
+    minVisits: 30,
+    minLosses: 27,
+    minLossRate: 0.9,
+  }),
 });
 
 const emptyStats = () => ({
@@ -27,7 +32,10 @@ export const createEmptyTrajectory = () => ({
     blackWins: 0,
     draws: 0,
   },
-  config: { ...DEFAULT_TRAJECTORY_CONFIG },
+  config: {
+    ...DEFAULT_TRAJECTORY_CONFIG,
+    hardPrune: { ...DEFAULT_TRAJECTORY_CONFIG.hardPrune },
+  },
   gameIds: {},
   states: {},
   edges: {},
@@ -90,6 +98,16 @@ export const validateTrajectory = (value) => {
   assertFiniteNumber(value.config.maxBias, 'config.maxBias');
   if (value.config.maxBias < 0) {
     throw new RangeError('config.maxBias must be non-negative');
+  }
+  value.config.hardPrune ??= { ...DEFAULT_TRAJECTORY_CONFIG.hardPrune };
+  if (!isRecord(value.config.hardPrune)) {
+    throw new TypeError('config.hardPrune must be an object');
+  }
+  assertNonNegativeInteger(value.config.hardPrune.minVisits, 'config.hardPrune.minVisits');
+  assertNonNegativeInteger(value.config.hardPrune.minLosses, 'config.hardPrune.minLosses');
+  assertFiniteNumber(value.config.hardPrune.minLossRate, 'config.hardPrune.minLossRate');
+  if (value.config.hardPrune.minLossRate < 0 || value.config.hardPrune.minLossRate > 1) {
+    throw new RangeError('config.hardPrune.minLossRate must be between 0 and 1');
   }
 
   // Files created before game-level deduplication have no IDs to migrate.
@@ -219,6 +237,57 @@ export const trajectoryBias = (trajectory, positionKey) => {
   const mean = stats.valueSum / (stats.visits + trajectory.config.priorVisits);
   const bias = mean * trajectory.config.maxBias;
   return Math.max(-trajectory.config.maxBias, Math.min(trajectory.config.maxBias, bias));
+};
+
+const edgeQuality = (stats) => ({
+  lossRate: stats.losses / stats.visits,
+  expectedOutcome: (stats.wins - stats.losses) / stats.visits,
+});
+
+/**
+ * Returns move indices whose learned edge outcomes meet the configured hard-
+ * prune threshold. At least one move always survives, preferring the strongest
+ * observed edge if every legal move would otherwise be removed.
+ */
+export const hardPruneMoveIndices = (trajectory, positionKey, moves, moveKeyForMove) => {
+  if (!Array.isArray(moves)) throw new TypeError('moves must be an array');
+  if (typeof moveKeyForMove !== 'function') {
+    throw new TypeError('moveKeyForMove must be a function');
+  }
+  if (moves.length <= 1) return new Set();
+
+  const stateKey = normalizedPositionKey(positionKey);
+  const statsByIndex = moves.map((move) => trajectory.edges[trajectoryEdgeKey(stateKey, moveKeyForMove(move))]);
+  const { minVisits, minLosses, minLossRate } = trajectory.config.hardPrune;
+  const pruned = new Set();
+
+  statsByIndex.forEach((stats, index) => {
+    if (
+      stats !== undefined &&
+      stats.visits >= minVisits &&
+      stats.losses >= minLosses &&
+      stats.losses / stats.visits >= minLossRate
+    ) {
+      pruned.add(index);
+    }
+  });
+
+  if (pruned.size === moves.length) {
+    const bestIndex = statsByIndex.reduce((best, stats, index) => {
+      const quality = edgeQuality(stats);
+      const bestQuality = edgeQuality(statsByIndex[best]);
+      if (quality.lossRate !== bestQuality.lossRate) {
+        return quality.lossRate < bestQuality.lossRate ? index : best;
+      }
+      if (quality.expectedOutcome !== bestQuality.expectedOutcome) {
+        return quality.expectedOutcome > bestQuality.expectedOutcome ? index : best;
+      }
+      return stats.visits > statsByIndex[best].visits ? index : best;
+    }, 0);
+    pruned.delete(bestIndex);
+  }
+
+  return pruned;
 };
 
 export const loadTrajectory = async (filePath) => {

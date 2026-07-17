@@ -232,6 +232,7 @@ describe('core/analyzer', () => {
 
     assert.throws(() => new Analyzer(game, null), /options/);
     assert.throws(() => new Analyzer(game, { positionBias: 1 }), /positionBias/);
+    assert.throws(() => new Analyzer(game, { pruneMoves: true }), /pruneMoves/);
   });
 
   test('a zero position bias preserves the analyzer result', () => {
@@ -244,6 +245,28 @@ describe('core/analyzer', () => {
     assert.equal(withZeroProvider.score, withoutProvider.score);
     assert.equal(withZeroProvider.move.from.toString(), withoutProvider.move.from.toString());
     assert.equal(withZeroProvider.move.to.toString(), withoutProvider.move.to.toString());
+  });
+
+  test('analyzeCandidates ranks every surviving root move and preserves analyze best move', () => {
+    const game = new Game();
+    const candidates = new Analyzer(game).analyzeCandidates(1);
+    const best = new Analyzer(game).analyze(1);
+
+    assert.equal(candidates.length, game.getMoves().length);
+    assert.equal(candidates.every(({ score }) => typeof score === 'number'), true);
+    assert.equal(
+      candidates.every((candidate, index) => index === 0 || candidates[index - 1].score >= candidate.score),
+      true,
+    );
+    assert.notEqual(best, null);
+    assert.equal(candidates[0].move.from.toString(), best.move.from.toString());
+    assert.equal(candidates[0].move.to.toString(), best.move.to.toString());
+    assert.equal(candidates[0].score, best.score);
+  });
+
+  test('analyzeCandidates returns an empty list for a terminal position', () => {
+    const game = Game.from(Board.empty(), PieceColor.WHITE);
+    assert.deepEqual(new Analyzer(game).analyzeCandidates(1), []);
   });
 
   test('position bias receives side-to-move keys and can change root move selection', () => {
@@ -268,6 +291,43 @@ describe('core/analyzer', () => {
     assert.throws(
       () => analyzeScriptedGame(game, 1, { positionBias: () => Number.NaN }),
       /finite number/,
+    );
+  });
+
+  test('hard pruning removes selected root moves from consideration', () => {
+    const game = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+    const result = analyzeScriptedGame(game, 1, {
+      pruneMoves: (positionKey, moves) => {
+        assert.equal(positionKey, 1n);
+        assert.equal(moves.length, 2);
+        return [0];
+      },
+    });
+
+    assert.notEqual(result, null);
+    assert.equal(result.move.to.toString(), 'C3');
+    assert.equal(game.selectedMove, null);
+  });
+
+  test('hard pruning cannot remove every legal root move', () => {
+    const game = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+    const result = analyzeScriptedGame(game, 1, { pruneMoves: () => [0, 1] });
+
+    assert.notEqual(result, null);
+    assert.equal(result.move.to.toString(), 'C3');
+  });
+
+  test('hard pruning validates provider output and move indices', () => {
+    const invalidGame = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+    assert.throws(
+      () => analyzeScriptedGame(invalidGame, 1, { pruneMoves: () => null }),
+      /iterable/,
+    );
+
+    const outOfRangeGame = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+    assert.throws(
+      () => analyzeScriptedGame(outOfRangeGame, 1, { pruneMoves: () => [2] }),
+      /invalid move index/,
     );
   });
 

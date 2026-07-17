@@ -6,6 +6,7 @@ import path from 'node:path';
 import { PieceColor } from '../../core/piece.mjs';
 import {
   createEmptyTrajectory,
+  hardPruneMoveIndices,
   loadTrajectory,
   logarithmicCreditWeight,
   recordCompletedGame,
@@ -86,6 +87,10 @@ describe('training trajectory', () => {
     const invalidBias = createEmptyTrajectory();
     invalidBias.config.maxBias = Number.NaN;
     assert.throws(() => validateTrajectory(invalidBias), /maxBias/);
+
+    const invalidPruneRate = createEmptyTrajectory();
+    invalidPruneRate.config.hardPrune.minLossRate = 1.1;
+    assert.throws(() => validateTrajectory(invalidPruneRate), /minLossRate/);
   });
 
   test('builds deterministic state and edge keys', () => {
@@ -93,6 +98,76 @@ describe('training trajectory', () => {
     assert.equal(trajectoryEdgeKey('42', '1:2:3,4'), '42:1:2:3,4');
     assert.throws(() => trajectoryEdgeKey('-1', 'move'), /positionKey/);
     assert.throws(() => trajectoryEdgeKey(1n, ''), /moveKey/);
+  });
+
+  test('hard-prunes only edges that meet every confidence threshold', () => {
+    const trajectory = createEmptyTrajectory();
+    trajectory.edges['10:bad'] = {
+      visits: 30,
+      wins: 2,
+      losses: 27,
+      draws: 1,
+      valueSum: -20,
+    };
+    trajectory.edges['10:uncertain'] = {
+      visits: 29,
+      wins: 0,
+      losses: 29,
+      draws: 0,
+      valueSum: -20,
+    };
+
+    const pruned = hardPruneMoveIndices(
+      trajectory,
+      10n,
+      ['bad', 'uncertain', 'unknown'],
+      (move) => move,
+    );
+
+    assert.deepEqual(pruned, new Set([0]));
+  });
+
+  test('hard-prune keeps the strongest observed move if every edge qualifies', () => {
+    const trajectory = createEmptyTrajectory();
+    trajectory.edges['10:worse'] = {
+      visits: 30,
+      wins: 0,
+      losses: 30,
+      draws: 0,
+      valueSum: -25,
+    };
+    trajectory.edges['10:less-bad'] = {
+      visits: 30,
+      wins: 3,
+      losses: 27,
+      draws: 0,
+      valueSum: -20,
+    };
+
+    const pruned = hardPruneMoveIndices(
+      trajectory,
+      '10',
+      ['worse', 'less-bad'],
+      (move) => move,
+    );
+
+    assert.deepEqual(pruned, new Set([0]));
+  });
+
+  test('hard-prune never removes a forced move', () => {
+    const trajectory = createEmptyTrajectory();
+    trajectory.edges['10:forced'] = {
+      visits: 100,
+      wins: 0,
+      losses: 100,
+      draws: 0,
+      valueSum: -100,
+    };
+
+    assert.deepEqual(
+      hardPruneMoveIndices(trajectory, 10n, ['forced'], (move) => move),
+      new Set(),
+    );
   });
 
   test('aggregates outcomes from each side-to-move perspective', () => {
