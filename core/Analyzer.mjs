@@ -4,6 +4,12 @@ import { Game } from './Game.mjs';
 import { evaluatePosition, MATE_SCORE } from './evaluation.mjs';
 import { promotionRow } from './directions.mjs';
 import { orderMoveIndices } from './moves/moveOrder.mjs';
+import learnedTrajectory from '../train/trajectory.json' with { type: 'json' };
+import {
+    hardPruneMoveIndices,
+    trajectoryBias,
+    trajectoryMoveKey,
+} from './trajectoryPolicy.mjs';
 
 /**
  * Capped limit for depth search to avoid stack overflow.
@@ -124,7 +130,7 @@ export class Analyzer {
 
     /**
      * @param {import('./Game.mjs').Game} game The starting game state.
-     * @param {{positionBias?: (positionKey: bigint) => number,
+     * @param {{useTrajectory?: boolean, positionBias?: (positionKey: bigint) => number,
      *   pruneMoves?: (positionKey: bigint, moves: import('./Game.mjs').Move[]) => Iterable<number>}} [options]
      *   Optional learned score adjustment. The callback receives a position key
      *   that includes the side to move and must return a score from that side's
@@ -140,9 +146,27 @@ export class Analyzer {
         if (options.pruneMoves !== undefined && typeof options.pruneMoves !== 'function') {
             throw new TypeError('Analyzer pruneMoves must be a function');
         }
+        if (options.useTrajectory !== undefined && typeof options.useTrajectory !== 'boolean') {
+            throw new TypeError('Analyzer useTrajectory must be a boolean');
+        }
         this.#game = game;
-        this.#positionBias = options.positionBias ?? (() => 0);
-        this.#pruneMoves = options.pruneMoves ?? (() => []);
+        const useTrajectory = options.useTrajectory ?? true;
+        this.#positionBias =
+            options.positionBias ??
+            (useTrajectory
+                ? (positionKey) => trajectoryBias(learnedTrajectory, positionKey)
+                : () => 0);
+        this.#pruneMoves =
+            options.pruneMoves ??
+            (useTrajectory
+                ? (positionKey, moves) =>
+                      hardPruneMoveIndices(
+                          learnedTrajectory,
+                          positionKey,
+                          moves,
+                          trajectoryMoveKey,
+                      )
+                : () => []);
     }
 
     /**

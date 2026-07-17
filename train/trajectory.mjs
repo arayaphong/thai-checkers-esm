@@ -2,6 +2,14 @@ import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { PieceColor } from '../core/piece.mjs';
+import {
+  hardPruneMoveIndices,
+  normalizedTrajectoryPositionKey as normalizedPositionKey,
+  trajectoryBias,
+  trajectoryEdgeKey,
+} from '../core/trajectoryPolicy.mjs';
+
+export { hardPruneMoveIndices, trajectoryBias, trajectoryEdgeKey };
 
 export const TRAJECTORY_VERSION = 1;
 
@@ -134,21 +142,6 @@ export const validateTrajectory = (value) => {
   return value;
 };
 
-const normalizedPositionKey = (positionKey) => {
-  if (typeof positionKey === 'bigint') return positionKey.toString();
-  if (typeof positionKey === 'string' && /^(0|[1-9]\d*)$/.test(positionKey)) {
-    return positionKey;
-  }
-  throw new TypeError('positionKey must be a non-negative bigint or decimal string');
-};
-
-export const trajectoryEdgeKey = (positionKey, moveKey) => {
-  if (typeof moveKey !== 'string' || moveKey.length === 0) {
-    throw new TypeError('moveKey must be a non-empty string');
-  }
-  return `${normalizedPositionKey(positionKey)}:${moveKey}`;
-};
-
 const updateStats = (stats, outcome, credit) => {
   stats.visits++;
   if (outcome > 0) stats.wins++;
@@ -228,66 +221,6 @@ export const recordCompletedGame = (trajectory, records, winner) => {
   });
 
   return { recorded: true, gameId };
-};
-
-/** Returns a bounded score in the side-to-move perspective encoded by positionKey. */
-export const trajectoryBias = (trajectory, positionKey) => {
-  const stats = trajectory.states[normalizedPositionKey(positionKey)];
-  if (stats === undefined) return 0;
-  const mean = stats.valueSum / (stats.visits + trajectory.config.priorVisits);
-  const bias = mean * trajectory.config.maxBias;
-  return Math.max(-trajectory.config.maxBias, Math.min(trajectory.config.maxBias, bias));
-};
-
-const edgeQuality = (stats) => ({
-  lossRate: stats.losses / stats.visits,
-  expectedOutcome: (stats.wins - stats.losses) / stats.visits,
-});
-
-/**
- * Returns move indices whose learned edge outcomes meet the configured hard-
- * prune threshold. At least one move always survives, preferring the strongest
- * observed edge if every legal move would otherwise be removed.
- */
-export const hardPruneMoveIndices = (trajectory, positionKey, moves, moveKeyForMove) => {
-  if (!Array.isArray(moves)) throw new TypeError('moves must be an array');
-  if (typeof moveKeyForMove !== 'function') {
-    throw new TypeError('moveKeyForMove must be a function');
-  }
-  if (moves.length <= 1) return new Set();
-
-  const stateKey = normalizedPositionKey(positionKey);
-  const statsByIndex = moves.map((move) => trajectory.edges[trajectoryEdgeKey(stateKey, moveKeyForMove(move))]);
-  const { minVisits, minLosses, minLossRate } = trajectory.config.hardPrune;
-  const pruned = new Set();
-
-  statsByIndex.forEach((stats, index) => {
-    if (
-      stats !== undefined &&
-      stats.visits >= minVisits &&
-      stats.losses >= minLosses &&
-      stats.losses / stats.visits >= minLossRate
-    ) {
-      pruned.add(index);
-    }
-  });
-
-  if (pruned.size === moves.length) {
-    const bestIndex = statsByIndex.reduce((best, stats, index) => {
-      const quality = edgeQuality(stats);
-      const bestQuality = edgeQuality(statsByIndex[best]);
-      if (quality.lossRate !== bestQuality.lossRate) {
-        return quality.lossRate < bestQuality.lossRate ? index : best;
-      }
-      if (quality.expectedOutcome !== bestQuality.expectedOutcome) {
-        return quality.expectedOutcome > bestQuality.expectedOutcome ? index : best;
-      }
-      return stats.visits > statsByIndex[best].visits ? index : best;
-    }, 0);
-    pruned.delete(bestIndex);
-  }
-
-  return pruned;
 };
 
 export const loadTrajectory = async (filePath) => {

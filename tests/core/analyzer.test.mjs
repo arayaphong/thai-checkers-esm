@@ -233,18 +233,36 @@ describe('core/analyzer', () => {
     assert.throws(() => new Analyzer(game, null), /options/);
     assert.throws(() => new Analyzer(game, { positionBias: 1 }), /positionBias/);
     assert.throws(() => new Analyzer(game, { pruneMoves: true }), /pruneMoves/);
+    assert.throws(() => new Analyzer(game, { useTrajectory: 'yes' }), /useTrajectory/);
   });
 
   test('a zero position bias preserves the analyzer result', () => {
     const game = new Game();
-    const withoutProvider = new Analyzer(game).analyze(2);
-    const withZeroProvider = new Analyzer(game, { positionBias: () => 0 }).analyze(2);
+    const withoutProvider = new Analyzer(game, { useTrajectory: false }).analyze(2);
+    const withZeroProvider = new Analyzer(game, {
+      useTrajectory: false,
+      positionBias: () => 0,
+    }).analyze(2);
 
     assert.notEqual(withoutProvider, null);
     assert.notEqual(withZeroProvider, null);
     assert.equal(withZeroProvider.score, withoutProvider.score);
     assert.equal(withZeroProvider.move.from.toString(), withoutProvider.move.from.toString());
     assert.equal(withZeroProvider.move.to.toString(), withoutProvider.move.to.toString());
+  });
+
+  test('default Analyzer applies learned trajectory while baseline can opt out', () => {
+    const game = new Game();
+    const learned = new Analyzer(game).analyzeCandidates(1);
+    const baseline = new Analyzer(game, { useTrajectory: false }).analyzeCandidates(1);
+    const baselineScores = new Map(
+      baseline.map(({ move, score }) => [`${move.from}:${move.to}`, score]),
+    );
+
+    assert.equal(
+      learned.some(({ move, score }) => baselineScores.get(`${move.from}:${move.to}`) !== score),
+      true,
+    );
   });
 
   test('analyzeCandidates ranks every surviving root move and preserves analyze best move', () => {
