@@ -4,6 +4,12 @@ import { Game } from './Game.mjs';
 import { evaluatePosition, MATE_SCORE } from './evaluation.mjs';
 import { promotionRow } from './directions.mjs';
 import { orderMoveIndices } from './moves/moveOrder.mjs';
+import learnedTrajectory from '../train/trajectory.json' with { type: 'json' };
+import {
+    hardPruneMoveIndices,
+    trajectoryBias,
+    trajectoryMoveKey,
+} from './trajectoryPolicy.mjs';
 
 /**
  * Capped limit for depth search to avoid stack overflow.
@@ -119,12 +125,48 @@ const assertValidDepth = (depth) => {
 export class Analyzer {
     #game;
     #nodeCount = 0;
+    #positionBias;
+    #pruneMoves;
 
     /**
      * @param {import('./Game.mjs').Game} game The starting game state.
+     * @param {{useTrajectory?: boolean, positionBias?: (positionKey: bigint) => number,
+     *   pruneMoves?: (positionKey: bigint, moves: import('./Game.mjs').Move[]) => Iterable<number>}} [options]
+     *   Optional learned score adjustment. The callback receives a position key
+     *   that includes the side to move and must return a score from that side's
+     *   perspective. It is consulted only at static, non-terminal leaf nodes.
      */
-    constructor(game) {
+    constructor(game, options = {}) {
+        if (typeof options !== 'object' || options === null || Array.isArray(options)) {
+            throw new TypeError('Analyzer options must be an object');
+        }
+        if (options.positionBias !== undefined && typeof options.positionBias !== 'function') {
+            throw new TypeError('Analyzer positionBias must be a function');
+        }
+        if (options.pruneMoves !== undefined && typeof options.pruneMoves !== 'function') {
+            throw new TypeError('Analyzer pruneMoves must be a function');
+        }
+        if (options.useTrajectory !== undefined && typeof options.useTrajectory !== 'boolean') {
+            throw new TypeError('Analyzer useTrajectory must be a boolean');
+        }
         this.#game = game;
+        const useTrajectory = options.useTrajectory ?? true;
+        this.#positionBias =
+            options.positionBias ??
+            (useTrajectory
+                ? (positionKey) => trajectoryBias(learnedTrajectory, positionKey)
+                : () => 0);
+        this.#pruneMoves =
+            options.pruneMoves ??
+            (useTrajectory
+                ? (positionKey, moves) =>
+                      hardPruneMoveIndices(
+                          learnedTrajectory,
+                          positionKey,
+                          moves,
+                          trajectoryMoveKey,
+                      )
+                : () => []);
     }
 
     /**
@@ -156,6 +198,17 @@ export class Analyzer {
      * @returns {{move: import('./Game.mjs').Move, score: number}|null} The best move and its score, or null if no moves are available.
      */
     analyze(depth) {
+        return this.analyzeCandidates(depth)[0] ?? null;
+    }
+
+    /**
+     * Scores every root move that survives optional pruning and returns them
+     * from strongest to weakest. Equal scores retain the original legal-move
+     * index tie-break used by analyze().
+     * @param {number} depth Search depth in plies.
+     * @returns {{move: import('./Game.mjs').Move, score: number}[]}
+     */
+    analyzeCandidates(depth) {
         assertValidDepth(depth);
 
         this.#nodeCount = 0;
@@ -163,7 +216,7 @@ export class Analyzer {
         const playerColor = game.player() === PieceColor.WHITE ? 1 : -1;
         const moves = game.getMoves();
         if (moves.length === 0) {
-            return null;
+            return [];
         }
 
         const board = game.board();
@@ -171,8 +224,9 @@ export class Analyzer {
         const noProgressPlies = trailingNoProgressPlies(game.getBoardHistory());
         const seenPositions = new Set(game.getPositionKeyHistory());
 
-        const { bestMoveIndex, bestScore } = orderMoveIndices(moves, board, player).reduce(
-            (acc, index) => {
+        const moveIndices = this.#moveIndices(game, moves, board, player);
+        return moveIndices
+            .map((index) => {
                 const transition = this.#enterMove(
                     game,
                     index,
@@ -200,18 +254,10 @@ export class Analyzer {
                 } finally {
                     this.#leaveMove(game, transition, seenPositions);
                 }
-
-                // Strict improvement wins; ties keep the lowest move index, matching the
-                // ascending-order tie-break of the original unordered scan.
-                return score > acc.bestScore ||
-                    (score === acc.bestScore && index < acc.bestMoveIndex)
-                    ? { bestMoveIndex: index, bestScore: score }
-                    : acc;
-            },
-            { bestMoveIndex: 0, bestScore: -Infinity },
-        );
-
-        return { move: moves[bestMoveIndex], score: bestScore };
+                return { index, move: moves[index], score };
+            })
+            .sort((left, right) => right.score - left.score || left.index - right.index)
+            .map(({ move, score }) => ({ move, score }));
     }
 
     /**
@@ -254,7 +300,7 @@ export class Analyzer {
         const moves = game.getMoves();
 
         let value = -Infinity;
-        for (const index of orderMoveIndices(moves, board, player)) {
+        for (const index of this.#moveIndices(game, moves, board, player)) {
             const childPly = plyFromRoot + 1;
             const transition = this.#enterMove(
                 game,
@@ -322,11 +368,15 @@ export class Analyzer {
         const player = game.player();
 
         if (!hasMandatoryCapture) {
-            return color * evaluatePosition(game);
+            const bias = this.#positionBias(game.positionKey());
+            if (typeof bias !== 'number' || !Number.isFinite(bias)) {
+                throw new TypeError('Analyzer positionBias must return a finite number');
+            }
+            return color * evaluatePosition(game) + bias;
         }
 
         let value = -Infinity;
-        for (const index of orderMoveIndices(moves, board, player)) {
+        for (const index of this.#moveIndices(game, moves, board, player)) {
             const childPly = plyFromRoot + 1;
             const transition = this.#enterMove(
                 game,
@@ -362,6 +412,30 @@ export class Analyzer {
             if (alpha >= beta) break;
         }
         return value;
+    }
+
+    /**
+     * Applies optional learned pruning after normal move ordering. A forced
+     * move is never offered for pruning, and a faulty provider cannot remove
+     * every legal move.
+     */
+    #moveIndices(game, moves, board, player) {
+        const ordered = orderMoveIndices(moves, board, player);
+        if (ordered.length <= 1) return ordered;
+
+        const requested = this.#pruneMoves(game.positionKey(), moves);
+        if (requested === null || requested === undefined || !requested[Symbol.iterator]) {
+            throw new TypeError('Analyzer pruneMoves must return an iterable of move indices');
+        }
+        const pruned = new Set(requested);
+        for (const index of pruned) {
+            if (!Number.isSafeInteger(index) || index < 0 || index >= moves.length) {
+                throw new RangeError(`Analyzer pruneMoves returned an invalid move index: ${index}`);
+            }
+        }
+
+        const remaining = ordered.filter((index) => !pruned.has(index));
+        return remaining.length > 0 ? remaining : [ordered[0]];
     }
 
     /**

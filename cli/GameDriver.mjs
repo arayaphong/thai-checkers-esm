@@ -7,6 +7,7 @@ import { Board } from '../core/Board.mjs';
 import { Position } from '../core/Position.mjs';
 import { PieceColor, PieceType } from '../core/piece.mjs';
 import { Analyzer, MAX_ANALYSIS_DEPTH } from '../core/Analyzer.mjs';
+import { trajectoryMoveKey } from '../core/trajectoryPolicy.mjs';
 
 // Move objects returned by Analyzer#analyze come from an internal Game.copy(),
 // so they're structurally equal but not the same instances as this game's own
@@ -14,8 +15,7 @@ import { Analyzer, MAX_ANALYSIS_DEPTH } from '../core/Analyzer.mjs';
 // moveKey includes from, to, and the captured-piece set only (not path), so it
 // stays compatible with the existing structural matching behavior used by
 // analyzer examples.
-export const moveKey = (move) =>
-  `${move.from.hash()}:${move.to.hash()}:${move.captured.map((p) => p.hash()).toSorted((a, b) => a - b)}`;
+export const moveKey = trajectoryMoveKey;
 
 // ─────────────────────────────────────────────────────────────────────────
 // JSON / serialization helpers (CLI-local, pure where practical)

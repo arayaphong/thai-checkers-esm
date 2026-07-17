@@ -93,11 +93,16 @@ class LinearSearchGame {
 
 class RepeatedRootMovesGame {
   #selectedMove = null;
+  #includeChildPositionsInHistory;
   #board = Board.fromPieces([
     [position('A1'), { color: PieceColor.WHITE, type: PieceType.DAME }],
     [position('H8'), { color: PieceColor.BLACK, type: PieceType.DAME }],
   ]);
   #rootMoves = [scriptedMove('A1', 'B2'), scriptedMove('A1', 'C3')];
+
+  constructor({ includeChildPositionsInHistory = true } = {}) {
+    this.#includeChildPositionsInHistory = includeChildPositionsInHistory;
+  }
 
   board() {
     return this.#board;
@@ -129,19 +134,23 @@ class RepeatedRootMovesGame {
   }
 
   getPositionKeyHistory() {
-    return [2n, 3n, 1n];
+    return this.#includeChildPositionsInHistory ? [2n, 3n, 1n] : [1n];
   }
 
   getBoardHistory() {
     return [this.#board];
   }
+
+  get selectedMove() {
+    return this.#selectedMove;
+  }
 }
 
-const analyzeScriptedGame = (scriptedGame, depth) => {
+const analyzeScriptedGame = (scriptedGame, depth, options) => {
   const originalCopy = Game.copy;
   Game.copy = () => scriptedGame;
   try {
-    return new Analyzer(new Game()).analyze(depth);
+    return new Analyzer(new Game(), options).analyze(depth);
   } finally {
     Game.copy = originalCopy;
   }
@@ -216,6 +225,153 @@ describe('core/analyzer', () => {
     assert.throws(() => analyzer.analyze(17), RangeError);
     assert.throws(() => analyzer.analyze(1.5), RangeError);
     assert.throws(() => analyzer.analyze(null), RangeError);
+  });
+
+  test('constructor validates optional position bias configuration', () => {
+    const game = new Game();
+
+    assert.throws(() => new Analyzer(game, null), /options/);
+    assert.throws(() => new Analyzer(game, { positionBias: 1 }), /positionBias/);
+    assert.throws(() => new Analyzer(game, { pruneMoves: true }), /pruneMoves/);
+    assert.throws(() => new Analyzer(game, { useTrajectory: 'yes' }), /useTrajectory/);
+  });
+
+  test('a zero position bias preserves the analyzer result', () => {
+    const game = new Game();
+    const withoutProvider = new Analyzer(game, { useTrajectory: false }).analyze(2);
+    const withZeroProvider = new Analyzer(game, {
+      useTrajectory: false,
+      positionBias: () => 0,
+    }).analyze(2);
+
+    assert.notEqual(withoutProvider, null);
+    assert.notEqual(withZeroProvider, null);
+    assert.equal(withZeroProvider.score, withoutProvider.score);
+    assert.equal(withZeroProvider.move.from.toString(), withoutProvider.move.from.toString());
+    assert.equal(withZeroProvider.move.to.toString(), withoutProvider.move.to.toString());
+  });
+
+  test('default Analyzer applies learned trajectory while baseline can opt out', () => {
+    const game = new Game();
+    const learned = new Analyzer(game).analyzeCandidates(1);
+    const baseline = new Analyzer(game, { useTrajectory: false }).analyzeCandidates(1);
+    const baselineScores = new Map(
+      baseline.map(({ move, score }) => [`${move.from}:${move.to}`, score]),
+    );
+
+    assert.equal(
+      learned.some(({ move, score }) => baselineScores.get(`${move.from}:${move.to}`) !== score),
+      true,
+    );
+  });
+
+  test('analyzeCandidates ranks every surviving root move and preserves analyze best move', () => {
+    const game = new Game();
+    const candidates = new Analyzer(game).analyzeCandidates(1);
+    const best = new Analyzer(game).analyze(1);
+
+    assert.equal(candidates.length, game.getMoves().length);
+    assert.equal(candidates.every(({ score }) => typeof score === 'number'), true);
+    assert.equal(
+      candidates.every((candidate, index) => index === 0 || candidates[index - 1].score >= candidate.score),
+      true,
+    );
+    assert.notEqual(best, null);
+    assert.equal(candidates[0].move.from.toString(), best.move.from.toString());
+    assert.equal(candidates[0].move.to.toString(), best.move.to.toString());
+    assert.equal(candidates[0].score, best.score);
+  });
+
+  test('analyzeCandidates returns an empty list for a terminal position', () => {
+    const game = Game.from(Board.empty(), PieceColor.WHITE);
+    assert.deepEqual(new Analyzer(game).analyzeCandidates(1), []);
+  });
+
+  test('position bias receives side-to-move keys and can change root move selection', () => {
+    const game = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+    const visitedKeys = [];
+    const result = analyzeScriptedGame(game, 1, {
+      positionBias: (positionKey) => {
+        visitedKeys.push(positionKey);
+        return positionKey === 2n ? -100 : 100;
+      },
+    });
+
+    assert.notEqual(result, null);
+    assert.equal(result.move.to.toString(), 'B2');
+    assert.deepEqual(new Set(visitedKeys), new Set([2n, 3n]));
+    assert.equal(game.selectedMove, null);
+  });
+
+  test('position bias must return a finite number at a static leaf', () => {
+    const game = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+
+    assert.throws(
+      () => analyzeScriptedGame(game, 1, { positionBias: () => Number.NaN }),
+      /finite number/,
+    );
+  });
+
+  test('hard pruning removes selected root moves from consideration', () => {
+    const game = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+    const result = analyzeScriptedGame(game, 1, {
+      pruneMoves: (positionKey, moves) => {
+        assert.equal(positionKey, 1n);
+        assert.equal(moves.length, 2);
+        return [0];
+      },
+    });
+
+    assert.notEqual(result, null);
+    assert.equal(result.move.to.toString(), 'C3');
+    assert.equal(game.selectedMove, null);
+  });
+
+  test('hard pruning cannot remove every legal root move', () => {
+    const game = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+    const result = analyzeScriptedGame(game, 1, { pruneMoves: () => [0, 1] });
+
+    assert.notEqual(result, null);
+    assert.equal(result.move.to.toString(), 'C3');
+  });
+
+  test('hard pruning validates provider output and move indices', () => {
+    const invalidGame = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+    assert.throws(
+      () => analyzeScriptedGame(invalidGame, 1, { pruneMoves: () => null }),
+      /iterable/,
+    );
+
+    const outOfRangeGame = new RepeatedRootMovesGame({ includeChildPositionsInHistory: false });
+    assert.throws(
+      () => analyzeScriptedGame(outOfRangeGame, 1, { pruneMoves: () => [2] }),
+      /invalid move index/,
+    );
+  });
+
+  test('terminal and repetition policy scores bypass position bias', () => {
+    const board = Board.fromPieces([
+      [position('A1'), { color: PieceColor.WHITE, type: PieceType.DAME }],
+      [position('H8'), { color: PieceColor.BLACK, type: PieceType.DAME }],
+    ]);
+    const terminalGame = new LinearSearchGame({
+      board,
+      moveAtPly: () => scriptedMove('A1', 'B2'),
+      terminalAtPly: 1,
+    });
+    const failIfCalled = () => {
+      throw new Error('position bias must not be called');
+    };
+
+    const terminal = analyzeScriptedGame(terminalGame, 1, { positionBias: failIfCalled });
+    const repeated = analyzeScriptedGame(new RepeatedRootMovesGame(), 1, {
+      positionBias: failIfCalled,
+    });
+
+    assert.notEqual(terminal, null);
+    assert.equal(terminal.score, MATE_SCORE - 1);
+    assert.notEqual(repeated, null);
+    assert.equal(repeated.score, -MATE_SCORE + 1);
   });
 
   test('analyze returns null if no moves are available', () => {
