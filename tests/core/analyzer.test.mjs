@@ -6,6 +6,7 @@ import { Board } from '../../core/Board.mjs';
 import { Game } from '../../core/Game.mjs';
 import { Analyzer, MAX_ANALYSIS_DEPTH, NO_PROGRESS_THRESHOLD } from '../../core/Analyzer.mjs';
 import { MATE_SCORE, MATE_SCORE_THRESHOLD } from '../../core/evaluation.mjs';
+import { promotionRow } from '../../core/directions.mjs';
 
 const position = (square) => Position.fromString(square);
 
@@ -25,6 +26,8 @@ class LinearSearchGame {
   #moveAtPly;
   #positionKeyAtPly;
   #positionKeyHistory;
+  #boardHistory;
+  #terminalAtPly;
 
   constructor({
     board,
@@ -32,12 +35,16 @@ class LinearSearchGame {
     moveAtPly,
     positionKeyAtPly = (ply) => 10_000n + BigInt(ply),
     positionKeyHistory,
+    boardHistory,
+    terminalAtPly = Infinity,
   }) {
     this.#board = board;
     this.#rootPlayer = rootPlayer;
     this.#moveAtPly = moveAtPly;
     this.#positionKeyAtPly = positionKeyAtPly;
     this.#positionKeyHistory = positionKeyHistory ?? [positionKeyAtPly(0)];
+    this.#boardHistory = boardHistory ?? [board];
+    this.#terminalAtPly = terminalAtPly;
   }
 
   board() {
@@ -49,11 +56,13 @@ class LinearSearchGame {
   }
 
   getMoves() {
-    return [this.#moveAtPly(this.#ply, this.player())];
+    return this.#ply >= this.#terminalAtPly
+      ? []
+      : [this.#moveAtPly(this.#ply, this.player())];
   }
 
   moveCount() {
-    return 1;
+    return this.getMoves().length;
   }
 
   selectMove(index) {
@@ -71,6 +80,10 @@ class LinearSearchGame {
 
   getPositionKeyHistory() {
     return [...this.#positionKeyHistory];
+  }
+
+  getBoardHistory() {
+    return [...this.#boardHistory];
   }
 
   get ply() {
@@ -118,6 +131,10 @@ class RepeatedRootMovesGame {
   getPositionKeyHistory() {
     return [2n, 3n, 1n];
   }
+
+  getBoardHistory() {
+    return [this.#board];
+  }
 }
 
 const analyzeScriptedGame = (scriptedGame, depth) => {
@@ -131,11 +148,58 @@ const analyzeScriptedGame = (scriptedGame, depth) => {
 };
 
 const playMove = (game, from, to) => {
-  const index = game
-    .getMoves()
-    .findIndex((move) => move.from.toString() === from && move.to.toString() === to);
+  const moves = game.getMoves();
+  const index = moves.findIndex(
+    (move) => move.from.toString() === from && move.to.toString() === to,
+  );
   assert.notEqual(index, -1, `Expected legal move ${from}-${to}`);
+  const move = moves[index];
   game.selectMove(index);
+  return move;
+};
+
+const PLAYED_NO_PROGRESS_MOVES = [
+  ['A1', 'D4'],
+  ['B4', 'D6'],
+  ['D4', 'E3'],
+  ['D6', 'E5'],
+  ['E3', 'C5'],
+  ['E5', 'F4'],
+  ['C5', 'D4'],
+  ['F4', 'D2'],
+  ['D4', 'E5'],
+  ['D2', 'E3'],
+  ['E5', 'C3'],
+];
+
+const PLAYED_PROMOTION_FIXTURE_MOVES = [
+  ['A1', 'B2'],
+  ['B4', 'A3'],
+  ['B2', 'A1'],
+  ['A3', 'C1'],
+  ['A1', 'C3'],
+  ['C1', 'A3'],
+  ['C3', 'D2'],
+  ['A3', 'B2'],
+  ['D2', 'C1'],
+  ['B2', 'A1'],
+  ['C1', 'A3'],
+  ['A1', 'C3'],
+  ['A3', 'C1'],
+  ['C3', 'E1'],
+  ['C1', 'B2'],
+];
+
+const buildPlayedNoProgressGame = (moveCount) => {
+  const board = Board.fromPieces([
+    [position('B4'), { color: PieceColor.WHITE, type: PieceType.DAME }],
+    [position('A1'), { color: PieceColor.BLACK, type: PieceType.DAME }],
+  ]);
+  const game = Game.from(board, PieceColor.BLACK);
+  const quietMoves = PLAYED_NO_PROGRESS_MOVES.slice(0, moveCount).map(([from, to]) =>
+    playMove(game, from, to),
+  );
+  return { game, quietMoves };
 };
 
 describe('core/analyzer', () => {
@@ -230,7 +294,7 @@ describe('core/analyzer', () => {
     assert.equal(game.positionKey(), currentKey);
   });
 
-  test('the 16th simulated no-progress ply loses but the 15th does not', () => {
+  test('the 16th simulated no-progress ply is a root loss but the 15th is evaluated', () => {
     const board = Board.fromPieces([
       [position('C7'), { color: PieceColor.WHITE, type: PieceType.DAME }],
       [position('F2'), { color: PieceColor.BLACK, type: PieceType.DAME }],
@@ -247,9 +311,132 @@ describe('core/analyzer', () => {
     const depth16Game = new LinearSearchGame({ board, moveAtPly: quietMove });
     const depth16 = analyzeScriptedGame(depth16Game, 16);
     assert.notEqual(depth16, null);
-    // Black makes ply 16 and loses, so the White root sees a win in 16.
-    assert.equal(depth16.score, MATE_SCORE - NO_PROGRESS_THRESHOLD);
+    assert.equal(depth16.score, -MATE_SCORE + NO_PROGRESS_THRESHOLD);
     assert.equal(depth16Game.ply, 0);
+  });
+
+  test('played quiet plies count toward the no-progress threshold at normal search depth', () => {
+    const { game, quietMoves } = buildPlayedNoProgressGame(10);
+
+    assert.equal(quietMoves.every((move) => move.captured.length === 0), true);
+    assert.equal(
+      new Set(game.getPositionKeyHistory()).size,
+      game.getPositionKeyHistory().length,
+    );
+
+    const searchDepth = NO_PROGRESS_THRESHOLD - quietMoves.length;
+    const result = new Analyzer(game).analyze(searchDepth);
+
+    assert.notEqual(result, null);
+    assert.equal(result.score, -MATE_SCORE + searchDepth);
+  });
+
+  test('no-progress remains a root loss when reached on an odd search ply', () => {
+    const { game, quietMoves } = buildPlayedNoProgressGame(11);
+    const searchDepth = NO_PROGRESS_THRESHOLD - quietMoves.length;
+
+    const result = new Analyzer(game).analyze(searchDepth);
+
+    assert.notEqual(result, null);
+    assert.equal(result.score, -MATE_SCORE + searchDepth);
+  });
+
+  test('all no-progress root choices remain legal losing fallbacks', () => {
+    const board = Board.fromPieces([
+      [position('A1'), { color: PieceColor.BLACK, type: PieceType.DAME }],
+      [position('B4'), { color: PieceColor.WHITE, type: PieceType.DAME }],
+    ]);
+    const game = Game.from(board, PieceColor.BLACK);
+    PLAYED_PROMOTION_FIXTURE_MOVES.forEach(([from, to]) => playMove(game, from, to));
+    const legalMoves = game.getMoves();
+    const analyzer = new Analyzer(game);
+
+    const result = analyzer.analyze(6);
+
+    assert.notEqual(result, null);
+    assert.equal(
+      legalMoves.some(
+        (move) => move.from.equals(result.move.from) && move.to.equals(result.move.to),
+      ),
+      true,
+    );
+    assert.equal(result.score, -MATE_SCORE + 1);
+    assert.equal(analyzer.nodeCount, 0);
+  });
+
+  test('played no-progress history prefers promotion and resets the counter', () => {
+    const board = Board.fromPieces([
+      [position('A1'), { color: PieceColor.BLACK, type: PieceType.DAME }],
+      [position('B4'), { color: PieceColor.WHITE, type: PieceType.DAME }],
+      [position('C7'), { color: PieceColor.WHITE, type: PieceType.PION }],
+    ]);
+    const game = Game.from(board, PieceColor.BLACK);
+    const quietMoves = PLAYED_PROMOTION_FIXTURE_MOVES.map(([from, to]) =>
+      playMove(game, from, to),
+    );
+
+    assert.equal(quietMoves.every((move) => move.captured.length === 0), true);
+    assert.equal(
+      new Set(game.getPositionKeyHistory()).size,
+      game.getPositionKeyHistory().length,
+    );
+
+    const result = new Analyzer(game).analyze(6);
+
+    assert.notEqual(result, null);
+    assert.equal(result.move.from.toString(), 'C7');
+    assert.equal(result.move.to.y, promotionRow(PieceColor.WHITE));
+    assert.equal(game.board().isDamePiece(result.move.from), false);
+    assert.equal(Math.abs(result.score) < MATE_SCORE_THRESHOLD, true);
+
+    playMove(game, result.move.from.toString(), result.move.to.toString());
+    assert.equal(game.board().isDamePiece(result.move.to), true);
+
+    const afterPromotion = new Analyzer(game).analyze(2);
+    assert.notEqual(afterPromotion, null);
+    assert.equal(Math.abs(afterPromotion.score) < MATE_SCORE_THRESHOLD, true);
+  });
+
+  test('a capture in played history resets the no-progress counter', () => {
+    const board = Board.fromPieces([
+      [position('A1'), { color: PieceColor.BLACK, type: PieceType.DAME }],
+      [position('B4'), { color: PieceColor.WHITE, type: PieceType.DAME }],
+      [position('F2'), { color: PieceColor.BLACK, type: PieceType.PION }],
+    ]);
+    const game = Game.from(board, PieceColor.BLACK);
+    const quietMoves = PLAYED_PROMOTION_FIXTURE_MOVES.map(([from, to]) =>
+      playMove(game, from, to),
+    );
+    assert.equal(quietMoves.every((move) => move.captured.length === 0), true);
+
+    const capture = playMove(game, 'E1', 'G3');
+    assert.deepEqual(capture.captured.map((pos) => pos.toString()), ['F2']);
+
+    const analyzer = new Analyzer(game);
+    const result = analyzer.analyze(1);
+
+    assert.notEqual(result, null);
+    assert.equal(Math.abs(result.score) < MATE_SCORE_THRESHOLD, true);
+    assert.equal(analyzer.nodeCount > 0, true);
+  });
+
+  test('a real terminal win takes precedence over the no-progress policy', () => {
+    const board = Board.fromPieces([
+      [position('C7'), { color: PieceColor.WHITE, type: PieceType.DAME }],
+      [position('F2'), { color: PieceColor.BLACK, type: PieceType.DAME }],
+    ]);
+    const game = new LinearSearchGame({
+      board,
+      moveAtPly: () => scriptedMove('C7', 'D8'),
+      boardHistory: Array.from({ length: NO_PROGRESS_THRESHOLD }, () => board),
+      terminalAtPly: 1,
+    });
+
+    const result = analyzeScriptedGame(game, 1);
+
+    assert.notEqual(result, null);
+    assert.equal(result.score, MATE_SCORE - 1);
+    assert.equal(game.ply, 0);
   });
 
   test('a repetition created inside one search loses for the repeating mover', () => {
@@ -269,6 +456,25 @@ describe('core/analyzer', () => {
     assert.notEqual(result, null);
     // Black recreates the root position on ply 4 and loses that line.
     assert.equal(result.score, MATE_SCORE - 4);
+    assert.equal(game.ply, 0);
+  });
+
+  test('repetition takes precedence when the same move also reaches no-progress', () => {
+    const board = Board.fromPieces([
+      [position('C7'), { color: PieceColor.WHITE, type: PieceType.DAME }],
+      [position('F2'), { color: PieceColor.BLACK, type: PieceType.DAME }],
+    ]);
+    const game = new LinearSearchGame({
+      board,
+      moveAtPly: (_ply, player) =>
+        player === PieceColor.WHITE ? scriptedMove('C7', 'D8') : scriptedMove('F2', 'E1'),
+      positionKeyAtPly: (ply) => BigInt(ply === NO_PROGRESS_THRESHOLD ? 0 : ply),
+    });
+
+    const result = analyzeScriptedGame(game, NO_PROGRESS_THRESHOLD);
+
+    assert.notEqual(result, null);
+    assert.equal(result.score, MATE_SCORE - NO_PROGRESS_THRESHOLD);
     assert.equal(game.ply, 0);
   });
 
