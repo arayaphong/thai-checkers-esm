@@ -91,6 +91,8 @@ describe('self-play trainer', () => {
     assert.equal(result.isDraw, false);
     assert.equal(result.plies, 1);
     assert.equal(result.records.length, 1);
+    assert.equal(result.experienceRecorded, true);
+    assert.match(result.gameId, /^[a-f0-9]{64}$/);
     assert.equal(result.records[0].player, PieceColor.WHITE);
     assert.equal(trajectory.games.whiteWins, 1);
     assert.equal(Object.values(trajectory.states)[0].wins, 1);
@@ -133,21 +135,44 @@ describe('self-play trainer', () => {
   test('runTraining persists after every completed game', async () => {
     const trajectoryPath = path.join(temporaryDirectory, 'batch', 'trajectory.json');
     const completedGames = [];
+    let createdGames = 0;
     await runTraining({
       games: 2,
       whiteDepth: 1,
       blackDepth: 1,
       maxPlies: 4,
       trajectoryPath,
-      createDriver: () => winningCaptureDriver(PieceColor.WHITE),
+      createDriver: () =>
+        winningCaptureDriver(createdGames++ === 0 ? PieceColor.WHITE : PieceColor.BLACK),
       onGameComplete: ({ gameNumber }) => completedGames.push(gameNumber),
     });
 
     const saved = await loadTrajectory(trajectoryPath);
     assert.equal(saved.games.total, 2);
-    assert.equal(saved.games.whiteWins, 2);
-    assert.equal(Object.values(saved.states)[0].visits, 2);
+    assert.equal(saved.games.whiteWins, 1);
+    assert.equal(saved.games.blackWins, 1);
+    assert.equal(Object.keys(saved.gameIds).length, 2);
     assert.deepEqual(completedGames, [1, 2]);
+  });
+
+  test('runTraining skips duplicate games across a persisted batch', async () => {
+    const trajectoryPath = path.join(temporaryDirectory, 'deduplicated.json');
+    const output = await runTraining({
+      games: 2,
+      whiteDepth: 1,
+      blackDepth: 1,
+      maxPlies: 4,
+      trajectoryPath,
+      createDriver: () => winningCaptureDriver(PieceColor.WHITE),
+    });
+
+    const saved = await loadTrajectory(trajectoryPath);
+    assert.equal(output.results[0].experienceRecorded, true);
+    assert.equal(output.results[1].experienceRecorded, false);
+    assert.equal(output.results[1].gameId, output.results[0].gameId);
+    assert.equal(saved.games.total, 1);
+    assert.equal(saved.games.whiteWins, 1);
+    assert.equal(Object.keys(saved.gameIds).length, 1);
   });
 
   test('the executable CLI runs a bounded game and writes its trajectory', async () => {

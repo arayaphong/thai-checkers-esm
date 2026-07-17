@@ -174,7 +174,7 @@ export const playTrainingGame = (trajectory, options = {}) => {
   const finalState = driver.getState();
   const reachedPlyLimit = !finalState.isGameOver && ply >= config.maxPlies;
   const winner = finalState.isGameOver ? finalState.winner : null;
-  recordCompletedGame(trajectory, records, winner);
+  const experience = recordCompletedGame(trajectory, records, winner);
 
   return {
     winner,
@@ -182,6 +182,8 @@ export const playTrainingGame = (trajectory, options = {}) => {
     drawReason: reachedPlyLimit ? 'max-plies' : null,
     plies: ply,
     records,
+    experienceRecorded: experience.recorded,
+    gameId: experience.gameId,
     finalState,
   };
 };

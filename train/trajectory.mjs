@@ -1,12 +1,12 @@
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { PieceColor } from '../core/piece.mjs';
 
 export const TRAJECTORY_VERSION = 1;
 
 export const DEFAULT_TRAJECTORY_CONFIG = Object.freeze({
-  discount: 0.97,
+  creditCurve: 'logarithmic',
   priorVisits: 8,
   maxBias: 200,
 });
@@ -28,6 +28,7 @@ export const createEmptyTrajectory = () => ({
     draws: 0,
   },
   config: { ...DEFAULT_TRAJECTORY_CONFIG },
+  gameIds: {},
   states: {},
   edges: {},
 });
@@ -79,9 +80,8 @@ export const validateTrajectory = (value) => {
   }
 
   if (!isRecord(value.config)) throw new TypeError('Trajectory config must be an object');
-  assertFiniteNumber(value.config.discount, 'config.discount');
-  if (value.config.discount < 0 || value.config.discount > 1) {
-    throw new RangeError('config.discount must be between 0 and 1');
+  if (value.config.creditCurve !== 'logarithmic') {
+    throw new TypeError('config.creditCurve must be "logarithmic"');
   }
   assertFiniteNumber(value.config.priorVisits, 'config.priorVisits');
   if (value.config.priorVisits < 0) {
@@ -90,6 +90,16 @@ export const validateTrajectory = (value) => {
   assertFiniteNumber(value.config.maxBias, 'config.maxBias');
   if (value.config.maxBias < 0) {
     throw new RangeError('config.maxBias must be non-negative');
+  }
+
+  // Files created before game-level deduplication have no IDs to migrate.
+  // Start tracking from their next recorded game without discarding statistics.
+  value.gameIds ??= {};
+  if (!isRecord(value.gameIds)) throw new TypeError('Trajectory gameIds must be an object');
+  for (const [gameId, recorded] of Object.entries(value.gameIds)) {
+    if (!/^[a-f0-9]{64}$/.test(gameId) || recorded !== true) {
+      throw new TypeError('Trajectory gameIds must map SHA-256 hashes to true');
+    }
   }
 
   for (const collectionName of ['states', 'edges']) {
@@ -130,6 +140,31 @@ const updateStats = (stats, outcome, credit) => {
 };
 
 /**
+ * Returns a normalized logarithmic weight for a decision's position in a game.
+ * The first of multiple decisions has weight 0 and the last has weight 1. A
+ * single decision receives weight 1 because it is both the first and deciding move.
+ */
+export const logarithmicCreditWeight = (index, totalDecisions) => {
+  if (!Number.isSafeInteger(totalDecisions) || totalDecisions < 1) {
+    throw new RangeError('totalDecisions must be a positive safe integer');
+  }
+  if (!Number.isSafeInteger(index) || index < 0 || index >= totalDecisions) {
+    throw new RangeError('index must identify a decision within totalDecisions');
+  }
+  return totalDecisions === 1 ? 1 : Math.log1p(index) / Math.log(totalDecisions);
+};
+
+const completedGameId = (records, winner) =>
+  createHash('sha256')
+    .update(
+      JSON.stringify([
+        winner,
+        records.map(({ positionKey, player, edgeKey }) => [positionKey, player, edgeKey]),
+      ]),
+    )
+    .digest('hex');
+
+/**
  * Aggregates one completed game's decisions into state and edge statistics.
  * Each record is evaluated from the perspective of the player who made it.
  * @param {ReturnType<typeof createEmptyTrajectory>} trajectory
@@ -156,6 +191,10 @@ export const recordCompletedGame = (trajectory, records, winner) => {
     };
   });
 
+  const gameId = completedGameId(normalizedRecords, winner);
+  if (trajectory.gameIds[gameId] === true) return { recorded: false, gameId };
+  trajectory.gameIds[gameId] = true;
+
   trajectory.games.total++;
   if (winner === PieceColor.WHITE) trajectory.games.whiteWins++;
   else if (winner === PieceColor.BLACK) trajectory.games.blackWins++;
@@ -163,13 +202,14 @@ export const recordCompletedGame = (trajectory, records, winner) => {
 
   normalizedRecords.forEach((record, index) => {
     const outcome = winner === null ? 0 : winner === record.player ? 1 : -1;
-    const distanceFromEnd = normalizedRecords.length - index - 1;
-    const credit = outcome * trajectory.config.discount ** distanceFromEnd;
+    const credit = outcome * logarithmicCreditWeight(index, normalizedRecords.length);
     const stateStats = (trajectory.states[record.positionKey] ??= emptyStats());
     const edgeStats = (trajectory.edges[record.edgeKey] ??= emptyStats());
     updateStats(stateStats, outcome, credit);
     updateStats(edgeStats, outcome, credit);
   });
+
+  return { recorded: true, gameId };
 };
 
 /** Returns a bounded score in the side-to-move perspective encoded by positionKey. */
