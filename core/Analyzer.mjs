@@ -119,12 +119,24 @@ const assertValidDepth = (depth) => {
 export class Analyzer {
     #game;
     #nodeCount = 0;
+    #positionBias;
 
     /**
      * @param {import('./Game.mjs').Game} game The starting game state.
+     * @param {{positionBias?: (positionKey: bigint) => number}} [options]
+     *   Optional learned score adjustment. The callback receives a position key
+     *   that includes the side to move and must return a score from that side's
+     *   perspective. It is consulted only at static, non-terminal leaf nodes.
      */
-    constructor(game) {
+    constructor(game, options = {}) {
+        if (typeof options !== 'object' || options === null || Array.isArray(options)) {
+            throw new TypeError('Analyzer options must be an object');
+        }
+        if (options.positionBias !== undefined && typeof options.positionBias !== 'function') {
+            throw new TypeError('Analyzer positionBias must be a function');
+        }
         this.#game = game;
+        this.#positionBias = options.positionBias ?? (() => 0);
     }
 
     /**
@@ -322,7 +334,11 @@ export class Analyzer {
         const player = game.player();
 
         if (!hasMandatoryCapture) {
-            return color * evaluatePosition(game);
+            const bias = this.#positionBias(game.positionKey());
+            if (typeof bias !== 'number' || !Number.isFinite(bias)) {
+                throw new TypeError('Analyzer positionBias must return a finite number');
+            }
+            return color * evaluatePosition(game) + bias;
         }
 
         let value = -Infinity;
