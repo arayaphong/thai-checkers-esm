@@ -7,6 +7,7 @@
     "build:css": "tailwindcss -i ./view/css/tailwind-input.css -o ./view/css/tailwind.css --minify",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "analyze:trajectory": "node train/analyzeTrajectory.mjs",
     "server": "node server/gameDriverServer.mjs"
   },
   "devDependencies": {
