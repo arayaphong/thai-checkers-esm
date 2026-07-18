@@ -67,6 +67,8 @@ export const createGameController = (configOrParams) => {
   let pendingAiAbort = null;
   let turnPath = [];
   let turnCaptured = [];
+  let lastMovePath = [];
+  let lastCapturedPieces = [];
   const listeners = new Map();
 
   // Controller generation invalidates stale continuations; activeOperation
@@ -244,10 +246,20 @@ export const createGameController = (configOrParams) => {
     try {
       if (turnPath.length === 0) {
         turnPath.push({ r: move.fromR, c: move.fromC });
+        lastMovePath = [];
+        lastCapturedPieces = [];
       }
       turnPath.push({ r: move.toR, c: move.toC });
+      lastMovePath = [...turnPath];
+
       if (move.isCapture) {
         turnCaptured.push({ r: move.jumpedR, c: move.jumpedC });
+        const victimValue = state.board[move.jumpedR][move.jumpedC];
+        lastCapturedPieces.push({
+          position: { r: move.jumpedR, c: move.jumpedC },
+          color: victimValue > 0 ? 'white' : 'black',
+          rank: Math.abs(victimValue) === 2 ? 'king' : 'man',
+        });
       }
 
       const result = await applyHop(move, token);
@@ -331,9 +343,27 @@ export const createGameController = (configOrParams) => {
     });
     if (!ownsOperation(token)) return;
 
+    lastMovePath = [];
+    lastCapturedPieces = [];
     const hops = expandDriverMoveToModelHops(authoritativeMove);
+    const aiPath = [];
+    if (hops.length > 0) {
+      aiPath.push({ r: hops[0].fromR, c: hops[0].fromC });
+    }
     for (const hop of hops) {
       if (!ownsOperation(token)) return;
+      aiPath.push({ r: hop.toR, c: hop.toC });
+      lastMovePath = [...aiPath];
+
+      if (hop.isCapture) {
+        const victimValue = state.board[hop.jumpedR][hop.jumpedC];
+        lastCapturedPieces.push({
+          position: { r: hop.jumpedR, c: hop.jumpedC },
+          color: victimValue > 0 ? 'white' : 'black',
+          rank: Math.abs(victimValue) === 2 ? 'king' : 'man',
+        });
+      }
+
       const result = await applyHop(hop, token);
       if (result.stale) return;
     }
@@ -405,6 +435,8 @@ export const createGameController = (configOrParams) => {
     selectedPiece = null;
     isPaused = paused;
     resetTurnAccumulator();
+    lastMovePath = [];
+    lastCapturedPieces = [];
     if (hasCustomBoard(initialParams)) {
       state = createGameState({ ...initialParams, config: state.config });
       driver = createDriverForModelBoard(initialParams.board, initialParams.turn ?? 1);
@@ -435,6 +467,8 @@ export const createGameController = (configOrParams) => {
     selectedPiece = null;
     isPaused = false;
     resetTurnAccumulator();
+    lastMovePath = [];
+    lastCapturedPieces = [];
     state = createGameState({ config: newConfig });
     driver = createStandardDriver();
     await emit('stateChanged', { action: 'newGame' }, state);
@@ -468,6 +502,12 @@ export const createGameController = (configOrParams) => {
     },
     get selectedPiece() {
       return selectedPiece;
+    },
+    get lastMovePath() {
+      return lastMovePath;
+    },
+    get lastCapturedPieces() {
+      return lastCapturedPieces;
     },
     get isAIProcessing() {
       return activeOperation?.kind === 'ai-turn';

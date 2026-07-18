@@ -20,6 +20,7 @@ const createSquareState = () => ({
   mandatoryCapture: false,
   moveableHint: false,
   dot: 'none',
+  isCapturedGhost: false,
   renderedPieceSignature: undefined,
   renderedDot: undefined,
 });
@@ -47,9 +48,30 @@ export const createBoardSurface = (registry) => {
     if (child.dataset.uiRole !== layoutClassMap.animLayerUiRole) child.remove();
   });
 
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const pathOverlay = document.createElementNS(svgNS, 'svg');
+  if (pathOverlay.style) {
+    pathOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;';
+  }
+  pathOverlay.setAttribute('viewBox', '0 0 80 80');
+
+  const pathLine = document.createElementNS(svgNS, 'path');
+  pathLine.setAttribute('id', 'movePathLine');
+  pathLine.setAttribute('fill', 'none');
+  pathLine.setAttribute('stroke', 'currentColor');
+  pathLine.setAttribute('class', 'text-emerald-400');
+  pathLine.setAttribute('opacity', '0.08');
+  pathLine.setAttribute('stroke-width', '8.0');
+  pathLine.setAttribute('stroke-linecap', 'round');
+  pathLine.setAttribute('stroke-linejoin', 'round');
+  pathLine.setAttribute('d', '');
+
+  pathOverlay.appendChild(pathLine);
+  boardEl.append(pathOverlay);
+
   const renderPiece = (position, pieceState) => {
     const signature = pieceState.piece
-      ? `${pieceState.piece.color}|${pieceState.piece.rank}|${pieceState.selected}|${pieceState.mandatoryCapture}|${pieceState.moveableHint}`
+      ? `${pieceState.piece.color}|${pieceState.piece.rank}|${pieceState.selected}|${pieceState.mandatoryCapture}|${pieceState.moveableHint}|${pieceState.isCapturedGhost}`
       : 'empty';
     if (pieceState.renderedPieceSignature === signature) return;
     pieceState.renderedPieceSignature = signature;
@@ -63,7 +85,9 @@ export const createBoardSurface = (registry) => {
       selected: pieceState.selected,
       mandatoryCapture: pieceState.mandatoryCapture,
       moveableHint: pieceState.moveableHint,
+      isCapturedGhost: pieceState.isCapturedGhost,
     });
+
 
     // If the piece is a King and the board is currently rotated, counter-rotate the SVG
     if (pieceState.piece.rank === 'king' && currentRotation !== 0) {
@@ -89,6 +113,8 @@ export const createBoardSurface = (registry) => {
       dotState.dot === 'capture' ? boardClassMap.dotTargetCapture : boardClassMap.dotTargetWalk;
     el.insertAdjacentHTML('beforeend', moveDot(color));
   };
+
+
 
   for (let r = 0; r < BOARD_SIZE; r += 1) {
     for (let c = 0; c < BOARD_SIZE; c += 1) {
@@ -136,19 +162,28 @@ export const createBoardSurface = (registry) => {
         mandatoryCapturePosition,
         targetSquares,
         captureTargets,
+        lastMovePath,
+        lastCapturedPieces,
       } = boardRenderState;
 
       const moveableSet = new Set(moveablePositions?.map(key) || []);
       const targetSet = new Set(targetSquares?.map(key) || []);
       const captureTargetSet = new Set(captureTargets?.map(key) || []);
       const pieceMap = new Map(pieces.map((p) => [key(p.position), p]));
+      const ghostMap = new Map(lastCapturedPieces?.map((p) => [key(p.position), p]) || []);
 
       // Iterate all squares, calculate desired state, and render
       [...state.keys()].forEach((k) => {
         const pos = fromKey(k);
         const squareCache = state.get(k);
 
-        const pieceOnSquare = pieceMap.get(k) || null;
+        let pieceOnSquare = pieceMap.get(k) || null;
+        let isCapturedGhost = false;
+        if (!pieceOnSquare && ghostMap.has(k)) {
+          pieceOnSquare = ghostMap.get(k);
+          isCapturedGhost = true;
+        }
+
         const isSelected =
           selectedPosition && selectedPosition.r === pos.r && selectedPosition.c === pos.c;
         const isMoveable = moveableSet.has(k);
@@ -167,10 +202,27 @@ export const createBoardSurface = (registry) => {
         squareCache.moveableHint = isMoveable;
         squareCache.mandatoryCapture = isMandatory;
         squareCache.dot = dot;
+        squareCache.isCapturedGhost = isCapturedGhost;
 
         renderPiece(pos, squareCache);
         renderDot(pos, squareCache);
       });
+
+      // Render the SVG move path line
+      let d = '';
+      if (lastMovePath && lastMovePath.length >= 2) {
+        d = lastMovePath
+          .map((pos, index) => {
+            const x = pos.c * 10 + 5;
+            const y = pos.r * 10 + 5;
+            return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+          })
+          .join(' ');
+      }
+      const pathEl = pathOverlay.querySelector('#movePathLine');
+      if (pathEl) {
+        pathEl.setAttribute('d', d);
+      }
     },
   };
 };

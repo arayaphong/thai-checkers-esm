@@ -36,4 +36,7 @@ export const boardClassMap = Object.freeze({
     'move-hint w-4 h-4 sm:w-6 sm:h-6 rounded-full shadow-lg shadow-black/40 animate-target-pulse',
   dotTargetWalk: 'bg-emerald-300',
   dotTargetCapture: 'bg-rose-400 dot-capture',
+
+  pieceCapturedGhostWhite: 'opacity-[0.15] pointer-events-none',
+  pieceCapturedGhostBlack: 'opacity-[0.35] pointer-events-none',
 });
