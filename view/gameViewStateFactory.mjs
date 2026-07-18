@@ -131,6 +131,8 @@ export const createBoardState = (controller) => {
     moveablePositions: getMoveablePositions(validMoves, selectedPiece, mustMovePiece),
     targetSquares: getTargetSquares(validMoves, selectedPiece),
     captureTargets: getCaptureTargets(validMoves, selectedPiece),
+    lastMovePath: controller.lastMovePath || [],
+    lastCapturedPieces: controller.lastCapturedPieces || [],
   };
 };
 

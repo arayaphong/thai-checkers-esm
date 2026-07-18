@@ -11,13 +11,12 @@ const h = (tag, cls) => Object.assign(document.createElement(tag), { className: 
 
 export const createPieceElement = (
   { color, rank },
-  { selected = false, mandatoryCapture = false, moveableHint = false } = {},
+  { selected = false, mandatoryCapture = false, moveableHint = false, isCapturedGhost = false } = {},
 ) => {
   const pieceEl = h(
     'div',
-    `${boardClassMap.pieceBase} ${
-      color === 'white' ? boardClassMap.pieceWhite : boardClassMap.pieceBlack
-    } ${selected ? boardClassMap.pieceSelected : ''} ${mandatoryCapture ? boardClassMap.pieceMandatoryCapture : ''} ${moveableHint ? boardClassMap.pieceMoveableHint : ''}`,
+    `${boardClassMap.pieceBase} ${color === 'white' ? boardClassMap.pieceWhite : boardClassMap.pieceBlack
+    } ${selected ? boardClassMap.pieceSelected : ''} ${mandatoryCapture ? boardClassMap.pieceMandatoryCapture : ''} ${moveableHint ? boardClassMap.pieceMoveableHint : ''} ${isCapturedGhost ? (color === 'white' ? boardClassMap.pieceCapturedGhostWhite : boardClassMap.pieceCapturedGhostBlack) : ''}`,
   );
   const inner = h(
     'div',
