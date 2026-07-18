@@ -7,11 +7,11 @@ import { Analyzer } from '../core/Analyzer.mjs';
 import { PieceColor, toStringPieceColor } from '../core/piece.mjs';
 
 const SHOW_BOARD = !process.argv.includes('--no-board');
-const SEARCH_DEPTH_W = 8;
-const SEARCH_DEPTH_B = 8;
+const SEARCH_DEPTH_W = 6;
+const SEARCH_DEPTH_B = 6;
 const PLAYER_NAMES = { [PieceColor.WHITE]: 'Analyzer W', [PieceColor.BLACK]: 'Analyzer B' };
 // Safety net: cap plies to prevent infinite loops in drawish endgames
-const MAX_PLIES = 200;
+const MAX_PLIES = 1024;
 const MAX_GAMES = 1;
 
 const playPly = (driver, ply) => {
@@ -57,9 +57,7 @@ const runGame = (gameNumber) => {
 
   const state = driver.getState();
   const resultMessage = state.isGameOver
-    ? state.isDraw
-      ? `Draw by ${state.drawReason} in ${ply} plies`
-      : `${PLAYER_NAMES[state.winner]} wins in ${ply} plies`
+    ? `${PLAYER_NAMES[state.winner]} wins in ${ply} plies`
     : `Stopped after reaching the ${MAX_PLIES}-ply safety cap with no result.`;
 
   console.log(`${resultMessage}`);

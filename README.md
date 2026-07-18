@@ -41,6 +41,27 @@ python3 -m http.server 8000
 | เก่ง    | `Analyzer` | Atomic-turn search depth 4 |
 | เซียน   | `Analyzer` | Atomic-turn search depth 8 |
 
+### AI Engine (optional)
+
+AI moves normally run in a Web Worker (see [docs/worker.md](docs/worker.md)).
+You can instead point analysis at a separate engine process over WebSocket —
+opt-in only, and off by default:
+
+```bash
+npm run server              # starts the reference engine on ws://localhost:8787
+```
+
+| Entry point | Flag                         | Effect                                              |
+| ----------- | ---------------------------- | ---------------------------------------------------- |
+| Browser     | `?ws=8787`                   | Use the WS engine at `localhost:8787` for AI moves   |
+| CLI         | `node cli/cli.mjs -ws 8787`  | Same, for the REPL's `ai` command                    |
+
+If the configured engine is unreachable, that turn fails with an error
+instead of silently falling back to the Worker/local analysis. See
+[docs/ws-engine.md](docs/ws-engine.md) for the full behavior and
+[docs/ws-engine-api-spec.md](docs/ws-engine-api-spec.md) if you want to
+implement your own compatible engine.
+
 ---
 
 ## Project Structure
@@ -59,11 +80,15 @@ controller/
   gameDriverBridge.mjs     Translates model positions/hops and atomic core moves
   aiMoveChannel.mjs        Serializable, non-mutating AI analysis boundary
   WorkerGameDriver.mjs     Main-thread proxy for the AI worker
+  WsGameDriver.mjs         Main-thread proxy for the optional WS AI engine
 
 core/                       Atomic-move rules and Analyzer search engine
 
 worker/
   gameDriverWorker.mjs     Web Worker / worker_threads script that runs AI analysis
+
+server/
+  gameDriverServer.mjs     Optional dev WebSocket server hosting a pluggable AI engine
 
 cli/
   GameDriver.mjs           Browser-safe adapter over core game and Analyzer
@@ -120,7 +145,9 @@ See [the concise view architecture](docs/view.md) for the browser UI flow and bo
   `GameDriver` used for AI decisions, and emits typed events (`moveMade`,
   `gameOver`, `aiThinking`, …). AI analysis is offloaded to a Web Worker via
   `WorkerGameDriver` / `AiMoveChannel` so the UI remains responsive during
-  search.
+  search. An optional, opt-in WS AI engine (`WsGameDriver`, see
+  [docs/ws-engine.md](docs/ws-engine.md)) can be configured instead, with an
+  open protocol third parties can implement their own engine against.
 - **Semantic view** — coordinates display state and move animations without DOM APIs, selectors, datasets, or CSS class names
 - **HTML adapter** — owns DOM operations, templates, event delegation, element lookup, and CSS class maps under `view/html/**`
 - **UI command flow** — converts delegated clicks directly into plain `{ type, ...payload }` commands before controller dispatch
@@ -148,7 +175,7 @@ npm test
 ## Technical Highlights
 
 - **ES2025** throughout — private class fields (`#`), `Promise.withResolvers()`, `Object.groupBy()`, `Array.toSorted()`, `structuredClone()`, `Array.flat().reduce()`
-- **Runtime zero dependencies** — no framework or bundler; Jest and Tailwind CLI are development-only tooling
+- **Runtime zero dependencies** — no framework or bundler; Jest, Tailwind CLI, and `ws` (used only by the optional `server/gameDriverServer.mjs`) are development-only tooling
 - **SVG sprite** — icons defined as `<symbol>` in `index.html`, referenced via `<use href="#icon-*">`
 - **Tailwind CSS** compiled to `view/css/tailwind.css`
 

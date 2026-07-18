@@ -1,14 +1,110 @@
 // Deep-first search analysis for Thai Checkers
 import { PieceColor } from './piece.mjs';
 import { Game } from './Game.mjs';
-import { evaluatePosition, isImmediateDraw, MATE_SCORE } from './evaluation.mjs';
+import { evaluatePosition, MATE_SCORE } from './evaluation.mjs';
+import { promotionRow } from './directions.mjs';
 import { orderMoveIndices } from './moves/moveOrder.mjs';
+import learnedTrajectory from '../train/trajectory.json' with { type: 'json' };
+import {
+    hardPruneMoveIndices,
+    trajectoryBias,
+    trajectoryMoveKey,
+} from './trajectoryPolicy.mjs';
 
 /**
  * Capped limit for depth search to avoid stack overflow.
  * @type {number}
  */
 export const MAX_ANALYSIS_DEPTH = 16;
+
+/**
+ * A line loses when it reaches this many consecutive played and simulated
+ * plies without a capture or promotion.
+ * @type {number}
+ */
+export const NO_PROGRESS_THRESHOLD = 16;
+
+/**
+ * Counts set bits in an unsigned 32-bit bitboard.
+ * @param {number} bits
+ * @returns {number}
+ */
+const countBits = (bits) => {
+    let remaining = bits >>> 0;
+    let count = 0;
+    while (remaining !== 0) {
+        remaining = (remaining & (remaining - 1)) >>> 0;
+        count++;
+    }
+    return count;
+};
+
+/**
+ * Returns the trailing number of played plies without a capture or promotion.
+ * Board history is authoritative: captures reduce occupancy, while a quiet
+ * promotion increases the number of dames. Scanning stops at the policy limit
+ * because larger values are equivalent to the analyzer.
+ * @param {import('./Board.mjs').Board[]} boardHistory
+ * @returns {number}
+ */
+const trailingNoProgressPlies = (boardHistory) => {
+    let plies = 0;
+    for (let i = boardHistory.length - 1; i > 0 && plies < NO_PROGRESS_THRESHOLD; i--) {
+        const before = boardHistory[i - 1];
+        const after = boardHistory[i];
+        const captured = countBits(after.occBits) < countBits(before.occBits);
+        const promoted = countBits(after.dameBits) > countBits(before.dameBits);
+        if (captured || promoted) break;
+        plies++;
+    }
+    return plies;
+};
+
+/**
+ * Converts a root-relative no-progress loss into the perspective of the
+ * parent node that selected the move. Even parent plies belong to the root
+ * side; odd parent plies belong to its opponent.
+ * @param {number} parentPly
+ * @param {number} childPly
+ * @returns {number}
+ */
+const rootLossScoreForParent = (parentPly, childPly) => {
+    const rootLoss = -MATE_SCORE + childPly;
+    return parentPly % 2 === 0 ? rootLoss : -rootLoss;
+};
+
+/**
+ * Returns a policy result from the perspective of the parent that selected
+ * the move, or undefined when normal search should continue. Repetition is
+ * checked first because that specific move is forbidden for its mover, even
+ * when it also reaches the more general no-progress limit. Otherwise,
+ * no-progress is always a loss for the analyzer root.
+ * @param {{reachesNoProgressThreshold: boolean, repeatsPosition: boolean}} transition
+ * @param {number} parentPly
+ * @param {number} childPly
+ * @returns {number|undefined}
+ */
+const policyScoreForParent = (transition, parentPly, childPly) => {
+    if (transition.repeatsPosition) {
+        return -MATE_SCORE + childPly;
+    }
+    if (transition.reachesNoProgressThreshold) {
+        return rootLossScoreForParent(parentPly, childPly);
+    }
+    return undefined;
+};
+
+/**
+ * Captures and promotions are the only moves that reset the no-progress
+ * counter while exploring a branch.
+ * @param {import('./Board.mjs').Board} board Position before the move.
+ * @param {number} player Side making the move.
+ * @param {import('./Game.mjs').Move} move
+ * @returns {boolean}
+ */
+const moveMakesProgress = (board, player, move) =>
+    move.captured.length > 0 ||
+    (!board.isDamePiece(move.from) && move.to.y === promotionRow(player));
 
 /**
  * Asserts depth parameter validity.
@@ -29,12 +125,48 @@ const assertValidDepth = (depth) => {
 export class Analyzer {
     #game;
     #nodeCount = 0;
+    #positionBias;
+    #pruneMoves;
 
     /**
      * @param {import('./Game.mjs').Game} game The starting game state.
+     * @param {{useTrajectory?: boolean, positionBias?: (positionKey: bigint) => number,
+     *   pruneMoves?: (positionKey: bigint, moves: import('./Game.mjs').Move[]) => Iterable<number>}} [options]
+     *   Optional learned score adjustment. The callback receives a position key
+     *   that includes the side to move and must return a score from that side's
+     *   perspective. It is consulted only at static, non-terminal leaf nodes.
      */
-    constructor(game) {
+    constructor(game, options = {}) {
+        if (typeof options !== 'object' || options === null || Array.isArray(options)) {
+            throw new TypeError('Analyzer options must be an object');
+        }
+        if (options.positionBias !== undefined && typeof options.positionBias !== 'function') {
+            throw new TypeError('Analyzer positionBias must be a function');
+        }
+        if (options.pruneMoves !== undefined && typeof options.pruneMoves !== 'function') {
+            throw new TypeError('Analyzer pruneMoves must be a function');
+        }
+        if (options.useTrajectory !== undefined && typeof options.useTrajectory !== 'boolean') {
+            throw new TypeError('Analyzer useTrajectory must be a boolean');
+        }
         this.#game = game;
+        const useTrajectory = options.useTrajectory ?? true;
+        this.#positionBias =
+            options.positionBias ??
+            (useTrajectory
+                ? (positionKey) => trajectoryBias(learnedTrajectory, positionKey)
+                : () => 0);
+        this.#pruneMoves =
+            options.pruneMoves ??
+            (useTrajectory
+                ? (positionKey, moves) =>
+                      hardPruneMoveIndices(
+                          learnedTrajectory,
+                          positionKey,
+                          moves,
+                          trajectoryMoveKey,
+                      )
+                : () => []);
     }
 
     /**
@@ -66,6 +198,17 @@ export class Analyzer {
      * @returns {{move: import('./Game.mjs').Move, score: number}|null} The best move and its score, or null if no moves are available.
      */
     analyze(depth) {
+        return this.analyzeCandidates(depth)[0] ?? null;
+    }
+
+    /**
+     * Scores every root move that survives optional pruning and returns them
+     * from strongest to weakest. Equal scores retain the original legal-move
+     * index tie-break used by analyze().
+     * @param {number} depth Search depth in plies.
+     * @returns {{move: import('./Game.mjs').Move, score: number}[]}
+     */
+    analyzeCandidates(depth) {
         assertValidDepth(depth);
 
         this.#nodeCount = 0;
@@ -73,29 +216,48 @@ export class Analyzer {
         const playerColor = game.player() === PieceColor.WHITE ? 1 : -1;
         const moves = game.getMoves();
         if (moves.length === 0) {
-            return null;
+            return [];
         }
 
         const board = game.board();
         const player = game.player();
+        const noProgressPlies = trailingNoProgressPlies(game.getBoardHistory());
+        const seenPositions = new Set(game.getPositionKeyHistory());
 
-        const { bestMoveIndex, bestScore } = orderMoveIndices(moves, board, player).reduce(
-            (acc, index) => {
-                game.selectMove(index);
-                const score = -this.#negamax(game, depth - 1, -Infinity, Infinity, -playerColor, 1);
-                game.undoMove();
-
-                // Strict improvement wins; ties keep the lowest move index, matching the
-                // ascending-order tie-break of the original unordered scan.
-                return score > acc.bestScore ||
-                    (score === acc.bestScore && index < acc.bestMoveIndex)
-                    ? { bestMoveIndex: index, bestScore: score }
-                    : acc;
-            },
-            { bestMoveIndex: 0, bestScore: -Infinity },
-        );
-
-        return { move: moves[bestMoveIndex], score: bestScore };
+        const moveIndices = this.#moveIndices(game, moves, board, player);
+        return moveIndices
+            .map((index) => {
+                const transition = this.#enterMove(
+                    game,
+                    index,
+                    moves[index],
+                    noProgressPlies,
+                    seenPositions,
+                );
+                let score;
+                try {
+                    const childPly = 1;
+                    const policyScore = policyScoreForParent(transition, 0, childPly);
+                    score =
+                        policyScore !== undefined && game.moveCount() > 0
+                            ? policyScore
+                            : -this.#negamax(
+                                  game,
+                                  depth - 1,
+                                  -Infinity,
+                                  Infinity,
+                                  -playerColor,
+                                  childPly,
+                                  transition.noProgressPlies,
+                                  seenPositions,
+                              );
+                } finally {
+                    this.#leaveMove(game, transition, seenPositions);
+                }
+                return { index, move: moves[index], score };
+            })
+            .sort((left, right) => right.score - left.score || left.index - right.index)
+            .map(({ move, score }) => ({ move, score }));
     }
 
     /**
@@ -108,9 +270,12 @@ export class Analyzer {
      * @param {number} plyFromRoot Distance in plies from the analyze() root to `game`'s
      *   current position, used so a terminal score reflects actual mate distance rather
      *   than remaining search depth (see core/evaluation.mjs).
+     * @param {number} noProgressPlies Consecutive played and simulated plies without
+     *   capture/promotion.
+     * @param {Set<bigint>} seenPositions Full played history plus the current search branch.
      * @returns {number} The score of the position from the perspective of the current player.
      */
-    #negamax(game, depth, alpha, beta, color, plyFromRoot) {
+    #negamax(game, depth, alpha, beta, color, plyFromRoot, noProgressPlies, seenPositions) {
         this.#nodeCount++;
 
         if (game.moveCount() === 0) {
@@ -120,32 +285,54 @@ export class Analyzer {
         const board = game.board();
         const player = game.player();
 
-        // An immediate draw (per Thai checkers draw rules) scores as a loss for
-        // player, not a neutral 0: the real game doesn't stop play here (see
-        // analyze()'s doc comment on why the core engine is left alone), but
-        // the search should never treat reaching this dead end as acceptable
-        // as an actual win, so it's penalized identically to having no moves.
-        // An immediate draw is now scored as a neutral value (0) rather than a loss.
-        // This makes draws higher than losses (which are -MATE_SCORE) but lower than
-        // winning scores, satisfying win > draw > lose.
-        if (isImmediateDraw(board, player)) {
-            return 0;
-        }
-
         if (depth === 0) {
-            return this.#quiescence(game, alpha, beta, color, plyFromRoot);
+            return this.#quiescence(
+                game,
+                alpha,
+                beta,
+                color,
+                plyFromRoot,
+                noProgressPlies,
+                seenPositions,
+            );
         }
 
         const moves = game.getMoves();
 
         let value = -Infinity;
-        for (const index of orderMoveIndices(moves, board, player)) {
-            game.selectMove(index);
-            value = Math.max(
-                value,
-                -this.#negamax(game, depth - 1, -beta, -alpha, -color, plyFromRoot + 1),
+        for (const index of this.#moveIndices(game, moves, board, player)) {
+            const childPly = plyFromRoot + 1;
+            const transition = this.#enterMove(
+                game,
+                index,
+                moves[index],
+                noProgressPlies,
+                seenPositions,
             );
-            game.undoMove();
+            let score;
+            try {
+                const policyScore = policyScoreForParent(
+                    transition,
+                    plyFromRoot,
+                    childPly,
+                );
+                score =
+                    policyScore !== undefined && game.moveCount() > 0
+                        ? policyScore
+                        : -this.#negamax(
+                              game,
+                              depth - 1,
+                              -beta,
+                              -alpha,
+                              -color,
+                              childPly,
+                              transition.noProgressPlies,
+                              seenPositions,
+                          );
+            } finally {
+                this.#leaveMove(game, transition, seenPositions);
+            }
+            value = Math.max(value, score);
             alpha = Math.max(alpha, value);
             if (alpha >= beta) break;
         }
@@ -163,9 +350,11 @@ export class Analyzer {
      * @param {number} beta
      * @param {number} color 1 for maximizing player, -1 for minimizing
      * @param {number} plyFromRoot See #negamax.
+     * @param {number} noProgressPlies See #negamax.
+     * @param {Set<bigint>} seenPositions See #negamax.
      * @returns {number} The score of the position from the perspective of the current player.
      */
-    #quiescence(game, alpha, beta, color, plyFromRoot) {
+    #quiescence(game, alpha, beta, color, plyFromRoot, noProgressPlies, seenPositions) {
         this.#nodeCount++;
 
         const moves = game.getMoves();
@@ -179,24 +368,121 @@ export class Analyzer {
         const player = game.player();
 
         if (!hasMandatoryCapture) {
-            // Immediate draws are neutral (0) rather than loss scores.
-            if (isImmediateDraw(board, player)) {
-                return 0; // See comment above for draw scoring rationale.
+            const bias = this.#positionBias(game.positionKey());
+            if (typeof bias !== 'number' || !Number.isFinite(bias)) {
+                throw new TypeError('Analyzer positionBias must return a finite number');
             }
-            return color * evaluatePosition(game);
+            return color * evaluatePosition(game) + bias;
         }
 
         let value = -Infinity;
-        for (const index of orderMoveIndices(moves, board, player)) {
-            game.selectMove(index);
-            value = Math.max(
-                value,
-                -this.#quiescence(game, -beta, -alpha, -color, plyFromRoot + 1),
+        for (const index of this.#moveIndices(game, moves, board, player)) {
+            const childPly = plyFromRoot + 1;
+            const transition = this.#enterMove(
+                game,
+                index,
+                moves[index],
+                noProgressPlies,
+                seenPositions,
             );
-            game.undoMove();
+            let score;
+            try {
+                const policyScore = policyScoreForParent(
+                    transition,
+                    plyFromRoot,
+                    childPly,
+                );
+                score =
+                    policyScore !== undefined && game.moveCount() > 0
+                        ? policyScore
+                        : -this.#quiescence(
+                              game,
+                              -beta,
+                              -alpha,
+                              -color,
+                              childPly,
+                              transition.noProgressPlies,
+                              seenPositions,
+                          );
+            } finally {
+                this.#leaveMove(game, transition, seenPositions);
+            }
+            value = Math.max(value, score);
             alpha = Math.max(alpha, value);
             if (alpha >= beta) break;
         }
         return value;
+    }
+
+    /**
+     * Applies optional learned pruning after normal move ordering. A forced
+     * move is never offered for pruning, and a faulty provider cannot remove
+     * every legal move.
+     */
+    #moveIndices(game, moves, board, player) {
+        const ordered = orderMoveIndices(moves, board, player);
+        if (ordered.length <= 1) return ordered;
+
+        const requested = this.#pruneMoves(game.positionKey(), moves);
+        if (requested === null || requested === undefined || !requested[Symbol.iterator]) {
+            throw new TypeError('Analyzer pruneMoves must return an iterable of move indices');
+        }
+        const pruned = new Set(requested);
+        for (const index of pruned) {
+            if (!Number.isSafeInteger(index) || index < 0 || index >= moves.length) {
+                throw new RangeError(`Analyzer pruneMoves returned an invalid move index: ${index}`);
+            }
+        }
+
+        const remaining = ordered.filter((index) => !pruned.has(index));
+        return remaining.length > 0 ? remaining : [ordered[0]];
+    }
+
+    /**
+     * Selects one move and updates the two independent search policies:
+     * no-progress counting and full-position repetition detection.
+     * @param {import('./Game.mjs').Game} game
+     * @param {number} index
+     * @param {import('./Game.mjs').Move} move
+     * @param {number} noProgressPlies
+     * @param {Set<bigint>} seenPositions
+     * @returns {{noProgressPlies: number, positionKey: bigint,
+     *   reachesNoProgressThreshold: boolean, repeatsPosition: boolean, addedToSeen: boolean}}
+     */
+    #enterMove(game, index, move, noProgressPlies, seenPositions) {
+        const nextNoProgressPlies = moveMakesProgress(game.board(), game.player(), move)
+            ? 0
+            : noProgressPlies + 1;
+
+        game.selectMove(index);
+        const positionKey = game.positionKey();
+        const reachesNoProgressThreshold = nextNoProgressPlies >= NO_PROGRESS_THRESHOLD;
+        const repeatsPosition = seenPositions.has(positionKey);
+        const addedToSeen = !reachesNoProgressThreshold && !repeatsPosition;
+
+        if (addedToSeen) {
+            seenPositions.add(positionKey);
+        }
+
+        return {
+            noProgressPlies: nextNoProgressPlies,
+            positionKey,
+            reachesNoProgressThreshold,
+            repeatsPosition,
+            addedToSeen,
+        };
+    }
+
+    /**
+     * Restores the branch-local seen set and game after #enterMove().
+     * @param {import('./Game.mjs').Game} game
+     * @param {{positionKey: bigint, addedToSeen: boolean}} transition
+     * @param {Set<bigint>} seenPositions
+     */
+    #leaveMove(game, transition, seenPositions) {
+        if (transition.addedToSeen) {
+            seenPositions.delete(transition.positionKey);
+        }
+        game.undoMove();
     }
 }

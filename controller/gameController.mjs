@@ -29,7 +29,7 @@ import {
 // may invalidate the replay, because they rebuild both representations.
 // ============================================
 
-const DIFFICULTY_DEPTH = { easy: 1, medium: 4, hard: 8 };
+export const DIFFICULTY_DEPTH = { easy: 1, medium: 4, hard: 8 };
 
 const delay = (ms, signal) => {
   const { promise, resolve } = Promise.withResolvers();

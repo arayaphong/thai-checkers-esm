@@ -6,13 +6,16 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
     "build:css": "tailwindcss -i ./view/css/tailwind-input.css -o ./view/css/tailwind.css --minify",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "analyze:trajectory": "node train/analyzeTrajectory.mjs",
+    "server": "node server/gameDriverServer.mjs"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.2",
     "eslint": "^9.7.0",
     "jest": "^30.4.2",
     "prettier": "^3.3.3",
-    "tailwindcss": "^4.3.2"
+    "tailwindcss": "^4.3.2",
+    "ws": "^8.21.0"
   }
 }
