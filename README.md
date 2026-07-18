@@ -103,4 +103,6 @@ view/
 
 ## License
 
-MIT
+Copyright (C) 2026 Arayaphong Traisopon
+
+This program is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
